@@ -1,1 +1,6 @@
-Course,Target TAs,Fill value111,1,2222,1,1333,1,1
+Course,Target TAs,Fill Weight,,,,
+TEST 111,2,,,,,
+TEST 222,1,,,,,
+TEST 333,3,0.5,,,,
+TEST 444,1,,,,,
+TEST 555,1,,,,,
