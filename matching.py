@@ -44,17 +44,19 @@ def construct_flow(student_prefs, prof_prefs, course_info):
 
     return flow
 
-def write_matching(filename: str):
+def write_matching(filename: str, flow, students, courses, fixed_matches):
     with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["Student", "Course", "Weight"])
-
-            students = list(student_prefs.keys())
-            courses = list([name for name, (target, _) in course_info.items() for _ in range(target) ])
+            
             for arc in range(flow.NumArcs()):
                 si, ci = flow.Tail(arc), flow.Head(arc) - len(students)
                 if flow.Flow(arc) > 0 and si < len(students):
                     writer.writerow([students[si], courses[ci], -flow.UnitCost(arc) / 10 ** DIGITS])
+
+            for s, c, _ in fixed_matches:
+                writer.writerow([s, c, "Fixed"])
+
 
 scale = { "Excellent": 3, "Good": 2, "Okay": 1, "Poor": 0 }
 
@@ -166,8 +168,11 @@ if __name__ == "__main__":
                 del course_info[course]
             else:
                 course_info[course] = course_info[course][0] - 1, course_info[course][1]
+    else:
+        fixed_matches = []
 
-    prof_prefs = read_prof_prefs(args.prof, list(student_prefs.keys()), list(course_info.keys()))
+    students = list(student_prefs.keys())
+    prof_prefs = read_prof_prefs(args.prof, students, list(course_info.keys()))
 
     if args.adjusted:
         adjusted_matches = read_partial_matching(args.adjusted)
@@ -180,7 +185,9 @@ if __name__ == "__main__":
     status = flow.Solve()
     if status == flow.OPTIMAL:
         print('Solved flow with max value ', -flow.OptimalCost())
-        write_matching(args.matchings)
+
+        courses = list([name for name, (target, _) in course_info.items() for _ in range(target)])
+        write_matching(args.matchings, flow, students, courses, fixed_matches)
         
     else:
         print("Problem optimizing flow")
