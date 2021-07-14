@@ -3,9 +3,8 @@ import argparse
 from typing import Dict, List, Tuple
 import numpy as np
 from scipy import stats
-from ortools.graph import pywrapgraph
 
-DIGITS = 3
+import min_cost_flow
 
 rank_scale = ["Poor Matches", "Okay Matches", "Good Matches", "Excellent Matches"] 
 
@@ -14,43 +13,6 @@ REPEAT_WEIGHT = 5
 FAVORITE_WEIGHT = 0.1
 FILL_COURSE_WEIGHT = 10
 UNQUALIFIED_WEIGHT = -10
-
-
-def construct_flow(weights, course_info):
-
-    N, M = weights.shape[0], sum([target for target, _ in course_info.values()])
-    source, sink = N + M, N + M + 1
-    flow = pywrapgraph.SimpleMinCostFlow(2 + N + M)
-
-    # Each student cannot fill >1 course slot
-    for i in range(N):
-        flow.AddArcWithCapacityAndUnitCost(source, i, 1, 0)
-
-    # Each course slot cannot have >1 TA
-    # Value of filling slot is reciprocal with slot index
-    node = N
-    for target, value in course_info.values():
-        for i in range(1, target + 1):
-            cost = int(-value / i * 10 ** DIGITS)
-            flow.AddArcWithCapacityAndUnitCost(node, sink, 1, cost)
-            node += 1
-
-    # Edge weights given by preferences
-    for si in range(N):
-        node = N
-        for ci, info in enumerate(course_info.values()):
-            target, _ = info
-            if weights[si, ci] > -5:
-                cost = int(-weights[si, ci] * 10 ** DIGITS)
-                for slot in range(target):
-                    flow.AddArcWithCapacityAndUnitCost(si, node + slot, 1, cost)
-            node += target
-
-    # Max number of slots must be filled
-    flow.SetNodeSupply(source, min(N, M))
-    flow.SetNodeSupply(sink, -min(N, M))
-
-    return flow
 
 def write_matching(filename: str, flow, student_prefs, prof_prefs, courses, fixed_matches):
     students = list(student_prefs.keys())
@@ -89,12 +51,16 @@ def weights_from_prefs(student_prefs: dict, prof_prefs: dict, adjusted_weights: 
     for ranks, _, _, _ in student_prefs.values():
         scores = stats.zscore(list(ranks.values()))
         np.nan_to_num(scores, copy=False)
+        # penalizes inflexible students
+        scores *= len(scores) / len(courses)
         student_scores.append({c: s for c, s in zip(ranks.keys(), scores)})
 
     prof_scores = []
     for ranks in prof_prefs.values():
         scores = stats.zscore(list(ranks.values()))
         np.nan_to_num(scores, copy=False)
+        # penalizes inflexible professors
+        scores *= len(scores) / len(students)
         prof_scores.append({c: s for c, s in zip(ranks.keys(), scores)})
 
     weights = UNQUALIFIED_WEIGHT * np.ones((len(student_prefs), len(prof_prefs)))
@@ -159,7 +125,7 @@ def read_prof_prefs(filename: str, students: List[str], courses: List[str]) -> D
 
 
 
-def read_course_info(filename: str) -> Dict[str, Tuple[int, float]]:
+def read_course_info(filename: str) -> Dict[str, Tuple[int, int, float]]:
     infos = {}
     with open(filename, newline='') as file:
         reader = csv.DictReader(file)
@@ -168,7 +134,7 @@ def read_course_info(filename: str) -> Dict[str, Tuple[int, float]]:
                 weight = FILL_COURSE_WEIGHT * float(row["Fill Weight"])
             except (ValueError, KeyError):
                 weight = FILL_COURSE_WEIGHT
-            infos[row["Course"]] = int(row["Target TAs"]), weight
+            infos[row["Course"]] = int(row["Target TAs"]), 0, weight
 
     return infos
 
@@ -180,9 +146,9 @@ if __name__ == "__main__":
     parser.add_argument("course", metavar="COURSE INPUT", help="csv file with course information")
     parser.add_argument("--fixed", metavar="FIXED INPUT", help="csv file with required student-course matchings")
     parser.add_argument("--adjusted", metavar="ADJUSTED INPUT", help="csv file with adjustment weights for student-course matchings")
-    parser.add_argument("--matchings", metavar="MATCHING OUTPUT", nargs='?', default='matchings.csv', help="location to write matching output")
-    parser.add_argument("--additional", metavar="ADDITIONAL OUTPUT", nargs='?', default='add_TA.csv', help="location to write effects of gaining an additional TA for each course")
-    parser.add_argument("--removal", metavar="REMOVAL OUTPUT", nargs='?', default='remove_TA.csv', help="location to write effects of removing each TA")
+    parser.add_argument("--matchings", metavar="MATCHING OUTPUT", default='matchings.csv', help="location to write matching output")
+    parser.add_argument("--additional", metavar="ADDITIONAL OUTPUT", nargs='?', const='add_TA.csv', help="location to write effects of gaining an additional TA for each course")
+    parser.add_argument("--removal", metavar="REMOVAL OUTPUT", nargs='?', const='remove_TA.csv', help="location to write effects of removing each TA")
     args = parser.parse_args()
 
     course_info = read_course_info(args.course)
@@ -191,35 +157,26 @@ if __name__ == "__main__":
     if args.fixed:
         fixed_matches = read_partial_matching(args.fixed)
         for student, course, _ in fixed_matches:
-            del student_prefs[student]
-            if course_info[course][0] <= 1:
-                del course_info[course]
-            else:
-                course_info[course] = course_info[course][0] - 1, course_info[course][1]
+            student_prefs.pop(student, None)
+            if course in course_info:
+                cap, filled, weight = course_info[course]
+                course_info[course] = cap, filled + 1, weight
     else:
         fixed_matches = []
 
     students = list(student_prefs.keys())
     prof_prefs = read_prof_prefs(args.prof, students, list(course_info.keys()))
 
-    if args.adjusted:
-        adjusted_matches = read_partial_matching(args.adjusted)
-        for student, course, weight in adjusted_matches:
-            if course in student_prefs[student]:
-                student_prefs[student][course] += weight
+    adjusted_matches = read_partial_matching(args.adjusted) if args.adjusted else []
+    weights = weights_from_prefs(student_prefs, prof_prefs, adjusted_matches)
 
-    weights = weights_from_prefs(student_prefs, prof_prefs)
-
-    flow = construct_flow(weights, course_info)
+    flow = min_cost_flow.construct_flow(weights, course_info)
 
     status = flow.Solve()
-    print(weights)
-    print(student_prefs)
-    print(prof_prefs)
     if status == flow.OPTIMAL:
         print('Solved flow with max value ', -flow.OptimalCost())
 
-        course_slots = list([name for name, (target, _) in course_info.items() for _ in range(target)])
+        course_slots = list([name for name, (cap, filled, _) in course_info.items() for _ in range(cap - filled)])
         write_matching(args.matchings, flow, student_prefs, prof_prefs, course_slots, fixed_matches)
 
     else:
@@ -227,7 +184,35 @@ if __name__ == "__main__":
         for arc in range(flow.NumArcs()):
             print("start: {}, end: {}, capacity: {}, cost: {}".format(flow.Tail(arc), flow.Head(arc), flow.Capacity(arc), flow.UnitCost(arc)))
 
-
     if args.additional:
+        value_change = {}
         for c in course_info:
-            pass
+            # fill one additional course slot
+            course_info_rm = course_info.copy()
+            cap, filled, weight = course_info_rm[c]
+            course_info_rm[c] = cap, filled + 1, weight
+
+            flow_edit = min_cost_flow.construct_flow(weights, course_info_rm)
+            value_change[c] = flow.OptimalCost() - flow_edit.OptimalCost() + min_cost_flow.fill_value(cap, filled, weight) if flow_edit.Solve() == flow_edit.OPTIMAL else -100
+        
+        with open(args.additional, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Course with Additional TA", "Change in Value"])
+            for course, change in sorted(value_change.items(), key=lambda item: -item[1]):
+                writer.writerow([course, change if change != -100 else "Error"])
+
+
+    if args.removal:
+        value_change = {}
+        for i in range(len(students)):
+            # remove student node
+            weights_rm = np.delete(weights, i, 0)
+
+            flow_edit = min_cost_flow.construct_flow(weights_rm, course_info)
+            value_change[students[i]] = flow.OptimalCost() - flow_edit.OptimalCost() if flow_edit.Solve() == flow_edit.OPTIMAL else -100
+
+        with open(args.removal, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Removed TA", "Change in Value"])
+            for student, change in sorted(value_change.items(), key=lambda item: -item[1]):
+                writer.writerow([student, change if change != -100 else "Error"])
