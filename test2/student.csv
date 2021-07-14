@@ -1,0 +1,7 @@
+"Timestamp","Name","Previous TA Experience","Advisor's Course","Excellent Matches","Favorite Course","Good Matches","Okay Matches","Poor Matches","Unqualified Courses"
+"2021/06/24 11:58:25 AM EST","Student A","TEST 333","TEST 333 (prof c)","TEST 333","TEST 333","TEST 222","TEST 111","TEST 444","TEST 555"
+"2021/06/24 11:59:25 AM EST","Student B","","","TEST 333","","TEST 111;TEST 222","","TEST 444;TEST 555",""
+"2021/06/24 11:59:55 AM EST","Student C","","","TEST 444;TEST 555","TEST 555","TEST 333","","","TEST 111;TEST 222"
+"2021/06/24 12:00:25 PM EST","Student D","TEST 444","","TEST 222;TEST 444","TEST 222","TEST 333","TEST 111","TEST 555",""
+"2021/06/24 12:00:54 PM EST","Student E","","TEST 111 (prof a)","TEST 111","","TEST 222;TEST 333","TEST 444","TEST 555",""
+"2021/06/24 12:39:51 PM EST","Student F","","","TEST 222","","TEST 555","TEST 444;TEST 555","TEST 333","TEST 111"
