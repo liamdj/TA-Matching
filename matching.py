@@ -2,11 +2,12 @@ import csv
 import argparse
 from typing import Dict, List, Tuple
 import numpy as np
+import pandas as pd
 from scipy import stats
 
 import min_cost_flow
 
-rank_scale = ["Poor Matches", "Okay Matches", "Good Matches", "Excellent Matches"] 
+rank_scale = pd.Series(["Poor Matches", "Okay Matches", "Good Matches", "Excellent Matches"] , dtype="category")
 
 ADVISOR_WEIGHT = 4
 REPEAT_WEIGHT = 5
@@ -83,9 +84,9 @@ def weights_from_prefs(student_prefs: dict, prof_prefs: dict, adjusted_weights: 
 
     return weights
 
-def read_student_prefs(filename: str, courses: List[str]) -> Dict[str, Tuple[Dict[str, int], List[str], str, str]]:
-    prefs = {}
-    with open(filename, newline='') as file:
+def read_student_prefs_info(prefs_filename: str, info_filename: str, courses: List[str]) -> Dict[str, Tuple[Dict[str, int], List[str], str, str, float]]:
+    ret = {}
+    with open(prefs_filename, newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
             rankings = dict.fromkeys(courses, 1)
@@ -101,9 +102,15 @@ def read_student_prefs(filename: str, courses: List[str]) -> Dict[str, Tuple[Dic
             repeated = row["Previous TA Experience"]
             advisors, _, _ = row["Advisor's Course"].partition(' (')
             favorite = row["Favorite Course"]
-            prefs[row["Name"]] = (rankings, repeated, advisors, favorite)
+            ret[row["Name"]] = (rankings, repeated, advisors, favorite)
 
-    return prefs
+    with open(info_filename, newline='') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            repeated = row["Previous TA Experience"]
+            advisors, _, _ = row["Advisor's Course"].partition(' (')
+
+    return ret
 
 
 def read_prof_prefs(filename: str, students: List[str], courses: List[str]) -> Dict[str, Dict[str, float]]:
@@ -141,9 +148,10 @@ def read_course_info(filename: str) -> Dict[str, Tuple[int, int, float]]:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate matching from input data.")
-    parser.add_argument("student", metavar="STUDENT INPUT", help="csv file with student responses")
-    parser.add_argument("prof", metavar="PROFESSOR INPUT", help="csv file with professor responses")
-    parser.add_argument("course", metavar="COURSE INPUT", help="csv file with course information")
+    parser.add_argument("student_prefs", metavar="STUDENT PREFERENCES", help="csv file with student responses")
+    parser.add_argument("prof_prefs", metavar="PROFESSOR PREFERENCES", help="csv file with professor responses")
+    parser.add_argument("student_info", metavar="STUDENT INFORMATION", help="csv file with student information")
+    parser.add_argument("course_info", metavar="COURSE INFORMATION", help="csv file with course information")
     parser.add_argument("--fixed", metavar="FIXED INPUT", help="csv file with required student-course matchings")
     parser.add_argument("--adjusted", metavar="ADJUSTED INPUT", help="csv file with adjustment weights for student-course matchings")
     parser.add_argument("--matchings", metavar="MATCHING OUTPUT", default='matchings.csv', help="location to write matching output")
@@ -151,8 +159,9 @@ if __name__ == "__main__":
     parser.add_argument("--removal", metavar="REMOVAL OUTPUT", nargs='?', const='remove_TA.csv', help="location to write effects of removing each TA")
     args = parser.parse_args()
 
-    course_info = read_course_info(args.course)
-    student_prefs = read_student_prefs(args.student, course_info.keys())
+    course_info = read_course_info(args.course_info)
+    student_prefs = read_student_prefs(args.student_prefs, course_info.keys())
+    student_info = read_student_info(args.student_info)
 
     if args.fixed:
         fixed_matches = read_partial_matching(args.fixed)
