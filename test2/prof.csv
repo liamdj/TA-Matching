@@ -1,6 +1,0 @@
-"Timestamp","Course","Excellent Matches","Good Matches","Okay Matches","Poor Matches","Unqualified Students"
-"2021/06/24 11:33:24 AM EST","TEST 111","Student D;Student F","Student B;Student E","Student A;Student C","",""
-"2021/06/24 11:38:26 AM EST","TEST 222","Student B","Student A;Student C","Student E","Student F","Student D"
-"2021/06/24 11:38:59 AM EST","TEST 333","Student F","Student B;Student C","Student D","Student E",""
-"2021/06/24 11:50:01 AM EST","TEST 444","Student C","Student D;Student F","Student A","Student B","Student E"
-"2021/06/24 11:52:24 AM EST","TEST 555","Student E;Student F","Student B;Student C","","Student A","Student D"
