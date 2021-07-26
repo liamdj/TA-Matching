@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-import min_cost_flow
+from min_cost_flow import MatchingGraph
 
 rank_scale = ["Unqualified", "Poor", "Okay", "Good", "Excellent"]
 
@@ -14,25 +14,7 @@ REPEAT_WEIGHT = 5
 FAVORITE_WEIGHT = 0.1
 DEFAULT_FILL_WEIGHT = 10
 DEFAULT_ASSIGN_WEIGHT = 0
-UNQUALIFIED_WEIGHT = -10
-
-def write_matching(filename: str, flow, student_prefs, prof_prefs, courses, fixed_matches):
-    students = list(student_prefs.keys())
-    with open(filename, 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Student", "Course", "Student Preference", "Professor Preference"])
-
-        for arc in range(flow.NumArcs()):
-            si, ci = flow.Tail(arc), flow.Head(arc) - len(students)
-            if flow.Flow(arc) > 0 and si < len(students):
-                student = students[si]
-                course = courses[ci]
-                s_rank, _, _ = rank_scale[student_prefs[student][0][course]].partition(' ')
-                c_rank, _, _ = rank_scale[prof_prefs[course][student]].partition(' ')
-                writer.writerow([student, course, s_rank, c_rank])
-
-        for student, course, _ in fixed_matches:
-            writer.writerow([student, course, "Fixed", ""])
+BASE_MATCH_WEIGHT = 10
 
 def read_partial_matching(filename: str) -> pd.DataFrame:
     return pd.read_csv(filename) if filename else pd.DataFrame()
@@ -40,84 +22,77 @@ def read_partial_matching(filename: str) -> pd.DataFrame:
 # generator that skips values of unqualified
 def qual_resp(series, cols):
     for c in cols:
-        if series[c] > 0:
-            yield c, series[c]
+        v = 2 if series[c] == "None" else rank_scale.index(series[c])
+        if v > 0:
+            yield c, v
 
-def weights_from_data(student_data: pd.DataFrame, course_data: pd.DataFrame, adjusted_weights: pd.DataFrame) -> np.array:
-
-    student_scores = []
-    for student, row in student_data.iterrows():
+def generate_scores(data: pd.DataFrame, cols: pd.Series) -> pd.DataFrame:
+    rows = []
+    for index, row in data.iterrows():
         # collect values for qualified responses
-        values = [v for _, v in qual_resp(row, course_data.index)]
-        # normalize scores associated with rankings
+        values = [v for _, v in qual_resp(row, cols)]
+        # normalized scores associated with rankings
         scores = np.nan_to_num(stats.zscore(values))
-        # penalize inflexible students
-        scores *= len(values) / len(course_data.index)
-        student_scores.append({course: score for (course, _), score in zip(qual_resp(row, course_data.index), scores)})
+        # penalize inflexible students / profs
+        scores *= len(values) / len(cols)
+        rows.append(pd.Series({c: score for (c, _), score in zip(qual_resp(row, cols), scores)}, name=index))
+    return pd.concat(rows, axis="columns").T
 
+def match_weights(student_info: pd.DataFrame, student_scores: pd.DataFrame, course_info: pd.DataFrame, course_scores: pd.DataFrame) -> np.array:
 
-    course_scores = []
-    for course, row in course_data.iterrows():
-        # collect values for qualified responses
-        values = [v for _, v in qual_resp(row, student_data.index)]
-        # normalize scores associated with rankings
-        scores = np.nan_to_num(stats.zscore(values))
-        # penalize inflexible profs
-        scores *= len(values) / len(student_data.index)
-        course_scores.append({student: score for (student, _), score in zip(qual_resp(row, student_data.index), scores)})
+    weights = np.zeros((len(student_info.index), len(course_info.index)))
+    for si, student in enumerate(student_info.index):
+        s_scores = student_scores.loc[student]
+        previous = student_info.loc[student, "Previous Courses"].split(';')
+        advisor = student_info.loc[student, "Advisor's Course"]
+        favorite = student_info.loc[student, "Favorite Course"]
+        for ci, course in enumerate(course_info.index):
+            c_scores = course_scores.loc[course]
+            if not pd.isna(c_scores[student]) and not pd.isna(s_scores[course]):
+                weights[si, ci] = s_scores[course] + c_scores[student] + BASE_MATCH_WEIGHT
 
-    weights = UNQUALIFIED_WEIGHT * np.ones((len(student_data.index), len(course_data.index)))
-    for si, ((student, row), s_scores) in enumerate(zip(student_data.iterrows(), student_scores)):
-        previous = row["Previous Courses"].split(';')
-        for ci, (course, c_scores) in enumerate(zip(course_data.index, course_scores)):
-            if student in c_scores and course in s_scores:
-                weights[si, ci] = s_scores[course] + c_scores[student]
-            if course in previous:
-                weights[si, ci] += REPEAT_WEIGHT
-            if course == row["Advisor's Course"]:
-                weights[si, ci] += ADVISOR_WEIGHT
-            if course == row["Favorite Course"]:
-                weights[si, ci] += FAVORITE_WEIGHT
- 
-    for _, row in adjusted_weights.iterrows():
-        si = student_data.index.get_loc(row["Student"])
-        ci = course_data.index.get_loc(row["Course"])
-        weights[si, ci] += row["Match Weight"]
+                if course in previous:
+                    weights[si, ci] += REPEAT_WEIGHT
+                if course == advisor:
+                    weights[si, ci] += ADVISOR_WEIGHT
+                if course == favorite:
+                    weights[si, ci] += FAVORITE_WEIGHT
 
     return weights
 
-def read_student_data(response_filename: str, info: pd.DataFrame, courses: List[str]) -> pd.DataFrame:
+def read_student_responses(filename: str, courses: List[str]) -> Tuple[pd.DataFrame, pd.Series]:
     # expand list of courses into ranking for each course
-    ls = []
-    with open(response_filename, newline='') as file:
+    rank_rows = []
+    favorites = {}
+    with open(filename, newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            series = pd.Series(2, index=courses, name=row["Name"])
-            for value, question in enumerate(rank_scale):
-                for course in row[question + " Matches"].split(';'):
+            collect = {}
+            for rank in rank_scale:
+                for course in row[rank + " Matches"].split(';'):
                     if course:
-                        series[course] = value
+                        collect[course] = rank
             # netid, _, _ = row["Username"].partition('@') (')
-            series["Favorite Course"] = row["Favorite Course"]
-            ls.append(series)
+            rank_rows.append(pd.Series(collect, name=row["Name"]))
+            favorites[row["Name"]] = row["Favorite Course"]
 
-    responses = pd.concat(ls, axis='columns').T
+    return pd.concat(rank_rows, axis='columns').fillna("None").T, pd.Series(favorites)
     return pd.concat([responses, info], axis='columns')
 
-def read_course_data(response_filename: str, info: pd.DataFrame, students: List[str]) -> pd.DataFrame:
+def read_prof_responses(filename: str, students: List[str]) -> pd.DataFrame:
     # expand list of students into ranking for each student
-    ls = []
-    with open(response_filename, newline='') as file:
+    rank_rows = []
+    with open(filename, newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            series = pd.Series(2, index=students, name=row["Course"])
-            for value, question in enumerate(rank_scale):
-                for student in row[question + " Matches"].split(';'):
+            collect = {}
+            for rank in rank_scale:
+                for student in row[rank + " Matches"].split(';'):
                     if student:
-                        series[student] = value
-            ls.append(series)
+                        collect[student] = rank
+            rank_rows.append(rank_rows.append(pd.Series(collect, name=row["Course"])))
 
-    responses = pd.concat(ls, axis='columns').T
+    return pd.concat(rank_rows, axis='columns').fillna("None").T
     return pd.concat([responses, info], axis='columns')
 
 if __name__ == "__main__":
@@ -142,56 +117,66 @@ if __name__ == "__main__":
     course_info["TA Slots"].fillna(1, inplace=True)
     course_info["Fill Weight"].fillna(DEFAULT_FILL_WEIGHT, inplace=True)
 
-    student_data = read_student_data(args.student_prefs, student_info, list(course_info.index))
-    course_data = read_course_data(args.prof_prefs, course_info, list(student_info.index))
+    student_ranks, favorites = read_student_responses(args.student_prefs, list(course_info.index))
+    student_info["Favorite Course"] = favorites
+
+    course_ranks = read_prof_responses(args.prof_prefs, list(student_info.index))
+
+    student_scores = generate_scores(student_ranks, course_info.index)
+    course_scores = generate_scores(course_ranks, student_info.index)
+
+    weights = match_weights(student_info, student_scores, course_info, course_scores)
 
     adjusted_matches = read_partial_matching(args.adjusted)
-    weights = weights_from_data(student_data, course_data, adjusted_matches)
+    for _, row in adjusted_matches.iterrows():
+        si = student_info.index.get_loc(row["Student"])
+        ci = course_info.index.get_loc(row["Course"])
+        weights[si, ci] += row["Match Weight"]
 
     fixed_matches = read_partial_matching(args.fixed)
-    flow = min_cost_flow.construct_flow(weights, course_info)
+    fixed_matches["Student index"] = [student_info.index.get_loc(row["Student"]) for _, row in fixed_matches.iterrows()]
+    fixed_matches["Course index"] = [course_info.index.get_loc(row["Course"]) for _, row in fixed_matches.iterrows()]
 
-    status = flow.Solve()
-    if status == flow.OPTIMAL:
-        print('Solved flow with max value ', -flow.OptimalCost())
+    graph = MatchingGraph(weights, student_info["Assign Weight"], course_info["Fill Weight"], course_info["TA Slots"], fixed_matches)
 
-        course_slots = list([name for name, (cap, filled, _) in course_info.items() for _ in range(cap - filled)])
-        write_matching(args.matchings, flow, student_info, course_info, course_slots, fixed_matches)
+    if graph.solve():
+        print('Successfully solved flow')
+        graph.write(args.matchings, student_info.index, student_ranks, student_scores, course_info.index, course_ranks, course_scores, fixed_matches)
 
     else:
         print("Problem optimizing flow")
-        for arc in range(flow.NumArcs()):
-            print("start: {}, end: {}, capacity: {}, cost: {}".format(flow.Tail(arc), flow.Head(arc), flow.Capacity(arc), flow.UnitCost(arc)))
+        # print(graph.flow.BAD_COST_RANGE, graph.flow.BAD_RESULT, graph.flow.INFEASIBLE, graph.flow.NOT_SOLVED, graph.flow.UNBALANCED)
+        graph.print()
 
-    if args.additional:
-        value_change = {}
-        for c in course_info:
-            # fill one additional course slot
-            course_info_rm = course_info.copy()
-            cap, filled, weight = course_info_rm[c]
-            course_info_rm[c] = cap, filled + 1, weight
+    # if args.additional:
+    #     value_change = {}
+    #     for c in course_info:
+    #         # fill one additional course slot
+    #         course_info_rm = course_info.copy()
+    #         cap, filled, weight = course_info_rm[c]
+    #         course_info_rm[c] = cap, filled + 1, weight
 
-            flow_edit = min_cost_flow.construct_flow(weights, course_info_rm)
-            value_change[c] = flow.OptimalCost() - flow_edit.OptimalCost() + min_cost_flow.fill_value(cap, filled, weight) if flow_edit.Solve() == flow_edit.OPTIMAL else -100
+    #         flow_edit = min_cost_flow.construct_flow(weights, course_info_rm)
+    #         value_change[c] = flow.OptimalCost() - flow_edit.OptimalCost() + min_cost_flow.fill_value(cap, filled, weight) if flow_edit.Solve() == flow_edit.OPTIMAL else -100
         
-        with open(args.additional, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["Course with Additional TA", "Change in Value"])
-            for course, change in sorted(value_change.items(), key=lambda item: -item[1]):
-                writer.writerow([course, change if change != -100 else "Error"])
+    #     with open(args.additional, 'w', newline='') as file:
+    #         writer = csv.writer(file)
+    #         writer.writerow(["Course with Additional TA", "Change in Value"])
+    #         for course, change in sorted(value_change.items(), key=lambda item: -item[1]):
+    #             writer.writerow([course, change if change != -100 else "Error"])
 
 
-    if args.removal:
-        value_change = {}
-        for i in range(len(students)):
-            # remove student node
-            weights_rm = np.delete(weights, i, 0)
+    # if args.removal:
+    #     value_change = {}
+    #     for i in range(len(students)):
+    #         # remove student node
+    #         weights_rm = np.delete(weights, i, 0)
 
-            flow_edit = min_cost_flow.construct_flow(weights_rm, course_info)
-            value_change[students[i]] = flow.OptimalCost() - flow_edit.OptimalCost() if flow_edit.Solve() == flow_edit.OPTIMAL else -100
+    #         flow_edit = min_cost_flow.construct_flow(weights_rm, course_info)
+    #         value_change[students[i]] = flow.OptimalCost() - flow_edit.OptimalCost() if flow_edit.Solve() == flow_edit.OPTIMAL else -100
 
-        with open(args.removal, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["Removed TA", "Change in Value"])
-            for student, change in sorted(value_change.items(), key=lambda item: -item[1]):
-                writer.writerow([student, change if change != -100 else "Error"])
+    #     with open(args.removal, 'w', newline='') as file:
+    #         writer = csv.writer(file)
+    #         writer.writerow(["Removed TA", "Change in Value"])
+    #         for student, change in sorted(value_change.items(), key=lambda item: -item[1]):
+    #             writer.writerow([student, change if change != -100 else "Error"])
