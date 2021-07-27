@@ -1,4 +1,5 @@
 import csv
+import sys
 import argparse
 from typing import Dict, List, Tuple
 import numpy as np
@@ -60,10 +61,12 @@ def match_weights(student_info: pd.DataFrame, student_scores: pd.DataFrame, cour
 
     return weights
 
-def read_student_responses(filename: str, courses: List[str]) -> Tuple[pd.DataFrame, pd.Series]:
+def read_student_responses(filename: str) -> Tuple[pd.DataFrame, pd.Series]:
     # expand list of courses into ranking for each course
     rank_rows = []
-    favorites = {}
+    names = []
+    favorites = []
+    netids = []
     with open(filename, newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
@@ -72,14 +75,15 @@ def read_student_responses(filename: str, courses: List[str]) -> Tuple[pd.DataFr
                 for course in row[rank + " Matches"].split(';'):
                     if course:
                         collect[course] = rank
-            # netid, _, _ = row["Username"].partition('@') (')
             rank_rows.append(pd.Series(collect, name=row["Name"]))
-            favorites[row["Name"]] = row["Favorite Course"]
+            names.append(row["Name"])
+            favorites.append(row["Favorite Course"])
+            id, _, _ = row["Username"].partition('@')
+            netids.append(id)
 
-    return pd.concat(rank_rows, axis='columns').fillna("None").T, pd.Series(favorites)
-    return pd.concat([responses, info], axis='columns')
+    return pd.concat(rank_rows, axis='columns').fillna("None").T, pd.Series(favorites, index=names), pd.Series(netids, index=names)
 
-def read_prof_responses(filename: str, students: List[str]) -> pd.DataFrame:
+def read_prof_responses(filename: str) -> pd.DataFrame:
     # expand list of students into ranking for each student
     rank_rows = []
     with open(filename, newline='') as file:
@@ -93,7 +97,37 @@ def read_prof_responses(filename: str, students: List[str]) -> pd.DataFrame:
             rank_rows.append(rank_rows.append(pd.Series(collect, name=row["Course"])))
 
     return pd.concat(rank_rows, axis='columns').fillna("None").T
-    return pd.concat([responses, info], axis='columns')
+
+def check_student_input(info: pd.Series, responses: pd.Series):
+
+    for index in info[info.index.duplicated()].index:
+        sys.exit("Duplicate information for {}. Exiting without solving".format(index))
+    for index in responses[responses.index.duplicated()].index:
+        sys.exit("Duplicate responses for {}. Exiting without solving".format(index))
+    
+    df = pd.concat([info, responses], axis=1)
+    for index, row in df.iloc[:, 0].compare(df.iloc[:, 1]).iterrows():
+        if pd.isna(row["self"]):
+            sys.exit("Responses for {} are given, but the accompanying information is missing. Exiting without solving.".format(index))
+        elif pd.isna(row["other"]):
+            sys.exit("Responses for {} are missing. Exiting without solving.".format(index))
+        else:
+            print("'{}' is given as the net id given for {}, but the respondent used '{}'.".format(row["self"], index, row["other"]))
+
+
+    
+def check_course_input(info: pd.Index, responses: pd.Index):
+
+    for index in info[info.duplicated()]:
+        sys.exit("Duplicate information for {}. Exiting without solving.".format(index))
+    for index in responses[responses.duplicated()]:
+        sys.exit("Duplicate responses for {}. Exiting without solving.".format(index))
+
+    for index in responses.difference(info):
+        sys.exit("Responses for {} are given, but the accompanying information is missing. Exiting without solving.".format(index))
+    for index in info.difference(responses):
+        sys.exit("Responses for {} are missing. Exiting without solving.".format(index))
+
 
 if __name__ == "__main__":
 
@@ -117,10 +151,12 @@ if __name__ == "__main__":
     course_info["TA Slots"].fillna(1, inplace=True)
     course_info["Fill Weight"].fillna(DEFAULT_FILL_WEIGHT, inplace=True)
 
-    student_ranks, favorites = read_student_responses(args.student_prefs, list(course_info.index))
+    student_ranks, favorites, netids = read_student_responses(args.student_prefs)
+    check_student_input(student_info["Net ID"], netids)
     student_info["Favorite Course"] = favorites
 
-    course_ranks = read_prof_responses(args.prof_prefs, list(student_info.index))
+    course_ranks = read_prof_responses(args.prof_prefs)
+    check_course_input(course_info.index, course_ranks.index)
 
     student_scores = generate_scores(student_ranks, course_info.index)
     course_scores = generate_scores(course_ranks, student_info.index)
@@ -134,8 +170,8 @@ if __name__ == "__main__":
         weights[si, ci] += row["Match Weight"]
 
     fixed_matches = read_partial_matching(args.fixed)
-    fixed_matches["Student index"] = [student_info.index.get_loc(row["Student"]) for _, row in fixed_matches.iterrows()]
-    fixed_matches["Course index"] = [course_info.index.get_loc(row["Course"]) for _, row in fixed_matches.iterrows()]
+    fixed_matches["Student index"] = [student_info.index.get_loc(student) for student in fixed_matches["Student"]]
+    fixed_matches["Course index"] = [course_info.index.get_loc(course) for course in fixed_matches["Course"]]
 
     graph = MatchingGraph(weights, student_info["Assign Weight"], course_info["Fill Weight"], course_info["TA Slots"], fixed_matches)
 

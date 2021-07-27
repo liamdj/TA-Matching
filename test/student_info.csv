@@ -1,7 +1,7 @@
-Student,Previous Courses,Advisor's Course,Assign Weight
-Student A,,,
-Student B,TEST 444,TEST 333,
-Student C,,TEST 111,
-Student D,,,
-Student E,,,
-Student F,TEST 333;TEST 111,,
+Student,Net ID,Previous Courses,Advisor's Course,Assign Weight
+Student A,a,,,
+Student B,b,TEST 444,TEST 333,
+Student C,c,,TEST 111,
+Student D,d,,,
+Student E,e,,,
+Student F,f,TEST 333;TEST 111,,
