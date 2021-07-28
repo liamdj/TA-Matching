@@ -1,74 +1,74 @@
-Student,Course,Total Match Weight,Notes,Student Score,Student Rank,Professor Score,Professor Rank
-Student #52,529,19.534,,0.60,Excellent,-0.17,Okay
-Student #56,375,19.002,,0.33,Excellent,-0.33,Okay
-Student #37,461,18.969,,0.35,Excellent,-0.38,Okay
-Student #31,432,18.839,,0.18,Excellent,-0.34,Okay
-Student #61,126,18.755,,0.26,Excellent,-0.51,Okay
-Student #65,318,17.758,,0.34,Excellent,3.42,Excellent
-Student #11,429,17.685,,0.21,Excellent,2.47,Excellent
-Student #39,429,17.296,,-0.18,Good,2.47,Excellent
-Student #53,432,17.189,,0.18,Excellent,3.01,Excellent
-Student #66,340,17.035,,0.53,Excellent,2.51,Excellent
-Student #40,324,16.98,,0.35,Excellent,2.63,Excellent
-Student #1,429,16.843,,0.37,Excellent,2.47,Excellent
-Student #30,217,16.687,,0.18,Excellent,2.51,Excellent
-Student #55,513,16.142,,0.18,Excellent,5.96,Excellent
-Student #50,561,15.629,,-0.33,Okay,5.96,Excellent
-Student #21,487,15.107,,0.35,Excellent,-0.24,Okay
-Student #35,333,15.097,,0.35,Excellent,-0.35,Okay
-Student #2,461,15.043,,0.42,Excellent,-0.38,Okay
-Student #42,526,14.94,,0.11,Excellent,-0.17,Okay
-Student #8,217,14.93,,0.33,Excellent,-0.40,Okay
-Student #64,375,14.883,,0.11,Excellent,-0.33,Okay
-Student #16,217,14.858,,0.26,Excellent,-0.40,Okay
-Student #28,432,14.832,,0.18,Excellent,-0.34,Okay
-Student #9,302,14.809,,0.11,Excellent,-0.30,Okay
-Student #68,126,14.804,,0.31,Excellent,-0.51,Okay
-Student #45,326,14.795,,0.17,Excellent,-0.38,Okay
-Student #36,429,14.755,,0.17,Excellent,-0.42,Okay
-Student #44,226,14.748,,0.06,Good,-0.31,Okay
-Student #58,109,14.647,,-0.18,Good,-0.17,Okay
-Student #20,126,14.633,,0.14,Good,-0.51,Okay
-Student #38,217,14.601,,0.00,Good,-0.40,Okay
-Student #43,302,14.526,,-0.17,Good,-0.30,Okay
-Student #19,521,14.499,,-0.20,Good,-0.30,Okay
-Student #57,487,14.492,,-0.27,Good,-0.24,Okay
-Student #71,226,14.384,,-0.30,Good,-0.31,Okay
-Student #27,318,14.367,,0.60,Excellent,-0.33,Okay
-Student #60,326,14.361,,-0.26,Good,-0.38,Okay
-Student #69,461,14.324,,0.60,Excellent,-0.38,Okay
-Student #17,217,14.304,,0.60,Excellent,-0.40,Okay
-Student #3,333,14.301,,-0.35,Good,-0.35,Okay
-Student #67,375,14.276,,0.60,Excellent,-0.33,Okay
-Student #6,340,14.25,,-0.35,Good,-0.40,Okay
-Student #59,340,14.25,,-0.35,Good,-0.40,Okay
-Student #13,126,14.23,,-0.26,Good,-0.51,Okay
-Student #7,340,14.204,,0.60,Excellent,-0.40,Okay
-Student #14,326,14.074,,0.45,Excellent,-0.38,Okay
-Student #12,326,14.055,,0.43,Excellent,-0.38,Okay
-Student #47,551,14.043,,0.21,Excellent,-0.17,Okay
-Student #48,375,14.035,,0.26,Excellent,-0.33,Okay
-Student #46,326,13.985,,0.26,Excellent,-0.38,Okay
-Student #32,226,13.97,,0.28,Excellent,-0.31,Okay
-Student #72,302,13.961,,0.26,Excellent,-0.30,Okay
-Student #24,516,13.952,,-0.20,Good,4.15,Excellent
-Student #34,302,13.939,,0.24,Excellent,-0.30,Okay
-Student #70,429,13.926,,0.24,Excellent,-0.42,Okay
-Student #15,333,13.923,,0.17,Excellent,-0.35,Okay
-Student #26,432,13.921,,0.27,Excellent,-0.34,Okay
-Student #25,521,13.793,,0.35,Excellent,3.34,Excellent
-Student #63,340,13.779,,0.18,Excellent,-0.40,Okay
-Student #0,429,13.692,,0.11,Excellent,-0.42,Okay
-Student #10,226,13.613,,0.11,Excellent,3.50,Excellent
-Student #22,461,13.409,,0.33,Excellent,3.07,Excellent
-Student #41,302,13.341,,0.00,Good,3.34,Excellent
-Student #54,326,12.851,,0.18,Excellent,2.67,Excellent
-Student #33,324,12.281,,-0.35,Okay,2.63,Excellent
-Student #51,126,11.966,,0.00,Good,1.97,Excellent
-Student #5,461,11.76,,0.31,Excellent,1.35,Good
-Student #29,516,10.087,,0.33,Excellent,-0.24,Okay
-Student #4,318,9.865,,0.10,Excellent,-0.33,Okay
-Student #23,126,9.752,,0.26,Excellent,-0.51,Okay
-Student #62,217,9.701,,0.00,Excellent,-0.40,Okay
-Student #18,451,9.484,,-0.35,Poor,-0.17,Okay
-Student #49,333,9.347,,-0.30,Good,-0.35,Okay
+Student,Course,Total Match Weight,Notes,Student Rank,Student Rank Score,Matches Score (Student),Professor Rank,Professor Rank Score,Match Score (Course)
+Student #25,461,19.06,"previous, advisor-advisee",Excellent,0.26,2.92,Excellent,2.80,2.80
+Student #67,551,18.65,previous,Excellent,0.18,2.90,Excellent,5.47,3.82
+Student #27,318,16.79,previous,Excellent,0.11,3.02,Excellent,3.69,3.01
+Student #49,340,16.08,advisor-advisee,Excellent,0.28,2.31,Excellent,2.80,2.18
+Student #20,324,16.01,"previous, favorite",Excellent,0.22,2.72,Excellent,2.59,1.79
+Student #46,375,15.85,previous,Good,0.00,2.28,Excellent,2.85,2.63
+Student #40,326,15.82,"previous, advisor-advisee",Excellent,0.25,2.17,Okay,-0.42,2.25
+Student #59,126,15.51,advisor-advisee,Excellent,0.26,2.65,Excellent,2.25,1.91
+Student #70,302,15.5,previous,Good,-0.35,2.22,Excellent,2.85,2.37
+Student #4,324,15.32,previous,Good,-0.26,2.44,Excellent,2.59,1.66
+Student #56,217,14.96,previous,Good,-0.27,2.44,Excellent,2.23,1.85
+Student #38,333,13.8,favorite,Excellent,0.26,2.41,Excellent,3.34,2.59
+Student #39,521,13.45,,Excellent,0.11,2.25,Excellent,3.34,2.76
+Student #66,561,13.38,"previous, favorite",Excellent,0.26,2.08,Okay,-0.07,4.01
+Student #35,109,13.37,"advisor-advisee, favorite",Excellent,0.35,1.82,Okay,-0.17,5.17
+Student #68,226,13.23,"advisor-advisee, favorite",Excellent,0.37,2.34,Okay,-0.33,1.79
+Student #2,226,13.2,"advisor-advisee, favorite",Excellent,0.34,2.16,Okay,-0.33,1.79
+Student #3,318,13.18,"previous, favorite",Excellent,0.26,2.18,Okay,-0.27,2.24
+Student #54,451,13.18,advisor-advisee,Excellent,0.26,2.19,Okay,-0.07,4.26
+Student #24,461,13.17,"advisor-advisee, favorite",Excellent,0.34,2.15,Okay,-0.37,1.70
+Student #72,333,13.16,"previous, favorite",Excellent,0.26,2.19,Okay,-0.30,2.44
+Student #15,521,13.14,,Good,-0.19,1.98,Excellent,3.34,2.69
+Student #71,461,13.14,,Excellent,0.35,2.00,Excellent,2.80,1.70
+Student #10,432,13.11,"advisor-advisee, favorite",Excellent,0.26,2.03,Okay,-0.35,1.87
+Student #6,326,13.1,"advisor-advisee, favorite",Excellent,0.33,2.12,Okay,-0.42,1.72
+Student #5,521,13.07,,Good,-0.27,1.83,Excellent,3.34,2.67
+Student #42,318,13.07,advisor-advisee,Excellent,0.35,1.78,Okay,-0.27,2.21
+Student #12,432,13.05,favorite,Excellent,0.00,2.58,Excellent,2.85,1.86
+Student #47,126,13.02,"advisor-advisee, favorite",Excellent,0.27,2.35,Okay,-0.44,1.44
+Student #31,226,12.97,"previous, favorite",Excellent,0.11,2.52,Okay,-0.33,1.74
+Student #64,429,12.97,previous,Excellent,0.35,2.01,Okay,-0.38,1.38
+Student #34,333,12.96,advisor-advisee,Excellent,0.26,2.29,Okay,-0.30,2.40
+Student #41,432,12.95,"previous, favorite",Excellent,0.11,2.14,Okay,-0.35,1.84
+Student #26,302,12.94,,Good,0.10,1.90,Excellent,2.85,1.86
+Student #61,302,12.94,"advisor-advisee, favorite",Excellent,0.10,2.78,Okay,-0.35,1.86
+Student #48,324,12.93,,Excellent,0.35,1.97,Excellent,2.59,1.20
+Student #23,513,12.92,previous,Excellent,0.00,3.25,Okay,-0.07,4.26
+Student #53,432,12.91,previous,Excellent,0.26,2.02,Okay,-0.35,1.83
+Student #52,126,12.9,advisor-advisee,Excellent,0.35,1.95,Okay,-0.44,1.42
+Student #14,333,12.88,previous,Excellent,0.18,2.26,Okay,-0.30,2.38
+Student #19,217,12.88,advisor-advisee,Excellent,0.35,1.94,Okay,-0.46,1.46
+Student #1,324,12.85,previous,Excellent,0.26,2.12,Okay,-0.41,1.18
+Student #21,461,12.8,previous,Excellent,0.18,2.29,Okay,-0.37,1.63
+Student #33,324,12.79,advisor-advisee,Excellent,0.20,2.25,Okay,-0.41,1.17
+Student #29,429,12.77,,Excellent,0.11,2.47,Excellent,2.67,1.34
+Student #37,324,12.77,,Excellent,0.18,2.11,Excellent,2.59,1.17
+Student #36,217,12.73,"previous, favorite",Excellent,0.00,2.51,Okay,-0.46,1.43
+Student #0,126,12.63,favorite,Excellent,0.18,2.23,Excellent,2.25,1.37
+Student #22,302,12.6,previous,Good,-0.04,1.81,Okay,-0.35,1.79
+Student #45,340,12.53,,Good,-0.27,1.87,Excellent,2.80,1.50
+Student #43,326,12.5,,Good,-0.30,2.68,Excellent,2.81,1.60
+Student #18,432,12.44,previous,Good,-0.20,1.86,Okay,-0.35,1.74
+Student #30,429,12.43,,Poor,-0.23,2.00,Excellent,2.67,1.27
+Student #51,461,12.42,previous,Good,-0.20,1.77,Okay,-0.37,1.56
+Student #28,217,11.96,,Good,-0.26,2.08,Excellent,2.23,1.29
+Student #60,326,11.86,favorite,Excellent,0.47,1.78,Good,1.19,1.48
+Student #8,340,11.47,,Excellent,0.26,1.84,Good,1.22,1.30
+Student #9,217,10.47,,Poor,-0.41,1.66,Good,0.88,1.01
+Student #50,226,10.34,favorite,Excellent,0.48,1.66,Okay,-0.33,1.23
+Student #13,429,10.17,favorite,Excellent,0.35,1.48,Okay,-0.38,0.83
+Student #7,340,10.16,favorite,Excellent,0.34,1.78,Okay,-0.37,1.05
+Student #69,340,10.15,,Excellent,0.52,1.46,Okay,-0.37,1.05
+Student #63,529,10.13,favorite,Excellent,0.10,2.27,Okay,-0.17,3.03
+Student #57,487,10.11,,Excellent,0.35,1.45,Okay,-0.24,2.60
+Student #44,526,10.09,,Excellent,0.26,1.77,Okay,-0.16,4.90
+Student #58,487,10.07,favorite,Excellent,0.11,1.99,Okay,-0.24,2.59
+Student #62,318,10.07,,Excellent,0.35,1.46,Okay,-0.27,1.57
+Student #32,375,10.0,,Excellent,0.35,1.58,Okay,-0.35,1.42
+Student #11,326,9.87,favorite,Excellent,0.09,2.65,Okay,-0.42,1.09
+Student #65,375,9.84,favorite,Excellent,0.00,2.22,Okay,-0.35,1.39
+Student #16,375,9.83,,Excellent,0.18,1.70,Okay,-0.35,1.38
+Student #55,516,9.65,,Okay,-0.25,1.35,Okay,-0.09,3.00
+Student #17,516,9.63,,Okay,-0.27,1.26,Okay,-0.09,3.00

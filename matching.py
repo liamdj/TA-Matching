@@ -1,7 +1,7 @@
 import csv
 import sys
 import argparse
-from typing import Dict, List, Tuple
+from typing import Tuple
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -10,9 +10,9 @@ from min_cost_flow import MatchingGraph
 
 rank_scale = ["Unqualified", "Poor", "Okay", "Good", "Excellent"]
 
-ADVISOR_WEIGHT = 4
-REPEAT_WEIGHT = 5
-FAVORITE_WEIGHT = 0.1
+ADVISOR_WEIGHT = 3
+REPEAT_WEIGHT = 3
+FAVORITE_WEIGHT = 0.2
 DEFAULT_FILL_WEIGHT = 10
 DEFAULT_ASSIGN_WEIGHT = 0
 BASE_MATCH_WEIGHT = 10
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     if graph.solve():
         print('Successfully solved flow')
-        graph.write(args.matchings, student_info.index, student_ranks, student_scores, course_info.index, course_ranks, course_scores, fixed_matches)
+        graph.write_matching(args.matchings, weights, student_info, student_ranks, student_scores, course_info.index, course_ranks, course_scores, fixed_matches)
 
     else:
         print("Problem optimizing flow")

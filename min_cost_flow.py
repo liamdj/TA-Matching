@@ -1,9 +1,8 @@
 from ortools.graph import pywrapgraph
-from copy import copy
-
+from scipy import stats
 import csv
 
-DIGITS = 3
+DIGITS = 2
 
 class MatchingGraph:
 
@@ -57,17 +56,22 @@ class MatchingGraph:
     def solve(self):
         return self.flow.Solve() == self.flow.OPTIMAL
 
-    def write(self, filename, students, student_ranks, student_scores, courses, course_ranks, course_scores, fixed_matches):
+    def write_matching(self, filename, weights, student_info, student_ranks, student_scores, courses, course_ranks, course_scores, fixed_matches):
 
         matches = []
+        unassigned = []
         for arc in range(self.flow.NumArcs()):
-            si, ci = self.flow.Tail(arc), self.flow.Head(arc) - len(students)
-            if self.flow.Flow(arc) > 0 and si < len(students):
-                student = students[si]
-                course = courses[ci]
-                matches.append((student, course, -self.flow.UnitCost(arc) / 10 ** DIGITS))
+            si, ci = self.flow.Tail(arc), self.flow.Head(arc) - len(student_info.index)
+            # arcs from student to course
+            if self.flow.Flow(arc) > 0 and si < len(student_info.index):
+                matches.append((si, ci, -self.flow.UnitCost(arc) / 10 ** DIGITS))
+            # arcs from source to student
+            elif ci < 0 and self.flow.Flow(arc) == 0:
+                unassigned.append(self.flow.Head(arc))
 
         matches.sort(key=lambda tup: -tup[2])
+        student_perspective = stats.zscore(weights, axis=1)
+        course_perspective = stats.zscore(weights, axis=0)
 
         # Note which matches were fixed
         fixed = set()
@@ -77,17 +81,31 @@ class MatchingGraph:
 
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Student", "Course", "Total Match Weight", "Notes", "Student Score", "Student Rank", "Professor Score", "Professor Rank"])
+            writer.writerow(["Student", "Course", "Total Match Weight", "Notes", "Student Rank", "Student Rank Score", "Matches Score (Student)", "Professor Rank", "Professor Rank Score", "Match Score (Course)"])
 
-            for i, (student, course, weight) in enumerate(matches):
+            for i, (si, ci, weight) in enumerate(matches):
+                student = student_info.index[si]
+                course = courses[ci]
                 s_rank = student_ranks.loc[student, course]
-                s_score = student_scores.loc[student, course]
+                s_rank_score = student_scores.loc[student, course]
+                s_match_score = student_perspective[si, ci]
                 c_rank = course_ranks.loc[course, student]
-                c_score = course_scores.loc[course, student]
-                notes = ""
+                c_rank_score = course_scores.loc[course, student]
+                c_match_score = course_perspective[si, ci]
+                notes = []
                 if i in fixed:
-                    notes += "Fixed"
-                writer.writerow([student, course, weight, notes, "{:.2f}".format(s_score), s_rank,  "{:.2f}".format(c_score), c_rank])
+                    notes.append("fixed")
+                if course in student_info.loc[student, "Previous Courses"].split(';'):
+                    notes.append("previous")
+                if course == student_info.loc[student, "Advisor's Course"]:
+                    notes.append("advisor-advisee")
+                if course == student_info.loc[student, "Favorite Course"]:
+                    notes.append("favorite")
+                writer.writerow([student, course, weight, ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
+
+            for si in unassigned:
+                writer.writerow([student_info.index[si], "unassigned", "", "", "", "", "", "", "", ""])
+
 
     def print(self):
         for arc in range(self.flow.NumArcs()):
