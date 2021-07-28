@@ -1,7 +1,7 @@
 import csv
 import sys
 import argparse
-from typing import Dict, List, Tuple
+from typing import Tuple
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -10,9 +10,9 @@ from min_cost_flow import MatchingGraph
 
 rank_scale = ["Unqualified", "Poor", "Okay", "Good", "Excellent"]
 
-ADVISOR_WEIGHT = 4
-REPEAT_WEIGHT = 5
-FAVORITE_WEIGHT = 0.1
+ADVISOR_WEIGHT = 3
+REPEAT_WEIGHT = 3
+FAVORITE_WEIGHT = 0.2
 DEFAULT_FILL_WEIGHT = 10
 DEFAULT_ASSIGN_WEIGHT = 0
 BASE_MATCH_WEIGHT = 10
@@ -148,6 +148,7 @@ if __name__ == "__main__":
     student_info["Assign Weight"] = pd.to_numeric(student_info["Assign Weight"], errors='coerce', downcast='float').fillna(DEFAULT_ASSIGN_WEIGHT)
 
     course_info = pd.read_csv(args.course_info, index_col="Course", dtype = {"Course": str, "TA Slots": int, "Fill Weight": float})
+    course_info.index = course_info.index.astype(str)
     course_info["TA Slots"].fillna(1, inplace=True)
     course_info["Fill Weight"].fillna(DEFAULT_FILL_WEIGHT, inplace=True)
 
@@ -169,15 +170,18 @@ if __name__ == "__main__":
         ci = course_info.index.get_loc(row["Course"])
         weights[si, ci] += row["Match Weight"]
 
-    fixed_matches = read_partial_matching(args.fixed)
-    fixed_matches["Student index"] = [student_info.index.get_loc(student) for student in fixed_matches["Student"]]
-    fixed_matches["Course index"] = [course_info.index.get_loc(course) for course in fixed_matches["Course"]]
+    if args.fixed:
+        fixed_matches = pd.read_csv(args.fixed)
+        fixed_matches["Student index"] = [student_info.index.get_loc(student) for student in fixed_matches["Student"]]
+        fixed_matches["Course index"] = [course_info.index.get_loc(course) for course in fixed_matches["Course"]]
+    else:
+        fixed_matches = pd.DataFrame()
 
     graph = MatchingGraph(weights, student_info["Assign Weight"], course_info["Fill Weight"], course_info["TA Slots"], fixed_matches)
 
     if graph.solve():
         print('Successfully solved flow')
-        graph.write(args.matchings, student_info.index, student_ranks, student_scores, course_info.index, course_ranks, course_scores, fixed_matches)
+        graph.write_matching(args.matchings, weights, student_info, student_ranks, student_scores, course_info.index, course_ranks, course_scores, fixed_matches)
 
     else:
         print("Problem optimizing flow")

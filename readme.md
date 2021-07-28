@@ -4,7 +4,7 @@ This project aims to automate assignments betwwen graduate student TAs and under
 
 ## Input
 
-The matching algorithm takes input specified below. See sample input in /test.
+The matching algorithm takes input specified below. See sample input in /test and /data. The file generate_random_input.py takes a course input file and creates the other three input files.
 
 ### Student Preferences
 For each student,
@@ -25,29 +25,34 @@ For each course,
 
 ### Student Information
 Optionally for each student, 
-- 'Previous Courses' that the student TAed
-- 'Advisor's Course' that the student's advisor is teaching
-- 'Assign Weight' describing how desirable it is to find a match for the student
+- "Previous Courses" that the student TAed
+- "Advisor's Course" that the student's advisor is teaching
+- "Assign Weight" describing how desirable it is to find a match for the student
     - Only matters when there are more students that TA slots
     - Default is 0
 
 ### Course Information
 For each course,
 - 'TA Capacity' describing the maximum number of TAs in the course.
-- Optional 'Fill Weight' describing how desirable it is to fill the TA slots in the course 
-    - Only matters whene there are fewer students than TA slots
-    - Default is 1
+- Optional "Fill Weight" describing how desirable it is to fill the TA slots in the course 
+    - Only matters when there are fewer students than TA slots
+    - Default is 10
 
 ### Fixed
-Optionally specify students-course pairs that will be automatically assigned, so will not need to be considered when making the other matchings.
+Optionally specify students-course pairs that will be forced to be assigned.
 
 ### Adjusted
-Optionally specify student-course pairs whose weight will be modified by 'Weight' before running the matching.
+Optionally specify student-course pairs whose weight will be modified by "Weight" before running the matching.
 
 ## Output
 
 ### Matching
-The algorithm constructs a bipartite graph containing a source node, sink node, and a node for each student and each course TA slot. The assignments producing the highest total weight is written to a csv file.
+The algorithm constructs a bipartite graph containing a source node, sink node, a node for each student, a node for each course, and a node for each course TA slot. The assignments producing the highest total weight is written to a csv file. For each student, the output contains
+- Course the student is assigned to, or "unassigned"
+- Total weight of the edge
+- Ranking of the matching by the student and professor
+- Z-score of student's ranking amoung all of the student's rankings for qualified courses, and similar for professor
+- Z-score of the edge weight amoung the other possible edges for the student, and similar from the course perspective
 
 ## Example Usage
 
