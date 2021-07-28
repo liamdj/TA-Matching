@@ -148,6 +148,7 @@ if __name__ == "__main__":
     student_info["Assign Weight"] = pd.to_numeric(student_info["Assign Weight"], errors='coerce', downcast='float').fillna(DEFAULT_ASSIGN_WEIGHT)
 
     course_info = pd.read_csv(args.course_info, index_col="Course", dtype = {"Course": str, "TA Slots": int, "Fill Weight": float})
+    course_info.index = course_info.index.astype(str)
     course_info["TA Slots"].fillna(1, inplace=True)
     course_info["Fill Weight"].fillna(DEFAULT_FILL_WEIGHT, inplace=True)
 
@@ -169,9 +170,12 @@ if __name__ == "__main__":
         ci = course_info.index.get_loc(row["Course"])
         weights[si, ci] += row["Match Weight"]
 
-    fixed_matches = read_partial_matching(args.fixed)
-    fixed_matches["Student index"] = [student_info.index.get_loc(student) for student in fixed_matches["Student"]]
-    fixed_matches["Course index"] = [course_info.index.get_loc(course) for course in fixed_matches["Course"]]
+    if args.fixed:
+        fixed_matches = pd.read_csv(args.fixed)
+        fixed_matches["Student index"] = [student_info.index.get_loc(student) for student in fixed_matches["Student"]]
+        fixed_matches["Course index"] = [course_info.index.get_loc(course) for course in fixed_matches["Course"]]
+    else:
+        fixed_matches = pd.DataFrame()
 
     graph = MatchingGraph(weights, student_info["Assign Weight"], course_info["Fill Weight"], course_info["TA Slots"], fixed_matches)
 

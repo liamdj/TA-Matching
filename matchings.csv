@@ -1,7 +1,0 @@
-Student,Course,Total Match Weight,Notes,Student Score,Student Rank,Professor Score,Professor Rank
-Student F,TEST 333,17.415,,0.85,Excellent,1.57,Excellent
-Student B,TEST 444,14.216,Fixed,0.42,Excellent,-1.31,Poor
-Student C,TEST 111,14.059,,1.28,Excellent,-1.22,Okay
-Student A,TEST 222,11.458,,1.13,Excellent,0.33,Good
-Student E,TEST 555,11.415,,0.42,Excellent,0.89,Excellent
-Student D,TEST 333,8.629,,-0.85,Good,-0.52,Okay
