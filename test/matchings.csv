@@ -1,7 +1,0 @@
-Student,Course,Total Match Weight,Notes,Student Rank,Student Rank Score,Matches Score (Student),Professor Rank,Professor Rank Score,Match Score (Course)
-Student F,TEST 333,5.42,previous,Excellent,0.85,1.46,Excellent,1.57,1.59
-Student B,TEST 444,2.32,"fixed, previous, favorite",Excellent,0.42,0.88,Poor,-1.31,0.93
-Student D,TEST 111,1.65,,Excellent,0.42,1.05,Excellent,1.22,1.06
-Student E,TEST 555,1.52,favorite,Excellent,0.42,1.59,Excellent,0.89,1.66
-Student A,TEST 222,1.46,,Excellent,1.13,0.97,Good,0.33,1.28
-Student C,TEST 333,0.34,,Okay,-0.18,0.35,Good,0.52,-0.20
