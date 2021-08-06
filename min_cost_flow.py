@@ -64,14 +64,14 @@ class MatchingGraph:
     def solve(self):
         return self.flow.Solve() == self.flow.OPTIMAL
 
-    def write_matching(self, filename, weights, student_info, student_ranks, student_scores, courses, course_ranks, course_scores, fixed_matches):
+    def write_matching(self, filename, weights, student_data, student_scores, course_data, course_scores, fixed_matches):
 
         matches = []
         unassigned = []
         for arc in range(self.flow.NumArcs()):
-            si, ci = self.flow.Tail(arc), self.flow.Head(arc) - len(student_info.index)
+            si, ci = self.flow.Tail(arc), self.flow.Head(arc) - len(student_scores.index)
             # arcs from student to course
-            if self.flow.Flow(arc) > 0 and si < len(student_info.index):
+            if self.flow.Flow(arc) > 0 and si < len(student_scores.index):
                 matches.append((si, ci))
             # arcs from source to student
             elif ci < 0 and self.flow.Flow(arc) == 0 and self.flow.Head(arc) not in fixed_matches["Student index"].values:
@@ -89,30 +89,29 @@ class MatchingGraph:
 
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Student", "Course", "Total Match Weight", "Notes", "Student Rank", "Student Rank Score", "Matches Score (Student)", "Professor Rank", "Professor Rank Score", "Match Score (Course)"])
+            writer.writerow(["Netid", "Name", "Course", "Total Match Weight", "Notes", "Student Rank", "Student Rank Score", "Matches Score (Student)", "Professor Rank", "Professor Rank Score", "Match Score (Course)"])
 
             for i, (si, ci) in enumerate(matches):
-                student = student_info.index[si]
-                course = courses[ci]
-                s_rank = student_ranks.loc[student, course]
+                student = student_scores.index[si]
+                course = course_scores.index[ci]
+                name = student_data.loc[student, "Name"]
+                s_rank = student_data.loc[student, course]
                 s_rank_score = student_scores.loc[student, course]
                 s_match_score = student_perspective[si, ci]
-                c_rank = course_ranks.loc[course, student]
+                c_rank = course_data.loc[course, student]
                 c_rank_score = course_scores.loc[course, student]
                 c_match_score = course_perspective[si, ci]
                 notes = []
                 if i in fixed:
                     notes.append("fixed")
-                if course in student_info.loc[student, "Previous Courses"].split(';'):
+                if course in student_data.loc[student, "Previous"].split(';'):
                     notes.append("previous")
-                if course == student_info.loc[student, "Advisor's Course"]:
+                if course == student_data.loc[student, "Advisors"]:
                     notes.append("advisor-advisee")
-                if course == student_info.loc[student, "Favorite Course"]:
-                    notes.append("favorite")
-                writer.writerow([student, course, "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
+                writer.writerow([student, name, course, "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
 
             for si in unassigned:
-                writer.writerow([student_info.index[si], "unassigned", "", "", "", "", "", "", "", ""])
+                writer.writerow([student_scores.index[si], "unassigned", "", "", "", "", "", "", "", ""])
 
 
     def print(self):

@@ -1,0 +1,7 @@
+Netid,Name,Course,Total Match Weight,Notes,Student Rank,Student Rank Score,Matches Score (Student),Professor Rank,Professor Rank Score,Match Score (Course)
+d,Student D,TEST 444,4.06,,Favorite,0.71,1.37,Favorite,3.35,1.44
+a,Student A,TEST 111,3.00,,Good,0.00,1.12,Favorite,3.00,1.42
+e,Student E,TEST 555,2.00,previous,Favorite,0.00,1.00,nan,0.00,1.00
+c,Student C,TEST 222,1.13,,Okay,-0.71,0.98,Favorite,1.84,0.41
+f,Student F,TEST 333,1.00,advisor-advisee,Favorite,1.00,1.00,nan,0.00,1.12
+b,Student B,TEST 333,0.90,,Favorite,0.90,1.07,nan,0.00,1.02
