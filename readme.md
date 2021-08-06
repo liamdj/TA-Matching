@@ -4,7 +4,7 @@ This project aims to automate assignments betwwen graduate student TAs and under
 
 ## Input
 
-The matching algorithm takes input specified below. See sample input in /test and /data. The file generate_random_input.py takes a course input file and creates the other three input files.
+The matching algorithm takes the input specified below. See sample input in /test and /data. Note that if the students in student preferences and student information do not match or the courses in professor preferences and course informition do not match, the program will terminate with a relevant error message. The file generate_random_input.py takes a course input file and creates the other three required input files.
 
 ### Student Preferences
 For each student,
@@ -24,10 +24,10 @@ For each course,
 [Here](https://docs.google.com/forms/d/1OcUSU5a2dRylvHlTwJ-H---dSMm4V41jWGp0LV9UfCg/edit?usp=sharing) is a sample form to generate responses (download responses as csv).
 
 ### Student Information
-Optionally for each student, 
+For each student, 
 - "Previous Courses" that the student TAed
 - "Advisor's Course" that the student's advisor is teaching
-- "Assign Weight" describing how desirable it is to find a match for the student
+- Optional "Assign Weight" describing how desirable it is to find a match for the student
     - Only matters when there are more students that TA slots
     - Default is 0
 
@@ -51,8 +51,8 @@ The algorithm constructs a bipartite graph containing a source node, sink node, 
 - Course the student is assigned to, or "unassigned"
 - Total weight of the edge
 - Ranking of the matching by the student and professor
-- Z-score of student's ranking amoung all of the student's rankings for qualified courses, and similar for professor
-- Z-score of the edge weight amoung the other possible edges for the student, and similar from the course perspective
+- Z-score of student's ranking among all of the student's rankings for qualified courses, and similar for professor
+- Z-score of the edge weight among the other possible edges for the student, and similar from the course perspective
 
 ## Example Usage
 
