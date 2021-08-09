@@ -1,5 +1,6 @@
 import csv
 import sys
+import os
 import argparse
 from typing import Tuple
 
@@ -149,6 +150,15 @@ def test_removing_TA(path, student_data, course_data, weights, fixed_matches):
         for student, change in sorted(value_change.items(), key=lambda item: -item[1]):
             writer.writerow([student, change if change != -100 else 'Error'])
 
+def validate_path_args(args):
+    # ensure trailing slash on path directory
+    if args.path[-1] != '/':
+        args.path += '/'
+        
+    # ensure output directory exists
+    output_path = args.path + args.output
+    os.makedirs(output_path, exist_ok=True)
+
 
 if __name__ == '__main__':
 
@@ -160,6 +170,7 @@ if __name__ == '__main__':
     parser.add_argument('--adjusted', metavar='ADJUSTED INPUT', nargs='?', const='inputs/adjusted.csv', help='csv file with adjustment weights for student-course matchings')
     parser.add_argument('--output', metavar='MATCHING OUTPUT', default='outputs/', help='location to write matching output')
     args = parser.parse_args()
+    validate_path_args(args)
 
     student_data = read_student_data(args.path + args.student_data)
     course_data = read_course_data(args.path + args.course_data)
