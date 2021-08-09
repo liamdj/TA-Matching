@@ -75,7 +75,7 @@ def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame, cour
                 weights[si, ci] = s_scores[course] + c_scores[student]
                 if course in previous:
                     weights[si, ci] += PREVIOUS_WEIGHT
-                if course == advisor:
+                if course in advisor:
                     weights[si, ci] += ADVISORS_WEIGHT
     return weights
 

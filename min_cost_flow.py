@@ -106,7 +106,7 @@ class MatchingGraph:
                     notes.append("fixed")
                 if course in student_data.loc[student, "Previous"].split(';'):
                     notes.append("previous")
-                if course == student_data.loc[student, "Advisors"]:
+                if course in student_data.loc[student, "Advisors"].split(';'):
                     notes.append("advisor-advisee")
                 writer.writerow([student, name, course, "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
 
