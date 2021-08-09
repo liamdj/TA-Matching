@@ -38,7 +38,6 @@ def get_student_scores(data: pd.DataFrame, cols: pd.Index) -> pd.DataFrame:
         values = [v for _, v in student_rankings(row, cols)]
         # normalized scores associated with rankings
         scores = np.nan_to_num(stats.zscore(values))
-        scores *= STUDENT_PREF_WEIGHT
         rows.append(pd.Series({c: score for (c, _), score in zip(student_rankings(row, cols), scores)}, name=index))
     return pd.concat(rows, axis='columns').T
 
@@ -60,7 +59,6 @@ def get_course_scores(data: pd.DataFrame, cols: pd.Index) -> pd.DataFrame:
         values = [v for _, v in course_rankings(row, cols)]
         # normalized scores associated with rankings
         scores = np.nan_to_num(stats.zscore(values))
-        scores *= PROF_PREF_WEIGHT
         rows.append(pd.Series({c: score for (c, _), score in zip(course_rankings(row, cols), scores)}, name=index))
     return pd.concat(rows, axis='columns').T
 
@@ -72,7 +70,7 @@ def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame, cour
         advisor = student_data.loc[student, 'Advisors'].split(';')
         for ci, (course, c_scores) in enumerate(course_scores.iterrows()):
             if not pd.isna(c_scores[student]) and not pd.isna(s_scores[course]):
-                weights[si, ci] = s_scores[course] + c_scores[student]
+                weights[si, ci] = s_scores[course] * STUDENT_PREF_WEIGHT + c_scores[student] * PROF_PREF_WEIGHT
                 if course in previous:
                     weights[si, ci] += PREVIOUS_WEIGHT
                 if course in advisor:
@@ -188,18 +186,18 @@ if __name__ == '__main__':
     weights = match_weights(student_data, student_scores, course_scores)
 
     if args.adjusted:
-        adjusted_matches = pd.read_csv(args.path + args.adjusted, dtype=str)
+        adjusted_matches = pd.read_csv(args.path + args.adjusted, dtype={'Netid': str, 'Course': str, 'Weight': float})
         for _, row in adjusted_matches.iterrows():
-            si = student_scores.index.get_loc(row['Student'])
+            si = student_scores.index.get_loc(row['Netid'])
             ci = course_scores.index.get_loc(row['Course'])
-            weights[si, ci] += row['Match Weight']
+            weights[si, ci] += row['Weight']
 
     if args.fixed:
         fixed_matches = pd.read_csv(args.path + args.fixed, dtype=str)
-        fixed_matches['Student index'] = [student_scores.index.get_loc(student) for student in fixed_matches['Student']]
+        fixed_matches['Student index'] = [student_scores.index.get_loc(student) for student in fixed_matches['Netid']]
         fixed_matches['Course index'] = [course_scores.index.get_loc(course) for course in fixed_matches['Course']]
     else:
-        fixed_matches = pd.DataFrame(columns=['Student', 'Course', 'Student index', 'Course index'])
+        fixed_matches = pd.DataFrame(columns=['Netid', 'Course', 'Student index', 'Course index'])
 
     graph = MatchingGraph(weights, student_data['Weight'], course_data['Weight'], course_data['Slots'], fixed_matches)
 
