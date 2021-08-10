@@ -111,7 +111,9 @@ class MatchingGraph:
                 writer.writerow([student, name, course, "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
 
             for si in unassigned:
-                writer.writerow([student_scores.index[si], "unassigned", "", "", "", "", "", "", "", ""])
+                student = student_scores.index[si]
+                name = student_data.loc[student, "Name"]
+                writer.writerow([student, name, "unassigned", "", "", "", "", "", "", ""])
 
 
     def print(self):
