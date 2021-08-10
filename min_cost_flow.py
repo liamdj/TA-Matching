@@ -68,11 +68,15 @@ class MatchingGraph:
 
         matches = []
         unassigned = []
+        slots_filled = [0] * len(course_scores.index)
         for arc in range(self.flow.NumArcs()):
             si, ci = self.flow.Tail(arc), self.flow.Head(arc) - len(student_scores.index)
             # arcs from student to course
             if self.flow.Flow(arc) > 0 and si < len(student_scores.index):
-                matches.append((si, ci))
+                is_fixed = next((row for _, row in fixed_matches.iterrows() if si == row["Student index"] and ci == row["Course index"]), None)
+                if is_fixed is None:
+                    matches.append((si, ci))
+                    slots_filled[ci] += 1
             # arcs from source to student
             elif ci < 0 and self.flow.Flow(arc) == 0 and self.flow.Head(arc) not in fixed_matches["Student index"].values:
                 unassigned.append(self.flow.Head(arc))
@@ -82,19 +86,20 @@ class MatchingGraph:
         course_perspective = stats.zscore(weights, axis=0, nan_policy='omit')
 
         # Note which matches were fixed
-        fixed = set()
+        fixed = []
         for _, row in fixed_matches.iterrows():
-            i = next(i for i, (s, c) in enumerate(matches) if s == row["Student index"] and c == row["Course index"])
-            fixed.add(i)
+            fixed.append((row["Student index"], row["Course index"]))
+            slots_filled[row["Course index"]] += 1
 
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Netid", "Name", "Course", "Total Match Weight", "Notes", "Student Rank", "Student Rank Score", "Matches Score (Student)", "Professor Rank", "Professor Rank Score", "Match Score (Course)"])
+            writer.writerow(["Netid", "Name", "Course", "Slots Filled", "Total Match Weight", "Notes", "Student Rank", "Student Rank Score", "Matches Score (Student)", "Professor Rank", "Professor Rank Score", "Match Score (Course)"])
 
-            for i, (si, ci) in enumerate(matches):
+            for i, (si, ci) in enumerate(fixed + matches):
                 student = student_scores.index[si]
                 course = course_scores.index[ci]
                 name = student_data.loc[student, "Name"]
+                slots = course_data.loc[course, "Slots"]
                 s_rank = student_data.loc[student, course]
                 s_rank_score = student_scores.loc[student, course]
                 s_match_score = student_perspective[si, ci]
@@ -102,19 +107,23 @@ class MatchingGraph:
                 c_rank_score = course_scores.loc[course, student]
                 c_match_score = course_perspective[si, ci]
                 notes = []
-                if i in fixed:
+                if i < len(fixed):
                     notes.append("fixed")
                 if course in student_data.loc[student, "Previous"].split(';'):
                     notes.append("previous")
                 if course in student_data.loc[student, "Advisors"].split(';'):
                     notes.append("advisor-advisee")
-                writer.writerow([student, name, course, "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
+                if student_data.loc[student, "Weight"] < 0:
+                    notes.append("negitive student weight")
+                writer.writerow([student, name, course, "{} / {}".format(slots_filled[ci], slots), "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
 
             for si in unassigned:
                 student = student_scores.index[si]
                 name = student_data.loc[student, "Name"]
-                writer.writerow([student, name, "unassigned", "", "", "", "", "", "", ""])
-
+                notes = []
+                if student_data.loc[student, "Weight"] < 0:
+                    notes.append("negitive student weight")
+                writer.writerow([student, name, "unassigned", "", "", ", ".join(notes), "", "", "", "", ""])
 
     def print(self):
         for arc in range(self.flow.NumArcs()):
