@@ -20,8 +20,8 @@ ADVISORS_WEIGHT = 2
 STUDENT_PREF_WEIGHT = 1
 PROF_PREF_WEIGHT = 1.5
 
-DEFAULT_FILL_WEIGHT = 10
-DEFAULT_ASSIGN_WEIGHT = 10
+DEFAULT_FILL_WEIGHT = 100   # benefit to course
+DEFAULT_ASSIGN_WEIGHT = 10  # benefit to student
 
 
 # generator for values for courses that student indicated is qualified for
@@ -109,7 +109,7 @@ def read_course_data(filename: str) -> pd.DataFrame:
 
     df = pd.concat(rank_rows, axis='columns').T
     df['Slots'] = pd.to_numeric(df['Slots'], errors='coerce', downcast='integer').fillna(1)
-    df['Weight'] = pd.to_numeric(df['Weight'], errors='coerce', downcast='float').fillna(DEFAULT_ASSIGN_WEIGHT)
+    df['Weight'] = pd.to_numeric(df['Weight'], errors='coerce', downcast='float').fillna(DEFAULT_FILL_WEIGHT)
     return df
 
 def check_input(student_data: pd.Series, course_data: pd.Series):
