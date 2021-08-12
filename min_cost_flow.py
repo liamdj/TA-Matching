@@ -115,7 +115,11 @@ class MatchingGraph:
                     notes.append("advisor-advisee")
                 if student_data.loc[student, "Weight"] < 0:
                     notes.append("negitive student weight")
-                writer.writerow([student, name, course, "{} / {}".format(slots_filled[ci], slots), "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
+                if slots_filled[ci] == slots:
+                    filled = f'FILLED {slots}'
+                else:
+                    filled = "{} of {}".format(slots_filled[ci], slots)
+                writer.writerow([student, name, course, filled, "{:.2f}".format(weights[si, ci]), ", ".join(notes), s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
 
             for si in unassigned:
                 student = student_scores.index[si]
