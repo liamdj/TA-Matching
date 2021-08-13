@@ -2,7 +2,7 @@ import csv
 import sys
 import os
 import argparse
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -118,34 +118,87 @@ def check_input(student_data: pd.Series, course_data: pd.Series):
     for index in course_data[course_data.index.duplicated()].index:
         sys.exit('Duplicate rows for course {}. Exiting without solving'.format(index))
 
-def test_additional_TA(path, student_data, course_data, weights, fixed_matches):
-    value_change = {}
+def matching_differences(extra_course: str, old: List[Tuple[int, int]], new: List[Tuple[int, int]], student_data: pd.DataFrame, course_data: pd.DataFrame):
+    df_s = pd.concat([pd.Series(dict(old), dtype=int), pd.Series(dict(new), dtype=int)], axis=1)
+    student_diffs = df_s.iloc[:, 0].compare(df_s.iloc[:, 1]).astype(int)
+    course_matches_old = {}
+    course_matches_new = {}
+
+    student_strings = []
+    for _, row in student_diffs.iterrows():
+        student = student_data.index[row.name]
+        course_old = course_data.index[row[0]] if row[0] >= 0 else 'unassigned'
+        course_new = course_data.index[row[1]] if row[1] >= 0 else 'unassigned'
+
+        if row[0] >= 0:
+            course_matches_old[course_old] = student
+        if row[1] >= 0:
+            course_matches_new[course_new] = student
+
+        string = student + ': ' + course_old
+        if row[0] >= 0:
+            string += ' ({})'.format(student_data.loc[student, course_old])
+        string += ' -> ' + course_new
+        if row[1] >= 0:
+            string += ' ({})'.format(student_data.loc[student, course_new])
+        student_strings.append(string)
+
+    if extra_course:
+        course_matches_new[extra_course] = 'extra'
+    df_c = pd.concat([pd.Series(course_matches_old, dtype=str), pd.Series(course_matches_new, dtype=str)], axis=1).fillna('none')
+    course_diffs = df_c.iloc[:, 0].compare(df_c.iloc[:, 1])
+    course_strings = []
+    for _, row in course_diffs.iterrows():
+        string = row.name + ': ' + str(row[0])
+        if row[0] in course_data.columns:
+            string += ' ({})'.format(course_data.loc[row.name, row[0]])
+        string += ' -> ' + str(row[1])
+        if row[1] in course_data.columns:
+            string += ' ({})'.format(course_data.loc[row.name, row[1]])
+        course_strings.append(string)
+
+    return ', '.join(student_strings), ', '.join(course_strings)
+
+def test_additional_TA(path, student_data, course_data, weights, fixed_matches, graph):
+    data = {}
+    initial_matches = graph.get_matching(fixed_matches)
     for ci, course in enumerate(course_data.index):
         # fill one additional course slot
         fixed_edit = pd.concat([fixed_matches.T, pd.Series(['', course, -1, ci], index=['Student', 'Course', 'Student index', 'Course index'])], axis=1).T
         graph_edit = min_cost_flow.MatchingGraph(weights, student_data['Weight'], course_data['Weight'], course_data['Slots'], fixed_edit)
-        value_change[course] = (graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS if graph_edit.solve() else -100
+        if graph_edit.solve():
+            new_matches = graph_edit.get_matching(fixed_edit)
+            student_changes, course_changes = matching_differences(course, initial_matches, new_matches, student_data, course_data)
+            data[course] = (graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS, student_changes, course_changes
+        else:
+            data[course] = -100, '', ''
     
     with open(path, 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Course with Additional TA', 'Change in Value'])
-        for course, change in sorted(value_change.items(), key=lambda item: -item[1]):
-            writer.writerow([course, change if change != -100 else 'Error'])
+        writer.writerow(['Course', 'Weight change', 'Student differences', 'Course differences'])
+        for course, tup in sorted(data.items(), key=lambda item: -item[1][0]):
+            writer.writerow([course, tup[0] if tup[0] != -100 else 'Error', tup[1], tup[2]])
 
-def test_removing_TA(path, student_data, course_data, weights, fixed_matches):
-    value_change = {}
+def test_removing_TA(path, student_data, course_data, weights, fixed_matches, graph):
+    data = {}
+    initial_matches = graph.get_matching(fixed_matches)
     for si, student in enumerate(student_data.index):
-        if si not in fixed_matches['Student index']:
+        if si not in fixed_matches['Student index'].values:
             # no edges from student node
             fixed_edit = pd.concat([fixed_matches.T, pd.Series([student, '', si, -1], index=['Student', 'Course', 'Student index', 'Course index'])], axis=1).T
             graph_edit = min_cost_flow.MatchingGraph(weights, student_data['Weight'], course_data['Weight'], course_data['Slots'], fixed_edit)
-            value_change[student] = (graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS if graph_edit.solve() else -100
+            if graph_edit.solve():
+                new_matches = graph_edit.get_matching(fixed_edit)
+                student_changes, course_changes = matching_differences(None, initial_matches, new_matches, student_data, course_data)
+                data[student] = (graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS, student_changes, course_changes
+            else:
+                data[student] = -100, '', ''
 
     with open(path, 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Removed TA', 'Change in Value'])
-        for student, change in sorted(value_change.items(), key=lambda item: -item[1]):
-            writer.writerow([student, change if change != -100 else 'Error'])
+        writer.writerow(['Student', 'Weight change', 'Student differences', 'Course differences'])
+        for student, tup in sorted(data.items(), key=lambda item: -item[1][0]):
+            writer.writerow([student, tup[0] if tup[0] != -100 else 'Error', tup[1], tup[2]])
 
 def validate_path_args(args):
     # ensure trailing slash on path directory
@@ -203,11 +256,11 @@ if __name__ == '__main__':
     if graph.solve():
         print('Successfully solved flow')
 
-        graph.write_matching(args.path + args.output + 'matchings.csv', weights, student_data, student_scores, course_data, course_scores, fixed_matches)
+        graph.write_matching(args.path + args.output + 'matchings.csv', weights, student_data, student_scores, course_data, course_scores, fixed_matches[['Student index', 'Course index']])
 
     else:
         print('Problem optimizing flow')
         graph.print()
 
-    test_additional_TA(args.path + args.output + 'additional_TA.csv', student_data, course_data, weights, fixed_matches)
-    test_removing_TA(args.path + args.output + 'remove_TA.csv', student_data, course_data, weights, fixed_matches)
+    test_additional_TA(args.path + args.output + 'additional_TA.csv', student_data, course_data, weights, fixed_matches, graph)
+    test_removing_TA(args.path + args.output + 'remove_TA.csv', student_data, course_data, weights, fixed_matches, graph)
