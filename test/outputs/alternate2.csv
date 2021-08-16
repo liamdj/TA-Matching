@@ -1,0 +1,7 @@
+Student/Course,Previous match,New match,Preference change
+b,TEST 333 (Favorite),TEST 444 (Favorite),0.0
+c,TEST 111 (Favorite),TEST 333 (Okay),-2.121320343559643
+d,TEST 444 (Favorite),TEST 111 (Favorite),0.0
+TEST 333,b (nan),c (nan),0.0
+TEST 111,c (nan),d (nan),0.0
+TEST 444,d (Favorite),b (nan),-2.6832815729997472

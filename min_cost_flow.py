@@ -1,16 +1,15 @@
 from ortools.graph import pywrapgraph
 from scipy import stats
 import numpy as np
-import pandas as pd
 import csv
 
 DIGITS = 2
 
 class MatchingGraph:
 
-    def __init__(self, match_weights, student_weights, course_weights, course_slots, fixed_matches):
+    def __init__(self, match_weights, student_weights, course_info, fixed_matches):
 
-        self.num_students, self.num_courses, slots = len(student_weights), len(course_weights), sum(course_slots)
+        self.num_students, self.num_courses, slots = len(student_weights), len(course_info.index), course_info['Slots'].sum()
         source, sink = range(self.num_students + self.num_courses + slots, 2 + self.num_students + self.num_courses + slots)
         self.flow = pywrapgraph.SimpleMinCostFlow(sink + 1)
 
@@ -20,9 +19,9 @@ class MatchingGraph:
 
         # Each course slot cannot have >1 TA
         node = self.num_students + self.num_courses
-        for i, (cap, value) in enumerate(zip(course_slots, course_weights)):
-            for s in range(cap):
-                self.flow.AddArcWithCapacityAndUnitCost(self.num_students + i, node, 1, -MatchingGraph.fill_value(cap, s, value))
+        for i, (_, row) in enumerate(course_info.iterrows()):
+            for s in range(int(row['Slots'])):
+                self.flow.AddArcWithCapacityAndUnitCost(self.num_students + i, node, 1, -MatchingGraph.fill_value(s, row['Base weight'], row['First weight']))
                 self.flow.AddArcWithCapacityAndUnitCost(node, sink, 1, 0)
                 node += 1
 
@@ -51,16 +50,16 @@ class MatchingGraph:
                         self.flow.AddArcWithCapacityAndUnitCost(si, self.num_students + ci, 1, cost)
 
         # Attempt to fill max number of slots
-        self.flow.SetNodeSupply(source, min(self.num_students, slots) - len(fixed_matches.index) + missing)
-        self.flow.SetNodeSupply(sink, -min(self.num_students, slots))
+        self.flow.SetNodeSupply(source, int(min(self.num_students, slots) - len(fixed_matches.index) + missing))
+        self.flow.SetNodeSupply(sink, -int(min(self.num_students, slots)))
 
         # Option for not maximizing number of matches
-        self.flow.AddArcWithCapacityAndUnitCost(source, sink, min(self.num_students, slots), 0)
+        self.flow.AddArcWithCapacityAndUnitCost(source, sink, int(min(self.num_students, slots)), 0)
 
 
     # Value of filling slot is reciprocal with slot index
-    def fill_value(cap, index, weight):
-        return int(weight / (index + 1) * 10 ** DIGITS)
+    def fill_value(index, base, first):
+        return int((base + first / (index + 1)) * 10 ** DIGITS)
 
     def solve(self):
         return self.flow.Solve() == self.flow.OPTIMAL

@@ -1,6 +1,6 @@
 Student,Weight change,Student differences,Course differences
-a,-9.77,"a: TEST 111 (Good) -> unassigned, b: TEST 333 (Favorite) -> TEST 444 (Favorite), d: TEST 444 (Favorite) -> TEST 111 (Favorite)","TEST 111: a (Favorite) -> d (nan), TEST 333: b (nan) -> none, TEST 444: d (Favorite) -> b (nan)"
 b,-13.4,b: TEST 333 (Favorite) -> unassigned,TEST 333: b (nan) -> none
+a,-14.77,"a: TEST 111 (Good) -> unassigned, b: TEST 333 (Favorite) -> TEST 444 (Favorite), d: TEST 444 (Favorite) -> TEST 111 (Favorite)","TEST 111: a (Favorite) -> d (nan), TEST 333: b (nan) -> none, TEST 444: d (Favorite) -> b (nan)"
 f,-15.5,f: TEST 333 (Favorite) -> unassigned,TEST 333: f (nan) -> none
 d,-17.23,"b: TEST 333 (Favorite) -> TEST 444 (Favorite), d: TEST 444 (Favorite) -> unassigned","TEST 333: b (nan) -> none, TEST 444: d (Favorite) -> b (nan)"
 c,-17.72,"a: TEST 111 (Good) -> TEST 222 (Favorite), b: TEST 333 (Favorite) -> TEST 444 (Favorite), c: TEST 222 (Okay) -> unassigned, d: TEST 444 (Favorite) -> TEST 111 (Favorite)","TEST 111: a (Favorite) -> d (nan), TEST 333: b (nan) -> none, TEST 222: c (Favorite) -> a (nan), TEST 444: d (Favorite) -> b (nan)"

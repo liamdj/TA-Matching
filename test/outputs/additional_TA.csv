@@ -1,6 +1,6 @@
 Course,Weight change,Student differences,Course differences
 TEST 111,-4.49,a: TEST 111 (Good) -> unassigned,TEST 111: a (Favorite) -> extra
 TEST 222,-4.96,"a: TEST 111 (Good) -> unassigned, c: TEST 222 (Okay) -> TEST 111 (Favorite)","TEST 111: a (Favorite) -> c (nan), TEST 222: c (Favorite) -> extra"
+TEST 333,-5.9,b: TEST 333 (Favorite) -> unassigned,TEST 333: b (nan) -> extra
 TEST 444,-6.6,"a: TEST 111 (Good) -> unassigned, d: TEST 444 (Favorite) -> TEST 111 (Favorite)","TEST 111: a (Favorite) -> d (nan), TEST 444: d (Favorite) -> extra"
-TEST 333,-7.27,"a: TEST 111 (Good) -> unassigned, b: TEST 333 (Favorite) -> TEST 444 (Favorite), d: TEST 444 (Favorite) -> TEST 111 (Favorite)","TEST 111: a (Favorite) -> d (nan), TEST 333: b (nan) -> extra, TEST 444: d (Favorite) -> b (nan)"
 TEST 555,Error,,
