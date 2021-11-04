@@ -5,7 +5,7 @@ This project aims to automate assignments betwwen graduate student TAs and under
 ## Requirements
 To run the matching, python 3 and the following modules are required, which can be installed with 
 ```
-pip install numpy pandas scipy ortools
+pip install -r requirements.txt
 ``` 
 
 ## Input
