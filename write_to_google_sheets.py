@@ -31,9 +31,10 @@ def get_sheet(sheet_title):
     return gc.open(sheet_title)
 
 
-def center_align_row(worksheet, row, cells, make_bold=False):
-    formatting = {"horizontalAlignment": "CENTER",
-                  "textFormat": {"bold": make_bold}}
+def format_row(worksheet, row, cells, center_align=True, make_bold=False):
+    formatting = {"textFormat": {"bold": make_bold}}
+    if center_align:
+        formatting["horizontalAlignment"] = "CENTER"
     worksheet.format(
         f"A{row}:{chr(ord('A') + cells)}{row}", formatting)
 
@@ -48,7 +49,8 @@ def write_csv_to_worksheet(csv_path, sheet, worksheet):
             length = max(length, len(entry) + 1)
             cells = get_row_of_cells(worksheet, row, len(entry) + 1)
             update_cells(worksheet, cells, entry)
-            center_align_row(worksheet, row, len(entry)+1, row == 1)
+            format_row(worksheet, row, len(entry)+1,
+                       center_align=True, make_bold=(row == 1))
             row += 1
         resize_worksheet_columns(sheet, worksheet, length)
         worksheet.freeze(rows=1)
@@ -100,3 +102,18 @@ def write_execution_to_ToC(executor, executed_ws_title, executed_id):
     toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
     print(
         f"Wrote table of contents entry for sheet {executed_ws_title} ({output_url})")
+
+
+def write_matrix_to_sheet(matrix, sheetname, worksheet_name=None):
+    sheet = gc.create(sheetname)
+    if worksheet_name:
+        worksheet = sheet.add_worksheet(
+            title=worksheet_name, rows=str(len(matrix)), cols=(len(matrix[0])))
+    else:
+        worksheet = sheet.get_worksheet(0)
+    print(
+        f"Created new spreadsheet at https://docs.google.com/spreadsheets/d/{sheet.id}")
+    worksheet.update("A1", matrix)
+    worksheet.freeze(rows=1)
+    format_row(worksheet, 1, len(matrix[0])+1,
+               center_align=False, make_bold=True)
