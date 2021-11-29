@@ -14,13 +14,25 @@ def get_rows(sheet_id, tabs):
     sheets = []
     for i in tabs:
         sheet = gc.open_by_key(sheet_id).get_worksheet(i)
+        # all_rows = sheet.get_all_records()
         all_rows = sheet.get_all_values()
         all_rows = all_rows[1:]  # get rid of header row
         sheets.append(all_rows)
     return sheets
 
 
+def get_rows_with_tab_title(sheet_id, tab_title):
+    gc = gspread.authorize(GoogleCredentials.get_application_default())
+
+    sheet = gc.open_by_key(sheet_id).worksheet(tab_title)
+    # all_rows = sheet.get_all_records()
+    all_rows = sheet.get_all_values()
+    all_rows = all_rows[1:]  # get rid of header row
+    return all_rows
+
+
 def parse_pre_assign(rows):
+    """
     pre = {}
     for row in rows:
         if len(row) < 4:
@@ -31,9 +43,17 @@ def parse_pre_assign(rows):
             # Name, Email, Advisor, Course
             pre[email] = row[:4]
     return pre
+    """
+    fixed = {}
+    for row in rows:
+        #fixed[row["NetId"]] = add_COS(row["Course"])
+        if row[11]:
+            fixed[row[3]] = add_COS(row[11])
+    return fixed
 
 
 def parse_weights(rows):
+    """
     weights = {}
     for row in rows:
         if len(row) < 4:
@@ -43,17 +63,29 @@ def parse_weights(rows):
             # Name, Email, Advisor, Weight
             weights[email] = row[3]
     return weights
+    """
+    weights = {}
+    for row in rows:
+        # netid = row["NetId"]]
+        netid = row[3]
+        bank = float(row[9]) if row[9] else 0.0
+        join = float(row[10]) if row[10] else 0.0
+        w = -2*(bank + 1) + 2*(join - 3)
+        if w:
+            weights[netid] = w
+    return weights
 
 
 def parse_years(rows):
     years = {}
     for row in rows:
-        if len(row) < 3:
-            continue
-        email = row[1].strip()
-        year = row[2].strip()
-        if email and year:
-            years[email] = year
+        #netid = row["NetId"]
+        #track = row["Track"]
+        #year = row["Year"]
+        netid = row[3]
+        track = row[5]
+        year = row[6]
+        years[netid] = track + str(year)
     return years
 
 
@@ -63,19 +95,6 @@ def add_COS(courses):
         parts[i] = 'COS' + part
     courses = ';'.join(parts)
     return courses
-
-
-def parse_advisors(rows):
-    adv = {}
-    # Advisor, Course
-    for row in rows:
-        if len(row) < 2:
-            continue
-        a = row[0].strip()
-        c = row[1].strip()
-        if a and c:
-            adv[a] = add_COS(c)
-    return adv
 
 
 def map_row_to_obj(row, cols):
@@ -99,7 +118,7 @@ def student_last_name(student):
     return last
 
 
-def parse_students(rows):
+def parse_student_preferences(rows):
     students = {}
     cols = ['Time', 'Email', 'Name', 'Advisor',
             'Previous', 'Favorite', 'Good', 'OK']
@@ -134,32 +153,37 @@ def parse_fac_prefs(rows):
     return courses
 
 
-def get_students():
-    G_SHEET_ID = '19TTFTx2mLcsZnat55A_2s0qoYTqXgkusmx2yXmmB1oQ'
-    # tabs are: 0:form 1:year 2:weights 3:pre-assign 4:advisor
-    tabs = list(range(5))
-    tabs = get_rows(G_SHEET_ID, tabs)
-    advisors = parse_advisors(tabs[4])
-    assigned = parse_pre_assign(tabs[3])
-    weights = parse_weights(tabs[2])
-    years = parse_years(tabs[1])
-    students = parse_students(tabs[0])
-    return advisors, assigned, weights, years, students
+def get_students(student_info_sheet_id=None, student_preferences_sheet_id=None):
+    if not student_info_sheet_id:
+        student_info_sheet_id = '1flSWN5vpzp4hK76mMdn-2D-0niZoDuOpSaNHO4vpeyY'
+    if not student_preferences_sheet_id:
+        student_preferences_sheet_id = '1dbmB8WMHMtnOoPjwZAH54uxtoj7k9J4qNVWPjAf-XyI'
+
+    student_info = get_rows_with_tab_title(student_info_sheet_id, 'Students')
+    student_preferences_tab = get_rows_with_tab_title(
+        student_preferences_sheet_id, 'Form Responses 1')
+
+    assigned = parse_pre_assign(student_info)
+    weights = parse_weights(student_info)
+    years = parse_years(student_info)
+    students = parse_student_preferences(student_preferences_tab)
+    return assigned, weights, years, students
 
 
-def get_courses():
-    G_SHEET_ID = '1pJwncs-qoLMFjYoiY4AhVp1TnhrPsDIWMVtUsApsAG0'
-    tabs = [1]  # targets
-    tabs = get_rows(G_SHEET_ID, tabs)
-    courses = parse_courses(tabs[0])
+def get_courses(course_info_sheet_id=None):
+    if not course_info_sheet_id:
+        course_info_sheet_id = '1Ok7yctDd20l0v0fJ8-iQkwokiB_r1SSLlCPWBxeWYlU'
+    tab = get_rows_with_tab_title(course_info_sheet_id, "TA Match Targets")
+    courses = parse_courses(tab)
     return courses
 
 
-def get_fac_prefs():
-    G_SHEET_ID = '1kjL5u8LD9PDTXo2fyIMpMnXIiZbL9DbZoVUgeGUQotU'
-    tabs = [0]  # form answers
-    tabs = get_rows(G_SHEET_ID, tabs)
-    prefs = parse_fac_prefs(tabs[0])
+def get_fac_prefs(instructor_preferences_sheet_id=None):
+    if not instructor_preferences_sheet_id:
+        instructor_preferences_sheet_id = '1G0W_Kf3nC4HJWH91joRxmbkfDodAzsFO62elSOahW4U'
+    tab = get_rows_with_tab_title(
+        instructor_preferences_sheet_id, "Form Responses 1")
+    prefs = parse_fac_prefs(tab)
     return prefs
 
 
@@ -200,14 +224,15 @@ def format_course(course, prefs):
     else:
         fav = ''
         veto = ''
-    row = f'COS{num},{slots},{weight},{fav},{veto},{title}\n'
-    if omit == 'x':
+    row = f'COS{num},{slots},{weight},{fav},{veto},"{title}"\n'
+    if omit:
         return ''
     return row
 
 
 def format_prev(prev, courses):
-    prev = prev.replace('),', ');')  # people didn't follow directions
+    prev = prev.replace('),', ');').replace(
+        ')\n', ');')  # people didn't follow directions
     parts = prev.split(';')
     coursenums = []
     for part in parts:
@@ -232,14 +257,6 @@ def format_netid(email):
     return netid
 
 
-def format_advisor(adv, advisors):
-    if adv in advisors:
-        adv = advisors[adv]
-    else:
-        adv = ''
-    return adv
-
-
 def format_course_list(courses):
     courses = courses.replace(',', ';')
     courses = courses.replace(' ', '')
@@ -247,13 +264,14 @@ def format_course_list(courses):
 
 
 def lookup_weight(netid, weights, years):
+    weight = 0.0
     if netid in weights:
-        return weights[netid]
-    elif netid in years:
+        weight += weights[netid]
+    if netid in years:
         year = years[netid]
         if 'MSE' in year:
-            return '20'
-    return ''
+            weight += 20.0
+    return str(weight) if weight != 0.0 else ''
 
 
 def lookup_year(netid, years):
@@ -265,57 +283,40 @@ def lookup_year(netid, years):
     return ''
 
 
-def format_student(student, advisors, courses, weights, years):
-    # ['Time','Email','Name','Advisor','Previous','Favorite','Good','OK']
-    netid = student['Email']
-    full = student['Name']
+def format_student(student, courses, weights, years):
+    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK']
+    netid = format_netid(student['Email'])
+    full_name = student['Name']
     prev = student['Previous']
-    adv = student['Advisor']
+    adv = student['Advisor'].replace(',', ';')
     fav = student['Favorite']
     good = student['Good']
     okay = student['OK']
     weight = lookup_weight(netid, weights, years)
     prev = format_prev(prev, courses)
-    netid = format_netid(netid)
-    adv = format_advisor(adv, advisors)
     fav = format_course_list(fav)
     good = format_course_list(good)
     okay = format_course_list(okay)
-    row = f'{netid},{full},{weight},{prev},{adv},{fav},{good},{okay}\n'
+    row = f'{netid},{full_name},{weight},{prev},{adv},{fav},{good},{okay}\n'
     return row
 
 
 def format_phd(student, years):
     # phds = 'Netid,Name,Year,Advisor\n'
-    netid = student['Email']
-    full = student['Name']
-    adv = student['Advisor']
-    year = lookup_year(netid, years)
-    if not year:
+    netid = format_netid(student['Email'])
+    full_name = student['Name']
+    advisor = student['Advisor'].replace(',', ';')
+    year = years.get(netid)
+    if not year or 'PHD' not in year:
         return ''
-    row = f'{netid},{full},{year},{adv}\n'
+    year = year.replace('PHD', '')
+    row = f'{netid},{full_name},{year},{advisor}\n'
     return row
 
 
-def format_assigned(student):
-    # ['Time','Email','Name','Advisor','Previous','Favorite','Good','OK']
-    netid = student[1]
-    full = student[0]
-    course = student[3]
-    netid = format_netid(netid)
-    course = add_COS(course)
-    row = f'{netid},{full},,,,{course},,\n'
-    return row
-
-
-def format_assignment(student):
-    # Netid,Course
-    netid = student[1]
-    course = student[3]
-    netid = format_netid(netid)
-    course = add_COS(course)
-    row = f'{netid},{course}\n'
-    return row
+def format_assigned(netid, full_name, advisor, course):
+    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK']
+    return f'{netid},{full_name},,,{advisor},{course},,\n'
 
 
 def get_date():
@@ -339,31 +340,52 @@ def write_courses(path, courses, prefs):
     write_csv(f"{path}/course_data.csv", data)
 
 
-def write_students(path, courses, advisors, assigned, weights, years, students):
+def write_students(path, courses, assigned, weights, years, students):
     data = 'Netid,Name,Weight,Previous,Advisors,Favorite,Good,Okay\n'
     phds = 'Netid,Name,Year,Advisor\n'
     for email in students:
-        if email in assigned:
+        if format_netid(email) in assigned:
             continue
         student = students[email]
-        data += format_student(student, advisors, courses, weights, years)
+        data += format_student(student, courses, weights, years)
         phds += format_phd(student, years)
-    for email in assigned:
-        student = assigned[email]
-        data += format_assigned(student)
+    for netid, course in assigned.items():
+        student = students[netid + '@princeton.edu']
+        data += format_assigned(netid,
+                                student['Name'], student['Advisor'], course)
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
 
 
 def write_assigned(path, assigned):
     data = 'Netid,Course\n'
-    for email in assigned:
-        student = assigned[email]
-        data += format_assignment(student)
+    for netid, course in assigned.items():
+        data += f"{netid},{course}\n"
     write_csv(f"{path}/fixed.csv", data)
 
 
 '''
+def get_advisors(student_info_sheet_id=None):
+    if not student_info_sheet_id:
+        student_info_sheet_id = '1flSWN5vpzp4hK76mMdn-2D-0niZoDuOpSaNHO4vpeyY'
+    rows = get_rows_with_tab_title(student_info_sheet_id, 'Advisors')
+    return parse_advisors(rows)
+
+
+def parse_advisors(rows):
+    adv = {}
+    # Advisor, Course
+    for row in rows:
+        if len(row) < 2:
+            continue
+        a = row[0].strip()
+        c = row[1].strip()
+        if a and c:
+            adv[a] = add_COS(c)
+    return adv
+
+
+
 def student_has_course(student, course):
     courses = student['Courses']
     return (course in courses)
@@ -376,16 +398,17 @@ def student_course_pref(student, course):
 '''
 
 
-def main():
+def write_csvs(student_info_sheet_id=None, student_preferences_sheet_id=None, instructor_preferences_sheet_id=None, course_info_sheet_id=None):
     auth.authenticate_user()
-    prefs = get_fac_prefs()
-    courses = get_courses()
-    advisors, assigned, weights, years, students = get_students()
+    fac_prefs = get_fac_prefs(instructor_preferences_sheet_id)
+    courses = get_courses(course_info_sheet_id)
+    assigned, weights, years, students = get_students(
+        student_info_sheet_id, student_preferences_sheet_id)
     path = make_path()
-    write_courses(path, courses, prefs)
-    write_students(path, courses, advisors, assigned, weights, years, students)
+    write_courses(path, courses, fac_prefs)
+    write_students(path, courses, assigned, weights, years, students)
     write_assigned(path, assigned)
 
 
 if __name__ == '__main__':
-    main()
+    write_csvs()
