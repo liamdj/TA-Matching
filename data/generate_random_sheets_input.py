@@ -48,6 +48,10 @@ def gen_bank_join_score():
     return str(random.randint(2, 10)/2.0) if _weighted_rand(0, 1, (4, 1)) else ""
 
 
+def gen_half_score():
+    return str(random.randint(2, 10)/2.0) if _weighted_rand(0, 1, (15, 1)) else ""
+
+
 def gen_course_name():
     return COURSES[random.randint(0, len(COURSES) - 1)]
 
@@ -116,12 +120,12 @@ def generate_universal_student_matrix(entries, advisors_matrix):
 
 def generate_student_info_sheet(entries=5):
     out = [["Last", "First", "Nickname", "NetId", "Form", "Track",
-            "Year", "Advisor", "Advisor2", "Bank", "Join", "Course", "Notes"]]
+            "Year", "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes"]]
     matrix = []
     for _ in range(entries):
         track, year = gen_track_year()
         line = [gen_name(), gen_name(), gen_nickname(),
-                gen_name().lower(), "yes", track, year, gen_name(), gen_advisor2(), gen_bank_join_score(), gen_bank_join_score(), gen_course_assignment(), ""]
+                gen_name().lower(), "yes", track, year, gen_name(), gen_advisor2(), gen_bank_join_score(), gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
         matrix.append(line)
     matrix = sorted(matrix, key=lambda x: x[0])
     return out + matrix
@@ -129,6 +133,8 @@ def generate_student_info_sheet(entries=5):
 
 def generate_student_info_sheet_from_matrix(student_info):
     # student = ["First Name", "Last Name", "NetId", "Comma Separated Advisors"]
+    out = [["Last", "First", "Nickname", "NetId", "Form", "Track",
+            "Year", "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes"]]
     matrix = []
     for student in student_info[1:]:
         track, year = gen_track_year()
@@ -136,17 +142,15 @@ def generate_student_info_sheet_from_matrix(student_info):
         advisor1 = advisors[0]
         advisor2 = "" if len(advisors) == 1 else advisors[1]
         line = [student[0], student[1], gen_nickname(),
-                student[2], "yes", track, year, advisor1, advisor2, gen_bank_join_score(), gen_bank_join_score(), gen_course_assignment(), ""]
+                student[2], "yes", track, year, advisor1, advisor2, gen_bank_join_score(), gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
         matrix.append(line)
-    out = [["Last", "First", "Nickname", "NetId", "Form", "Track",
-            "Year", "Advisor", "Advisor2", "Bank", "Join", "Course", "Notes"]]
     matrix = sorted(matrix, key=lambda x: x[0])
     return out + matrix
 
 
 def generate_student_preferences(student_info_sheet, advisors_matrix):
     """
-    student has format ["Last", "First", "Nickname", "NetId", "Form", "Track", "Year", "Advisor", "Advisor2", "Bank", "Join", "Course", "Notes"]
+    student has format ["Last", "First", "Nickname", "NetId", "Form", "Track", "Year", "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes"]
 
     advisor has format ["Key", "NetID", "Last", "First", "Department", "Courses"]
     """

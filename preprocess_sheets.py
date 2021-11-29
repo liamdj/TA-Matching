@@ -47,8 +47,8 @@ def parse_pre_assign(rows):
     fixed = {}
     for row in rows:
         #fixed[row["NetId"]] = add_COS(row["Course"])
-        if row[11]:
-            fixed[row[3]] = add_COS(row[11])
+        if row[12]:
+            fixed[row[3]] = add_COS(row[12])
     return fixed
 
 
