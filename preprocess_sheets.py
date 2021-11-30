@@ -114,18 +114,13 @@ def parse_fac_prefs(rows):
     cols = {'Timestamp': 'Time', 'Email': 'Email', 'Which course?': 'Course',
             'Best': 'Favorite', 'Avoid': 'Veto'}
     courses = {}
-    rows = switch_keys_from_rows(rows, cols)
+    rows = switch_keys_from_rows(rows, cols, True)
     for row in rows:
         courses[row['Course']] = row
     return courses
 
 
-def get_students(student_info_sheet_id=None, student_preferences_sheet_id=None):
-    if not student_info_sheet_id:
-        student_info_sheet_id = '1flSWN5vpzp4hK76mMdn-2D-0niZoDuOpSaNHO4vpeyY'
-    if not student_preferences_sheet_id:
-        student_preferences_sheet_id = '1dbmB8WMHMtnOoPjwZAH54uxtoj7k9J4qNVWPjAf-XyI'
-
+def get_students(student_info_sheet_id, student_preferences_sheet_id):
     student_info = get_rows_with_tab_title(student_info_sheet_id, 'Students')
     student_preferences_tab = get_rows_with_tab_title(
         student_preferences_sheet_id, 'Form Responses 1')
@@ -137,17 +132,13 @@ def get_students(student_info_sheet_id=None, student_preferences_sheet_id=None):
     return assigned, weights, years, students
 
 
-def get_courses(course_info_sheet_id=None):
-    if not course_info_sheet_id:
-        course_info_sheet_id = '1Ok7yctDd20l0v0fJ8-iQkwokiB_r1SSLlCPWBxeWYlU'
+def get_courses(course_info_sheet_id):
     tab = get_rows_with_tab_title(course_info_sheet_id, "TA Match Targets")
     courses = parse_courses(tab)
     return courses
 
 
-def get_fac_prefs(instructor_preferences_sheet_id=None):
-    if not instructor_preferences_sheet_id:
-        instructor_preferences_sheet_id = '1G0W_Kf3nC4HJWH91joRxmbkfDodAzsFO62elSOahW4U'
+def get_fac_prefs(instructor_preferences_sheet_id):
     tab = get_rows_with_tab_title(
         instructor_preferences_sheet_id, "Form Responses 1")
     prefs = parse_fac_prefs(tab)
@@ -334,6 +325,16 @@ def write_assigned(path, assigned):
 
 def write_csvs(output_directory_title=None, student_info_sheet_id=None, student_preferences_sheet_id=None, instructor_preferences_sheet_id=None, course_info_sheet_id=None):
     auth.authenticate_user()
+
+    if not student_info_sheet_id:
+        student_info_sheet_id = '1flSWN5vpzp4hK76mMdn-2D-0niZoDuOpSaNHO4vpeyY'
+    if not student_preferences_sheet_id:
+        student_preferences_sheet_id = '1dbmB8WMHMtnOoPjwZAH54uxtoj7k9J4qNVWPjAf-XyI'
+    if not instructor_preferences_sheet_id:
+        instructor_preferences_sheet_id = '1G0W_Kf3nC4HJWH91joRxmbkfDodAzsFO62elSOahW4U'
+    if not course_info_sheet_id:
+        course_info_sheet_id = '1Ok7yctDd20l0v0fJ8-iQkwokiB_r1SSLlCPWBxeWYlU'
+
     fac_prefs = get_fac_prefs(instructor_preferences_sheet_id)
     courses = get_courses(course_info_sheet_id)
     assigned, weights, years, students = get_students(
@@ -342,6 +343,7 @@ def write_csvs(output_directory_title=None, student_info_sheet_id=None, student_
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, weights, years, students)
     write_assigned(path, assigned)
+    return student_info_sheet_id, student_preferences_sheet_id, instructor_preferences_sheet_id, course_info_sheet_id
 
 
 if __name__ == '__main__':

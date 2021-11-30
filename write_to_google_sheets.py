@@ -106,15 +106,36 @@ def append_to_last_row(worksheet, values):
     update_cells(worksheet, cells, values)
 
 
-def write_execution_to_ToC(executor, executed_ws_title, executed_id):
+def build_hyperlink_to_sheet(sheet_id, link_text, worksheet_id=None):
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+    if worksheet_id:
+        url = f"{url}#gid={worksheet_id}"
+    return f"=HYPERLINK(\"{url}\", \"{link_text}\")", url
+
+
+def write_execution_to_ToC(executor, executed_ws_title, executed_id, student_info_sheet_id=None, student_prefs_sheet_id=None, instructor_prefs_sheet_id=None, course_info_sheet_id=None):
     now = datetime.datetime.now()
     date = now.strftime('%m-%d-%Y')
     time = now.strftime('%H:%M:%S')
     sheet = get_sheet('TA-Matching Output')
     toc_wsh = get_worksheet_from_sheet(sheet, 'ToC')
-    output_url = f"https://docs.google.com/spreadsheets/d/{sheet.id}/edit#gid={executed_id}"
-    toc_vals = [date, time, executor, '',
-                f"=HYPERLINK(\"{output_url}\", \"Run #{executed_ws_title}\")"]
+    link_to_output, output_url = build_hyperlink_to_sheet(
+        sheet.id, f"Run #{executed_ws_title}", executed_id)
+    links_to_input = ['', '', '', '']
+    if student_info_sheet_id:
+        links_to_input[0], _ = build_hyperlink_to_sheet(
+            student_info_sheet_id, "Student Info")
+    if student_prefs_sheet_id:
+        links_to_input[1], _ = build_hyperlink_to_sheet(
+            student_prefs_sheet_id, "Student Prefs")
+    if instructor_prefs_sheet_id:
+        links_to_input[2], _ = build_hyperlink_to_sheet(
+            instructor_prefs_sheet_id, "Instructor Prefs")
+    if course_info_sheet_id:
+        links_to_input[3], _ = build_hyperlink_to_sheet(
+            course_info_sheet_id, "Course Info")
+
+    toc_vals = [date, time, executor, link_to_output, *links_to_input]
     toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
     print(
         f"Wrote table of contents entry for sheet {executed_ws_title} ({output_url})")
