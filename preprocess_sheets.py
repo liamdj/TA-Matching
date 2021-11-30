@@ -14,9 +14,9 @@ def get_rows(sheet_id, tabs):
     sheets = []
     for i in tabs:
         sheet = gc.open_by_key(sheet_id).get_worksheet(i)
-        # all_rows = sheet.get_all_records()
-        all_rows = sheet.get_all_values()
-        all_rows = all_rows[1:]  # get rid of header row
+        all_rows = sheet.get_all_records()
+        # all_rows = sheet.get_all_values()
+        # all_rows = all_rows[1:]  # get rid of header row
         sheets.append(all_rows)
     return sheets
 
@@ -25,51 +25,31 @@ def get_rows_with_tab_title(sheet_id, tab_title):
     gc = gspread.authorize(GoogleCredentials.get_application_default())
 
     sheet = gc.open_by_key(sheet_id).worksheet(tab_title)
-    # all_rows = sheet.get_all_records()
-    all_rows = sheet.get_all_values()
-    all_rows = all_rows[1:]  # get rid of header row
+    all_rows = sheet.get_all_records()
+    # all_rows = sheet.get_all_values()
+    # all_rows = all_rows[1:]  # get rid of header row
     return all_rows
 
 
 def parse_pre_assign(rows):
-    """
-    pre = {}
-    for row in rows:
-        if len(row) < 4:
-            continue
-        email = row[1].strip()
-        course = row[3].strip()
-        if email and course:
-            # Name, Email, Advisor, Course
-            pre[email] = row[:4]
-    return pre
-    """
     fixed = {}
     for row in rows:
-        #fixed[row["NetId"]] = add_COS(row["Course"])
-        if row[12]:
-            fixed[row[3]] = add_COS(row[12])
+        if row["Course"]:
+            fixed[row["NetId"]] = add_COS(row["Course"])
+        # if row[12]:
+        #     fixed[row[3]] = add_COS(row[12])
     return fixed
 
 
 def parse_weights(rows):
-    """
     weights = {}
     for row in rows:
-        if len(row) < 4:
-            continue
-        email = row[1].strip()
-        if email:
-            # Name, Email, Advisor, Weight
-            weights[email] = row[3]
-    return weights
-    """
-    weights = {}
-    for row in rows:
-        # netid = row["NetId"]]
-        netid = row[3]
-        bank = float(row[9]) if row[9] else 0.0
-        join = float(row[10]) if row[10] else 0.0
+        netid = row["NetId"]
+        # netid = row[3]
+        bank = float(row["Bank"]) if row["Bank"] else 0.0
+        # bank = float(row[9]) if row[9] else 0.0
+        join = float(row["Join"]) if row["Join"] else 0.0
+        # join = float(row[10]) if row[10] else 0.0
         w = -2*(bank + 1) + 2*(join - 3)
         if w:
             weights[netid] = w
@@ -79,19 +59,19 @@ def parse_weights(rows):
 def parse_years(rows):
     years = {}
     for row in rows:
-        #netid = row["NetId"]
-        #track = row["Track"]
-        #year = row["Year"]
-        netid = row[3]
-        track = row[5]
-        year = row[6]
+        netid = row["NetId"]
+        track = row["Track"]
+        year = row["Year"]
+        # netid = row[3]
+        # track = row[5]
+        # year = row[6]
         years[netid] = track + str(year)
     return years
 
 
 def add_COS(courses):
     """ Ignores COS """
-    parts = courses.split(';')
+    parts = str(courses).split(';')
     for i, part in enumerate(parts):
         # if course code from a non-COS discipline
         if re.search(r'[a-zA-Z]', part):
@@ -125,13 +105,12 @@ def student_last_name(student):
 
 def parse_student_preferences(rows):
     students = {}
-    cols = ['Time', 'Email', 'Name', 'Advisor',
-            'Previous', 'Favorite', 'Good', 'OK']
+    cols = {'Timestamp': 'Time', 'Email': 'Email', 'Name': 'Name', 'Advisor': 'Advisor', 'What courses have you previously':
+            'Previous', 'Favorite': 'Favorite', 'Good': 'Good', 'OK': 'OK'}
+
+    rows = switch_keys_from_rows(rows, cols, True)
     for row in rows:
-        obj = map_row_to_obj(row, cols)
-        if obj:
-            email = obj['Email']
-            students[email] = obj
+        students[row['Email']] = row
     #objects.sort(key=lambda obj: student_last_name(obj))
     return students
 
@@ -147,14 +126,52 @@ def map_rows_to_course_dict(rows, cols):
 
 
 def parse_courses(rows):
-    cols = ['Course', 'Omit', 'TAs', 'Weight', 'Notes', 'Title']
-    courses = map_rows_to_course_dict(rows, cols)
+    # cols = ['Course', 'Omit', 'TAs', 'Weight', 'Notes', 'Title']
+    courses = {}
+    for row in rows:
+        row['TAs'] = row['Grad TAs needed']
+        del row['Grad TAs needed']
+        courses[row['Course']] = row
     return courses
 
 
+def switch_keys(dictionary, key_to_switch_dict):
+    new = {}
+    for key, val in dictionary.items():
+        if key in key_to_switch_dict:
+            new[key_to_switch_dict[key]] = val
+    return new
+
+
+def switch_keys_from_rows(rows, keys_to_switch_dict, is_paraphrased=False):
+    """
+    If `is_paraphrased`, then assume that the the keys in `keys_to_switch_dict`
+    are only key phrases in the full keys in `rows` (that will only be 
+    replicated in one key), and so this function will translate from the 
+    paraphrased keys to the full keys.
+    """
+
+    new_rows = []
+    if is_paraphrased:
+        full_keys_to_switch = {}  # from key term to full keys
+        for key_term, val in keys_to_switch_dict.items():
+            for full_key in rows[0].keys():
+                if key_term in full_key:
+                    full_keys_to_switch[full_key] = val
+        keys_to_switch_dict = full_keys_to_switch
+
+    for row in rows:
+        new_rows.append(switch_keys(row, keys_to_switch_dict))
+    return new_rows
+
+
 def parse_fac_prefs(rows):
-    cols = ['Time', 'Email', 'Course', 'Favorite', 'Veto']
-    courses = map_rows_to_course_dict(rows, cols)
+    cols = {'Timestamp': 'Time', 'Email Address': 'Email', 'Which course?': 'Course',
+            'Best Match(es)': 'Favorite', 'Matches to Avoid': 'Veto'}
+    courses = {}
+    rows = switch_keys_from_rows(rows, cols)
+    for row in rows:
+        courses[row['Course']] = row
     return courses
 
 
@@ -216,7 +233,7 @@ def format_course(course, prefs):
     # cols = ['Course','Omit','TAs','Weight','Notes','Title']
     if course['Omit']:
         return ''
-    num = course['Course']
+    num = str(course['Course'])
     slots = course['TAs']
     weight = course['Weight']
     title = course['Title']
@@ -255,7 +272,7 @@ def format_prev(prev, courses):
             continue
         numbers = re.split(r'\D+', parens[0])
         for num in numbers:
-            if num in courses:
+            if num and int(num) in courses:
                 coursenums.append(num)
     if not len(coursenums):
         return ''
@@ -426,3 +443,7 @@ def write_csvs(student_info_sheet_id=None, student_preferences_sheet_id=None, in
 
 if __name__ == '__main__':
     write_csvs()
+    # courses = {109: {'Course': 109, 'Omit': 'x', 'Weight': '', 'Notes': '', 'Title': 'Computers in Our World', 'TAs': 0}, 126: {'Course': 126, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Computer Science: An Interdisciplinary Approach', 'TAs': 10}, 217: {'Course': 217, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Introduction to Programming Systems', 'TAs': 4}, 226: {'Course': 226, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Algorithms and Data Structures', 'TAs': 6}, 240: {'Course': 240, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Reasoning about Computation', 'TAs': 5}, 302: {'Course': 302, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Mathematics for Numerical Computing and Machine Learning', 'TAs': 2}, 316: {'Course': 316, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Principles of Computer System Design', 'TAs': 2}, 324: {'Course': 324, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Introduction to Machine Learning', 'TAs': 9}, 333: {'Course': 333, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Advanced Programming Techniques', 'TAs': 3}, 418: {'Course': 418, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Distributed Systems', 'TAs': 4}, 426: {'Course': 426, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Computer Graphics', 'TAs': 4}, 432: {
+    #     'Course': 432, 'Omit': '', 'Weight': 1, 'Notes': '', 'Title': 'Information Security', 'TAs': 5}, 445: {'Course': 445, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Economics and Computing', 'TAs': 4}, 475: {'Course': 475, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Computer Architecture', 'TAs': 1}, 484: {'Course': 484, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Natural Language Processing', 'TAs': 2}, 488: {'Course': 488, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Introduction to Analytic Combinatorics', 'TAs': 3}, 495: {'Course': 495, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Special Topics in Computer Science: Web3: Blockchains, Cryptocurrencies, and Decentralization', 'TAs': 2}, 511: {'Course': 511, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Theoretical Machine Learning', 'TAs': 2}, 518: {'Course': 518, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Advanced Computer Systems', 'TAs': 1}, 522: {'Course': 522, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Computational Complexity', 'TAs': 2}, 585: {'Course': 585, 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Information Theory and Applications', 'TAs': 1}, 'EGR154': {'Course': 'EGR154', 'Omit': '', 'Weight': '', 'Notes': '', 'Title': 'Foundations of Engineering: Linear Systems', 'TAs': 1}}
+    # prev = """COS 522 (Spring20, Princeton); COS 511 (Spring21, Princeton); COS 320 (Fall21, Princeton); COS 518 (Spring19, Qduqmqgnb)"""
+    # format_prev(prev, courses)
