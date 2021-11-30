@@ -45,9 +45,11 @@ def wrap_rows(worksheet, row_start, row_end, cells):
            center_align=False, bold=False, wrap=True)
 
 
-def format(worksheet,  start_row, end_row, start_col, end_col, center_align=True, bold=False, wrap=False):
+def format(worksheet,  start_row, end_row, start_col, end_col, center_align=False, bold=False, wrap=False):
     """start_col and end_col are zero indexed numbers"""
-    formatting = {"textFormat": {"bold": bold}}
+    formatting = {}
+    if bold:
+        formatting = {"textFormat": {"bold": bold}}
     if center_align:
         formatting["horizontalAlignment"] = "CENTER"
     if wrap:
@@ -56,7 +58,7 @@ def format(worksheet,  start_row, end_row, start_col, end_col, center_align=True
         f"{chr(ord('A') + start_col)}{start_row}:{chr(ord('A') + end_col)}{end_row}", formatting)
 
 
-def format_row(worksheet, row, cells, center_align=True, bold=False, wrap=False):
+def format_row(worksheet, row, cells, center_align=False, bold=False, wrap=False):
     format(worksheet, row, row, 0, cells, center_align, bold, wrap)
 
 
@@ -64,17 +66,10 @@ def write_csv_to_worksheet(csv_path, sheet, worksheet):
     with open(csv_path, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter=',', quotechar='"')
         print(f'Writing {csv_path} to {worksheet.title}')
-        row = 1
-        length = 0
-        for entry in reader:
-            length = max(length, len(entry) + 1)
-            cells = get_row_of_cells(worksheet, row, len(entry) + 1)
-            update_cells(worksheet, cells, entry)
-            format_row(worksheet, row, len(entry)+1,
-                       center_align=True, bold=(row == 1))
-            row += 1
-        resize_worksheet_columns(sheet, worksheet, length)
-        worksheet.freeze(rows=1)
+        matrix = list(reader)
+        write_full_worksheet(matrix, worksheet, wrap=False)
+        resize_worksheet_columns(sheet, worksheet, len(matrix))
+        format(worksheet, 1, len(matrix), 0, len(matrix[0]), center_align=True)
 
 
 def resize_worksheet_columns(sheet, worksheet, cols):
@@ -131,7 +126,7 @@ def write_matrix_to_sheet(matrix, sheetname, worksheet_name=None, wrap=False):
     if worksheet_name:
         inital_worksheet = sheet.get_worksheet(0)
         rows = max(200, len(matrix) + 50)
-        cols = max(10, len(matrix[0])+3)
+        cols = max(26, len(matrix[0])+3)
         worksheet = sheet.add_worksheet(
             title=worksheet_name, rows=str(rows), cols=str(cols))
         sheet.del_worksheet(inital_worksheet)
