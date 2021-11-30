@@ -90,9 +90,14 @@ def parse_years(rows):
 
 
 def add_COS(courses):
+    """ Ignores COS """
     parts = courses.split(';')
     for i, part in enumerate(parts):
-        parts[i] = 'COS' + part
+        # if course code from a non-COS discipline
+        if re.search(r'[a-zA-Z]', part):
+            parts[i] = part.replace(' ', '')
+        else:
+            parts[i] = 'COS' + part
     courses = ';'.join(parts)
     return courses
 
@@ -209,14 +214,22 @@ def format_pref_list(pref):
 
 def format_course(course, prefs):
     # cols = ['Course','Omit','TAs','Weight','Notes','Title']
-    omit = course['Omit']
+    if course['Omit']:
+        return ''
     num = course['Course']
     slots = course['TAs']
     weight = course['Weight']
     title = course['Title']
-    cosnum = f'COS {num}'
-    if cosnum in prefs:
-        pref = prefs[cosnum]
+
+    course_code = f'COS {num}'
+    if re.search(r'[a-zA-Z]', num):
+        if 'COS' in num:
+            num = num.replace('COS ', '').replace('COS', '')
+        else:  # if course num is from another department
+            course_code = num.replace(' ', '')
+
+    if course_code in prefs:
+        pref = prefs[course_code]
         fav = pref['Favorite']
         veto = pref['Veto']
         fav = format_pref_list(fav)
@@ -224,13 +237,14 @@ def format_course(course, prefs):
     else:
         fav = ''
         veto = ''
-    row = f'COS{num},{slots},{weight},{fav},{veto},"{title}"\n'
-    if omit:
-        return ''
+
+    course_code = course_code.replace(' ', '')
+    row = f'{course_code},{slots},{weight},{fav},{veto},"{title}"\n'
     return row
 
 
 def format_prev(prev, courses):
+    """ Previously TA'ing in a different subject that's not COS is not recognized """
     prev = prev.replace('),', ');').replace(
         ')\n', ');')  # people didn't follow directions
     parts = prev.split(';')
@@ -245,7 +259,7 @@ def format_prev(prev, courses):
                 coursenums.append(num)
     if not len(coursenums):
         return ''
-    coursenums = set(coursenums)
+    coursenums = set(coursenums)  # presumably to remove duplicates
     coursenums = list(coursenums)
     coursenums = ';'.join(coursenums)
     coursenums = add_COS(coursenums)
