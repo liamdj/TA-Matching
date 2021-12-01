@@ -72,15 +72,17 @@ def gen_course_assignment():
     return "" if _weighted_rand(0, 1, (1, 11)) else gen_course_num()
 
 
-def gen_previously_taught_courses():
+def gen_previously_taught_courses(at_princeton):
     last = 6
     courses = []
     while random.randint(0, last) >= 2:
         c = gen_course_name()
         term = random.choices(["Fall", "Spring"])[0] + \
             str(random.randint(17, 21))
-        uni = random.choices([gen_name(), "Princeton"])[0]
-        courses.append(f"{c} ({term}, {uni})")
+        if at_princeton:
+            courses.append(f"{c} ({term})")
+        else:
+            courses.append(f"{c} ({term}, {gen_name()})")
         last -= 1
     return "; ".join(courses)
 
@@ -156,11 +158,12 @@ def generate_student_preferences(student_info_sheet, advisors_matrix):
 
     advisor has format ["Key", "NetID", "Last", "First", "Department", "Courses"]
     """
-    PREVIOUS_COURSES_TITLE = """What courses have you previously been a (graduate or undergraduate) TA for? If none, leave blank. Include equivalent courses at your undergraduate institution, using the Princeton number equivalent. *Please use the following format*: COS NUM1 (TERM1, UNIVERSITY1); COS NUM2 (TERM2, UNIVERSITY2). An example answer might look like: COS 126 (Spring18, Cornell); COS 226 (Fall20, Princeton); COS 226 (Spring21, Princeton)."""
+    PREVIOUS_NON_PRINCETON_COURSES_TITLE = """What courses have you previously been a (graduate or undergraduate) TA for, at any other university? If none, leave blank. Include equivalent courses using the Princeton number equivalent. Please use the following format: COS NUM1 (TERM1, UNIVERSITY1); COS NUM2 (TERM2, UNIVERSITY2). An example answer might look like: COS 126 (Spring18, Cornell); COS 226 (Fall20, Cornell). """
+    PREVIOUS_PRINCETON_COURSES_TITLE = """What courses at Princeton have you previously been a (graduate or undergraduate) TA for? If none, leave blank. Please use the following format: COS NUM1 (TERM1); COS NUM2 (TERM2). An example answer might look like: COS 126 (Spring18); COS 226 (Fall20); COS 226 (Spring21). """
     OTHER_COMMENTS_TITLE = """Any other comments that might be helpful for someone who is considering you for a TA position? (This will be shared with all instructors.) It is fine to leave this blank."""
     OTHER_PRIVATE_COMMENTS_TITLE = """Any other private comments for us as we optimize over TA assignments? (This will be shared with Adam Finkelstein and Matt Weinberg and possibly one or two others involved in TA assignments.) It is fine to leave this blank."""
     matrix = [["Timestamp", "Email", "Full Name", "Advisor",
-               PREVIOUS_COURSES_TITLE, "Favorite Match", "Good Match", "OK Match", OTHER_COMMENTS_TITLE, OTHER_PRIVATE_COMMENTS_TITLE]]
+               PREVIOUS_PRINCETON_COURSES_TITLE, PREVIOUS_NON_PRINCETON_COURSES_TITLE, "Favorite Match", "Good Match", "OK Match", OTHER_COMMENTS_TITLE, OTHER_PRIVATE_COMMENTS_TITLE]]
     advisors_matrix = advisors_matrix[1:]
     advisors_key_to_full = {}
     for advisor in advisors_matrix:
@@ -173,7 +176,7 @@ def generate_student_preferences(student_info_sheet, advisors_matrix):
                 advisors.append(advisors_key_to_full[advisor])
 
         line = [gen_timestamp(), f"{student[3]}@princeton.edu", f"{student[1]} {student[0]}", "; ".join(advisors),
-                gen_previously_taught_courses(), gen_match_list(), gen_match_list(), gen_match_list(), "", ""]
+                gen_previously_taught_courses(True), gen_previously_taught_courses(False), gen_match_list(), gen_match_list(), gen_match_list(), "", ""]
         matrix.append(line)
     return matrix
 

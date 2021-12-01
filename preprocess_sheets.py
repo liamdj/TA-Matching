@@ -64,13 +64,20 @@ def add_COS(courses):
 
 def parse_student_preferences(rows):
     students = {}
-    cols = {'Timestamp': 'Time', 'Email': 'Email', 'Name': 'Name', 'Advisor': 'Advisor', 'What courses have you previously':
-            'Previous', 'Favorite': 'Favorite', 'Good': 'Good', 'OK': 'OK'}
+    cols = {'Timestamp': 'Time', 'Email': 'Email', 'Name': 'Name', 'Advisor': 'Advisor', 'What courses at Princeton': 'Previous1', 'What courses have you previously':
+            'Previous2', 'Favorite': 'Favorite', 'Good': 'Good', 'OK Match': 'OK'}
 
     rows = switch_keys_from_rows(rows, cols, True)
     for row in rows:
+        previous = []
+        for prev in [row['Previous1'].strip(), row['Previous2'].strip()]:
+            if prev:
+                previous.append(prev)
+        del row['Previous1']
+        del row['Previous2']
+
+        row['Previous'] = ';'.join(previous)
         students[row['Email']] = row
-    #objects.sort(key=lambda obj: student_last_name(obj))
     return students
 
 
@@ -122,6 +129,37 @@ def parse_fac_prefs(rows):
     return courses
 
 
+def fix_advisors(students, student_info):
+    email_prefix_to_advisor = {}
+    for row in student_info:
+        advisors = [row['Advisor']]
+        if _sanitize(row['Advisor2']):
+            advisors.append(row['Advisor2'])
+        email_prefix_to_advisor[row['NetID']] = ';'.join(advisors)
+
+    for email, student in students.items():
+        email_prefix = format_netid(email)
+        advisor = email_prefix_to_advisor[email_prefix]
+        student['Advisor'] = advisor
+
+    return students
+
+
+def add_in_assigned(students, assigned, names):
+    for netid, course in assigned.items():
+        student = {'Name': names[netid], 'Advisor': '', 'Email': netid + '@princeton.edu',
+                   'Favorite': f"{course[:3]} {course[3:]}", 'Good': '', 'OK': '', 'Previous': '', 'Time': get_date()}
+        students[netid + '@princeton.edu'] = student
+    return students
+
+
+def parse_names(student_info):
+    names = {}
+    for student in student_info:
+        names[student['NetID']] = f"{student['First']} {student['Last']}"
+    return names
+
+
 def get_students(student_info_sheet_id, student_preferences_sheet_id):
     student_info = get_rows_with_tab_title(student_info_sheet_id, 'Students')
     student_preferences_tab = get_rows_with_tab_title(
@@ -130,11 +168,14 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
     for row in student_info:
         if re.search(r"[mM]issing [Ff]orm", row['Last']):
             student_info.remove(row)
-
+    names = parse_names(student_info)
     assigned = parse_pre_assign(student_info)
     weights = parse_weights(student_info)
     years = parse_years(student_info)
     students = parse_student_preferences(student_preferences_tab)
+    # in case assigned students did not send in preferences
+    students = add_in_assigned(students, assigned, names)
+    students = fix_advisors(students, student_info)
     return assigned, weights, years, students
 
 
@@ -177,6 +218,8 @@ def format_course(course, prefs):
         return ''
     num = str(course['Course'])
     slots = course['TAs']
+    if int(slots) == 0:
+        return ''
     weight = '' if 'Weight' not in course else course['Weight']
     title = course['Title']
 
