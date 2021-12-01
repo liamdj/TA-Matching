@@ -18,17 +18,21 @@ def get_rows_with_tab_title(sheet_id, tab_title):
 def parse_pre_assign(rows):
     fixed = {}
     for row in rows:
-        if row["Course"]:
-            fixed[row["NetId"]] = add_COS(row["Course"])
+        if _sanitize(row["Course"]):
+            fixed[row["NetID"]] = add_COS(row["Course"])
     return fixed
+
+
+def _sanitize(input):
+    return input if type(input) != str else input.strip()
 
 
 def parse_weights(rows):
     weights = {}
     for row in rows:
-        netid = row["NetId"]
-        bank = float(row["Bank"]) if row["Bank"] else 0.0
-        join = float(row["Join"]) if row["Join"] else 0.0
+        netid = row["NetID"]
+        bank = float(row["Bank"]) if _sanitize(row["Bank"]) else 0.0
+        join = float(row["Join"]) if _sanitize(row["Join"]) else 0.0
         w = -2*(bank + 1) + 2*(join - 3)
         if w:
             weights[netid] = w
@@ -38,7 +42,7 @@ def parse_weights(rows):
 def parse_years(rows):
     years = {}
     for row in rows:
-        netid = row["NetId"]
+        netid = row["NetID"]
         track = row["Track"]
         year = row["Year"]
         years[netid] = track + str(year)
@@ -74,8 +78,6 @@ def parse_courses(rows):
     # cols = ['Course', 'Omit', 'TAs', 'Weight', 'Notes', 'Title']
     courses = {}
     for row in rows:
-        row['TAs'] = row['Grad TAs needed']
-        del row['Grad TAs needed']
         courses[row['Course']] = row
     return courses
 
@@ -125,6 +127,10 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
     student_preferences_tab = get_rows_with_tab_title(
         student_preferences_sheet_id, 'Form Responses 1')
 
+    for row in student_info:
+        if re.search(r"[mM]issing [Ff]orm", row['Last']):
+            student_info.remove(row)
+
     assigned = parse_pre_assign(student_info)
     weights = parse_weights(student_info)
     years = parse_years(student_info)
@@ -132,8 +138,8 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
     return assigned, weights, years, students
 
 
-def get_courses(course_info_sheet_id):
-    tab = get_rows_with_tab_title(course_info_sheet_id, "TA Match Targets")
+def get_courses(planning_sheet_id):
+    tab = get_rows_with_tab_title(planning_sheet_id, "Courses")
     courses = parse_courses(tab)
     return courses
 
@@ -167,11 +173,11 @@ def format_pref_list(pref):
 
 def format_course(course, prefs):
     # cols = ['Course','Omit','TAs','Weight','Notes','Title']
-    if course['Omit']:
+    if 'Omit' in course and course['Omit']:
         return ''
     num = str(course['Course'])
     slots = course['TAs']
-    weight = course['Weight']
+    weight = '' if 'Weight' not in course else course['Weight']
     title = course['Title']
 
     course_code = f'COS {num}'
@@ -208,7 +214,7 @@ def format_prev(prev, courses):
             continue
         numbers = re.split(r'\D+', parens[0])
         for num in numbers:
-            if num and int(num) in courses:
+            if _sanitize(num) and int(num) in courses:
                 coursenums.append(num)
     if not len(coursenums):
         return ''
@@ -265,7 +271,7 @@ def format_phd(student, years):
     full_name = student['Name']
     advisor = student['Advisor'].replace(',', ';')
     year = years.get(netid)
-    if not year or 'PHD' not in year:
+    if not year.strip() or 'PHD' not in year:
         return ''
     year = year.replace('PHD', '')
     row = f'{netid},{full_name},{year},{advisor}\n'
@@ -323,27 +329,25 @@ def write_assigned(path, assigned):
     write_csv(f"{path}/fixed.csv", data)
 
 
-def write_csvs(output_directory_title=None, student_info_sheet_id=None, student_preferences_sheet_id=None, instructor_preferences_sheet_id=None, course_info_sheet_id=None):
+def write_csvs(output_directory_title=None, planning_sheet_id=None, student_prefs_sheet_id=None, instructor_prefs_sheet_id=None):
     auth.authenticate_user()
 
-    if not student_info_sheet_id:
-        student_info_sheet_id = '1flSWN5vpzp4hK76mMdn-2D-0niZoDuOpSaNHO4vpeyY'
-    if not student_preferences_sheet_id:
-        student_preferences_sheet_id = '1dbmB8WMHMtnOoPjwZAH54uxtoj7k9J4qNVWPjAf-XyI'
-    if not instructor_preferences_sheet_id:
-        instructor_preferences_sheet_id = '1G0W_Kf3nC4HJWH91joRxmbkfDodAzsFO62elSOahW4U'
-    if not course_info_sheet_id:
-        course_info_sheet_id = '1Ok7yctDd20l0v0fJ8-iQkwokiB_r1SSLlCPWBxeWYlU'
+    if not planning_sheet_id:
+        planning_sheet_id = '1xcq575Wp_JMQ0j-6udK_Lwq3BrSZnL-ro_UZagIhAGk'
+    if not student_prefs_sheet_id:
+        student_prefs_sheet_id = '1TX6kEsIYB2rPqFnYkXyZbzN8CaK-jEh29Si40BWgCQ8'
+    if not instructor_prefs_sheet_id:
+        instructor_prefs_sheet_id = '1poN30Xdgs4_4STw-GxQuqE3UAq3WuNq02EqknJZScFo'
 
-    fac_prefs = get_fac_prefs(instructor_preferences_sheet_id)
-    courses = get_courses(course_info_sheet_id)
+    fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
+    courses = get_courses(planning_sheet_id)
     assigned, weights, years, students = get_students(
-        student_info_sheet_id, student_preferences_sheet_id)
+        planning_sheet_id, student_prefs_sheet_id)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, weights, years, students)
     write_assigned(path, assigned)
-    return student_info_sheet_id, student_preferences_sheet_id, instructor_preferences_sheet_id, course_info_sheet_id
+    return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
 
 
 if __name__ == '__main__':
