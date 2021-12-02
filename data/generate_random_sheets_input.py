@@ -45,7 +45,13 @@ def gen_track_year():
 
 
 def gen_bank_join_score():
-    return str(random.randint(2, 10)/2.0) if _weighted_rand(0, 1, (4, 1)) else ""
+    option = _weighted_rand(0, 2, (5, 1, 1))
+    bank, join = "", ""
+    if option == 1:
+        bank = str(random.randint(2, 10)/2.0)
+    elif option == 2:
+        join = str(random.randint(2, 10)/2.0)
+    return bank, join
 
 
 def gen_half_score():
@@ -128,7 +134,7 @@ def generate_student_info_sheet(entries=5):
     for _ in range(entries):
         track, year = gen_track_year()
         line = [gen_name(), gen_name(), gen_nickname(),
-                gen_name().lower(), "yes", track, year, gen_name(), gen_advisor2(), gen_bank_join_score(), gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
+                gen_name().lower(), "yes", track, year, gen_name(), gen_advisor2(), *gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
         matrix.append(line)
 
     matrix = sorted(matrix, key=lambda x: x[0])
@@ -146,7 +152,7 @@ def generate_student_info_sheet_from_matrix(student_info):
         advisor1 = advisors[0]
         advisor2 = "" if len(advisors) == 1 else advisors[1]
         line = [student[0], student[1], gen_nickname(),
-                student[2], "yes", track, year, advisor1, advisor2, gen_bank_join_score(), gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
+                student[2], "yes", track, year, advisor1, advisor2,  *gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
         matrix.append(line)
     matrix = sorted(matrix, key=lambda x: x[0])
     return titles + matrix
@@ -202,7 +208,7 @@ def generate_fac_preferences(student_preferences, advisors_matrix):
         courses_to_students[course] = []
 
     for student in student_preferences[1:]:
-        for i in range(5, 8):
+        for i in range(6, 9):
             for course in student[i].split(", "):
                 courses_to_students[course].append(
                     f"{student[2]} <{student[1]}>")

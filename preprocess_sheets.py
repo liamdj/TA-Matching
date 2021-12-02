@@ -218,7 +218,7 @@ def format_course(course, prefs):
         return ''
     num = str(course['Course'])
     slots = course['TAs']
-    if int(slots) == 0:
+    if int(slots) == 0:  # DO I WANT THIS??????????????????????????????????????
         return ''
     weight = '' if 'Weight' not in course else course['Weight']
     title = course['Title']
@@ -245,20 +245,29 @@ def format_course(course, prefs):
     return row
 
 
-def format_prev(prev, courses):
-    """ Previously TA'ing in a different subject that's not COS is not recognized """
-    prev = prev.replace('),', ');').replace(
-        ')\n', ');')  # people didn't follow directions
+def parse_previous_list(prev):
     parts = prev.split(';')
     coursenums = []
     for part in parts:
         parens = part.split('(')
-        if len(parens) < 2 or 'Princeton' not in parens[1]:
+        if len(parens) < 2:
             continue
         numbers = re.split(r'\D+', parens[0])
         for num in numbers:
-            if _sanitize(num) and int(num) in courses:
+            if _sanitize(num):
                 coursenums.append(num)
+    return coursenums
+
+
+def format_prev(prev, courses):
+    """ Previously TA'ing in a different subject that's not COS is not recognized """
+    prev = prev.replace('),', ');').replace(
+        ')\n', ');')  # people didn't follow directions
+    coursenums = parse_previous_list(prev)
+    for course in coursenums:
+        if int(course) not in courses:
+            coursenums.remove(course)
+
     if not len(coursenums):
         return ''
     coursenums = set(coursenums)  # presumably to remove duplicates
