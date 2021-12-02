@@ -7,6 +7,7 @@ from oauth2client.client import GoogleCredentials
 from google.colab import auth
 
 import params
+import g_sheet_consts as gs_consts
 
 
 def get_rows_with_tab_title(sheet_id, tab_title):
@@ -39,7 +40,7 @@ def parse_weights(rows):
             row["Join"]) else params.DEFAULT_JOIN
         w = params.BANK_MULTIPLIER * \
             (bank - params.DEFAULT_BANK) + \
-            params.JOIN_MULTIPLIER*(join - params.DEFAULT_JOIN)
+            params.JOIN_MULTIPLIER * (join - params.DEFAULT_JOIN)
         if w:
             weights[netid] = w
     return weights
@@ -70,8 +71,11 @@ def add_COS(courses):
 
 def parse_student_preferences(rows):
     students = {}
-    cols = {'Timestamp': 'Time', 'Email': 'Email', 'Name': 'Name', 'Advisor': 'Advisor', 'What courses at Princeton': 'Previous1', 'What courses have you previously':
-            'Previous2', 'Favorite': 'Favorite', 'Good': 'Good', 'OK Match': 'OK'}
+    cols = {'Timestamp': 'Time', 'Email': 'Email', 'Name': 'Name',
+            'Advisor': 'Advisor', 'What courses at Princeton': 'Previous1',
+            'What courses have you previously':
+                'Previous2', 'Favorite': 'Favorite', 'Good': 'Good',
+            'OK Match': 'OK'}
 
     rows = switch_keys_from_rows(rows, cols, True)
     for row in rows:
@@ -105,7 +109,7 @@ def switch_keys(dictionary, key_to_switch_dict):
 
 def switch_keys_from_rows(rows, keys_to_switch_dict, is_paraphrased=False):
     """
-    If `is_paraphrased`, then assume that the the keys in `keys_to_switch_dict`
+    If `is_paraphrased`, then assume that the keys in `keys_to_switch_dict`
     are only key phrases in the full keys in `rows` (that will only be 
     replicated in one key), and so this function will translate from the 
     paraphrased keys to the full keys.
@@ -153,8 +157,10 @@ def fix_advisors(students, student_info):
 
 def add_in_assigned(students, assigned, names):
     for netid, course in assigned.items():
-        student = {'Name': names[netid], 'Advisor': '', 'Email': netid + '@princeton.edu',
-                   'Favorite': f"{course[:3]} {course[3:]}", 'Good': '', 'OK': '', 'Previous': '', 'Time': get_date()}
+        student = {'Name': names[netid], 'Advisor': '',
+                   'Email': netid + '@princeton.edu',
+                   'Favorite': f"{course[:3]} {course[3:]}", 'Good': '',
+                   'OK': '', 'Previous': '', 'Time': get_date()}
         students[netid + '@princeton.edu'] = student
     return students
 
@@ -167,9 +173,10 @@ def parse_names(student_info):
 
 
 def get_students(student_info_sheet_id, student_preferences_sheet_id):
-    student_info = get_rows_with_tab_title(student_info_sheet_id, 'Students')
+    student_info = get_rows_with_tab_title(student_info_sheet_id,
+                                           gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
     student_preferences_tab = get_rows_with_tab_title(
-        student_preferences_sheet_id, 'Form Responses 1')
+        student_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
 
     for row in student_info:
         if re.search(r"[mM]issing [Ff]orm", row['Last']):
@@ -186,14 +193,15 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
 
 
 def get_courses(planning_sheet_id):
-    tab = get_rows_with_tab_title(planning_sheet_id, "Courses")
+    tab = get_rows_with_tab_title(planning_sheet_id,
+                                  gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE)
     courses = parse_courses(tab)
     return courses
 
 
 def get_fac_prefs(instructor_preferences_sheet_id):
     tab = get_rows_with_tab_title(
-        instructor_preferences_sheet_id, "Form Responses 1")
+        instructor_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
     prefs = parse_fac_prefs(tab)
     return prefs
 
@@ -387,7 +395,8 @@ def write_assigned(path, assigned):
     write_csv(f"{path}/fixed.csv", data)
 
 
-def write_csvs(output_directory_title=None, planning_sheet_id=None, student_prefs_sheet_id=None, instructor_prefs_sheet_id=None):
+def write_csvs(output_directory_title=None, planning_sheet_id=None,
+               student_prefs_sheet_id=None, instructor_prefs_sheet_id=None):
     auth.authenticate_user()
 
     if not planning_sheet_id:

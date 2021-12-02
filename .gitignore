@@ -2,3 +2,6 @@
 .DS_Store
 test/.DS_Store
 real_data/
+.idea
+venv
+colabtools
