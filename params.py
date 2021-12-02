@@ -14,3 +14,13 @@ DEFAULT_FIRST_FILL = 20
 DEFAULT_BASE_FILL = 5
 # weight for giving a student a TA position
 DEFAULT_ASSIGN = 5
+# default value for JOIN if no value is supply
+DEFAULT_JOIN = 3.0
+# multiplier of JOIN value to add to weight
+JOIN_MULTIPLIER = 2.0
+# default value for BANK if no value is supply
+DEFAULT_BANK = 3.0
+# multiplier of BANK value to add to weight
+BANK_MULTIPLIER = -2.0
+# value by which to increase all MSE students
+MSE_BOOST = 20.0

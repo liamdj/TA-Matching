@@ -6,6 +6,8 @@ import gspread
 from oauth2client.client import GoogleCredentials
 from google.colab import auth
 
+import params
+
 
 def get_rows_with_tab_title(sheet_id, tab_title):
     gc = gspread.authorize(GoogleCredentials.get_application_default())
@@ -31,9 +33,13 @@ def parse_weights(rows):
     weights = {}
     for row in rows:
         netid = row["NetID"]
-        bank = float(row["Bank"]) if _sanitize(row["Bank"]) else 0.0
-        join = float(row["Join"]) if _sanitize(row["Join"]) else 0.0
-        w = -2*(bank + 1) + 2*(join - 3)
+        bank = float(row["Bank"]) if _sanitize(
+            row["Bank"]) else params.DEFAULT_BANK
+        join = float(row["Join"]) if _sanitize(
+            row["Join"]) else params.DEFAULT_JOIN
+        w = params.BANK_MULTIPLIER * \
+            (bank - params.DEFAULT_BANK) + \
+            params.JOIN_MULTIPLIER*(join - params.DEFAULT_JOIN)
         if w:
             weights[netid] = w
     return weights
@@ -295,7 +301,7 @@ def lookup_weight(netid, weights, years):
     if netid in years:
         year = years[netid]
         if 'MSE' in year:
-            weight += 20.0
+            weight += params.MSE_BOOST
     return str(weight) if weight != 0.0 else ''
 
 
