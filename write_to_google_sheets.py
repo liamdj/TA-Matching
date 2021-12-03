@@ -26,8 +26,7 @@ def get_num_execution_from_matchings_sheet(sheet) -> str:
 
 def add_worksheet(sheet, worksheet_title, rows=100, cols=26, index=0):
     return sheet.add_worksheet(title=worksheet_title, rows=str(rows),
-                               cols=str(cols),
-                               index=index)
+                               cols=str(cols), index=index)
 
 
 def get_worksheet(sheet_title, worksheet_title):
@@ -106,7 +105,7 @@ def build_hyperlink_to_sheet(sheet_id, link_text, worksheet_id=None):
 
 def write_execution_to_ToC(executor: str, executed_num: str,
                            num_alternate_matchings=0,
-                           student_info_sheet_id: str = None,
+                           planning_sheet_id: str = None,
                            student_prefs_sheet_id: str = None,
                            instructor_prefs_sheet_id: str = None):
     now = datetime.datetime.now(pytz.timezone('America/New_York'))
@@ -115,9 +114,9 @@ def write_execution_to_ToC(executor: str, executed_num: str,
 
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, num_alternate_matchings)
-    links_to_input = build_links_to_input(instructor_prefs_sheet_id,
-                                          student_info_sheet_id,
-                                          student_prefs_sheet_id)
+    links_to_input = build_links_to_input(planning_sheet_id,
+                                          student_prefs_sheet_id,
+                                          instructor_prefs_sheet_id)
 
     toc_vals = [date, time, executor, *links_to_output, *links_to_input,
                 *links_to_alternate_output]
@@ -126,12 +125,11 @@ def write_execution_to_ToC(executor: str, executed_num: str,
     toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
 
 
-def build_links_to_input(instructor_prefs_sheet_id: str,
-                         student_info_sheet_id: str,
-                         student_prefs_sheet_id: str):
+def build_links_to_input(planning_sheet_id: str, student_prefs_sheet_id: str,
+                         instructor_prefs_sheet_id: str):
     links_to_input = ['', '', '']
-    if student_info_sheet_id:
-        links_to_input[0], _ = build_hyperlink_to_sheet(student_info_sheet_id,
+    if planning_sheet_id:
+        links_to_input[0], _ = build_hyperlink_to_sheet(planning_sheet_id,
                                                         "TA Planning")
     if student_prefs_sheet_id:
         links_to_input[1], _ = build_hyperlink_to_sheet(student_prefs_sheet_id,
@@ -228,3 +226,19 @@ def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap,
 
 def remove_worksheets_for_execution(tab_num: str):
     pass
+
+
+def write_output_csvs(alternates, num_executed, output_dir_title):
+    outputs_dir = f'{output_dir_title}/outputs'
+    write_csv_to_new_tab(f'{outputs_dir}/matchings.csv',
+                         gs_consts.MATCHING_OUTPUT_SHEET_TITLE, num_executed, 1)
+    write_csv_to_new_tab(f'{outputs_dir}/additional_TA.csv',
+                         gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE,
+                         num_executed, wrap=True)
+    write_csv_to_new_tab(f'{outputs_dir}/remove_TA.csv',
+                         gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE, num_executed,
+                         wrap=True)
+    for i in range(alternates):
+        write_csv_to_new_tab(f'{outputs_dir}/alternate{i + 1}.csv',
+                             gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE,
+                             num_executed + chr(ord('A') + i), i)
