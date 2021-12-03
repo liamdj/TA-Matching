@@ -90,6 +90,14 @@ def get_row_of_cells(worksheet, row, cols_len):
     return worksheet.range(f"A{row}:{chr(ord('A') + cols_len)}{row}")
 
 
+def get_rows_of_cells(worksheet, start_row, end_row, cols_len):
+    one_d = worksheet.range(f"A{start_row}:{chr(ord('A') + cols_len)}{end_row}")
+    two_d = []
+    for i in range(len(one_d) // cols_len):
+        two_d.append(one_d[i * (cols_len + 1):(i + 1) * (cols_len + 1)])
+    return two_d
+
+
 def append_to_last_row(worksheet, values):
     list_of_lists = worksheet.get_all_values()
     cells = get_row_of_cells(worksheet, len(list_of_lists) + 1, len(values))
@@ -225,7 +233,40 @@ def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap,
 
 
 def remove_worksheets_for_execution(tab_num: str):
-    pass
+    def remove_ws(sheet, worksheets, worksheet_title):
+        for ws in worksheets:
+            if worksheet_title == ws.title:
+                sheet.del_worksheet(ws)
+                return True
+        return False
+
+    def remove_alternates_ws(alternates_sheet):
+        alternates_worksheets = alternates_sheet.worksheets()
+        ws_titles = [ws.title for ws in alternates_worksheets]
+        for j in range(100):
+            alternate_title = f"{tab_num}{chr(ord('A') + j)}"
+            if alternate_title in ws_titles:
+                if not remove_ws(alternates_sheet, alternates_worksheets,
+                                 alternate_title):
+                    return
+
+    matching_sheet = get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
+    remove_ws(matching_sheet, matching_sheet.worksheets(), tab_num)
+    remove_TA_sheet = get_sheet(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)
+    remove_ws(remove_TA_sheet, remove_TA_sheet.worksheets(), tab_num)
+    additional_TA_sheet = get_sheet(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE)
+    remove_ws(additional_TA_sheet, additional_TA_sheet.worksheets(), tab_num)
+    remove_alternates_ws(get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE))
+
+    toc_ws = get_worksheet_from_sheet(matching_sheet,
+                                      gs_consts.OUTPUT_TOC_TAB_TITLE)
+    cells = get_rows_of_cells(toc_ws, 2, int(tab_num) + 2, 5)
+    for i, cell in enumerate(cells):
+        title = cell[3].value.split("#")[1]
+        if int(title) <= int(tab_num):
+            if tab_num in title:
+                toc_ws.delete_rows(i + 2)
+            return
 
 
 def write_output_csvs(alternates, num_executed, output_dir_title):
