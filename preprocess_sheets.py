@@ -38,9 +38,9 @@ def parse_weights(rows):
             row["Bank"]) else params.DEFAULT_BANK
         join = float(row["Join"]) if _sanitize(
             row["Join"]) else params.DEFAULT_JOIN
-        w = params.BANK_MULTIPLIER * \
-            (bank - params.DEFAULT_BANK) + \
-            params.JOIN_MULTIPLIER * (join - params.DEFAULT_JOIN)
+        w = params.BANK_MULTIPLIER * (
+                bank - params.DEFAULT_BANK) + params.JOIN_MULTIPLIER * (
+                    join - params.DEFAULT_JOIN)
         if w:
             weights[netid] = w
     return weights
@@ -61,7 +61,7 @@ def add_COS(courses):
     parts = str(courses).split(';')
     for i, part in enumerate(parts):
         # if course code from a non-COS discipline
-        if re.search(r'[a-zA-Z]', part):
+        if re.match(r'[A-Z]', part):
             parts[i] = part.replace(' ', '')
         else:
             parts[i] = 'COS' + part
@@ -72,21 +72,11 @@ def add_COS(courses):
 def parse_student_preferences(rows):
     students = {}
     cols = {'Timestamp': 'Time', 'Email': 'Email', 'Name': 'Name',
-            'Advisor': 'Advisor', 'What courses at Princeton': 'Previous1',
-            'What courses have you previously':
-                'Previous2', 'Favorite': 'Favorite', 'Good': 'Good',
-            'OK Match': 'OK'}
+            'Advisor': 'Advisor', 'What courses at Princeton': 'Previous',
+            'Favorite': 'Favorite', 'Good': 'Good', 'OK Match': 'OK'}
 
     rows = switch_keys_from_rows(rows, cols, True)
     for row in rows:
-        previous = []
-        for prev in [row['Previous1'].strip(), row['Previous2'].strip()]:
-            if prev:
-                previous.append(prev)
-        del row['Previous1']
-        del row['Previous2']
-
-        row['Previous'] = ';'.join(previous)
         students[row['Email']] = row
     return students
 
@@ -200,8 +190,8 @@ def get_courses(planning_sheet_id):
 
 
 def get_fac_prefs(instructor_preferences_sheet_id):
-    tab = get_rows_with_tab_title(
-        instructor_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
+    tab = get_rows_with_tab_title(instructor_preferences_sheet_id,
+                                  gs_consts.PREFERENCES_INPUT_TAB_TITLE)
     prefs = parse_fac_prefs(tab)
     return prefs
 
@@ -232,7 +222,7 @@ def format_course(course, prefs):
         return ''
     num = str(course['Course'])
     slots = course['TAs']
-    if int(slots) == 0:  # DO I WANT THIS??????????????????????????????????????
+    if int(slots) == 0:
         return ''
     weight = '' if 'Weight' not in course else course['Weight']
     title = course['Title']
@@ -260,35 +250,53 @@ def format_course(course, prefs):
 
 
 def parse_previous_list(prev):
-    parts = prev.split(';')
+    if '(' in prev:
+        parts = re.split(r"\)[,;]\s?", prev)
+    else:
+        parts = re.split(r"[,;]\s?", prev)
+    regex = re.compile(
+        r"^(COS|EGR|PNI)[\s]?([1-9][0-9]{2}[A-F]?)\/?" + r"(COS|EGR|PNI)?[\s]?([1-9][0-9]{2}[A-F]?)?\/?" * 2)
+
     coursenums = []
     for part in parts:
-        parens = part.split('(')
-        if len(parens) < 2:
+        match = regex.match(part)
+        if match is None:
             continue
-        numbers = re.split(r'\D+', parens[0])
-        for num in numbers:
-            if _sanitize(num):
-                coursenums.append(num)
+        deps_or_nums = match.groups()
+        prev_non_cos_dept = False
+        for i in range(len(deps_or_nums)):
+            matched = deps_or_nums[i]
+            if matched is None or "COS" in matched:
+                continue
+            prev_dept = ''
+            if prev_non_cos_dept:
+                prev_dept = coursenums.pop()
+            prev_non_cos_dept = re.search(r"^[A-Z]", matched)
+            if _sanitize(matched):
+                coursenums.append(prev_dept + matched)
     return coursenums
 
 
 def format_prev(prev, courses):
-    """ Previously TA'ing in a different subject that's not COS is not recognized """
-    prev = prev.replace('),', ');').replace(
-        ')\n', ');')  # people didn't follow directions
-    coursenums = parse_previous_list(prev)
-    for course in coursenums:
-        if int(course) not in courses:
-            coursenums.remove(course)
+    # """ Previously TA'ing in a different subject that's not COS is not recognized """
+    # people didn't follow directions
+    prev = prev.replace('),', ');').replace(')\n', ');')
+    course_nums = set(parse_previous_list(prev))
+    to_delete = set()
+    for course in course_nums:
+        if re.search(r"[A-Z]", course):
+            if course not in courses:
+                to_delete.add(course)
+        elif int(course) not in courses:
+            to_delete.add(course)
 
-    if not len(coursenums):
+    for c in to_delete:
+        course_nums.remove(c)
+
+    if not len(course_nums):
         return ''
-    coursenums = set(coursenums)  # presumably to remove duplicates
-    coursenums = list(coursenums)
-    coursenums = ';'.join(coursenums)
-    coursenums = add_COS(coursenums)
-    return coursenums
+    course_nums = add_COS(';'.join(course_nums))
+    return course_nums
 
 
 def format_netid(email):
@@ -382,8 +390,8 @@ def write_students(path, courses, assigned, weights, years, students):
         phds += format_phd(student, years)
     for netid, course in assigned.items():
         student = students[netid + '@princeton.edu']
-        data += format_assigned(netid,
-                                student['Name'], student['Advisor'], course)
+        data += format_assigned(netid, student['Name'], student['Advisor'],
+                                course)
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
 
@@ -408,8 +416,8 @@ def write_csvs(output_directory_title=None, planning_sheet_id=None,
 
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
-    assigned, weights, years, students = get_students(
-        planning_sheet_id, student_prefs_sheet_id)
+    assigned, weights, years, students = get_students(planning_sheet_id,
+                                                      student_prefs_sheet_id)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, weights, years, students)
