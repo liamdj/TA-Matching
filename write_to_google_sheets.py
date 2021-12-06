@@ -126,7 +126,7 @@ def write_execution_to_ToC(executor: str, executed_num: str,
                                           student_prefs_sheet_id,
                                           instructor_prefs_sheet_id)
 
-    toc_vals = [date, time, executor, *links_to_output, *links_to_input,
+    toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
                 *links_to_alternate_output]
     toc_wsh = get_worksheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
                             gs_consts.OUTPUT_TOC_TAB_TITLE)
@@ -260,9 +260,15 @@ def remove_worksheets_for_execution(tab_num: str):
 
     toc_ws = get_worksheet_from_sheet(matching_sheet,
                                       gs_consts.OUTPUT_TOC_TAB_TITLE)
-    cells = get_rows_of_cells(toc_ws, 2, int(tab_num) + 2, 5)
-    for i, cell in enumerate(cells):
-        title = cell[3].value.split("#")[1]
+    max_ws = matching_sheet.worksheets()[1].title
+    cells = get_rows_of_cells(toc_ws, 2, int(max_ws) + 2, 5)
+    for i, row in enumerate(cells):
+        if not row:
+            continue
+        title = row[4].value.split("#")
+        if len(title) < 2:
+            continue
+        title = title[1]
         if int(title) <= int(tab_num):
             if tab_num in title:
                 toc_ws.delete_rows(i + 2)
