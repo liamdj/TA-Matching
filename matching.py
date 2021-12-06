@@ -71,7 +71,7 @@ def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame, cour
         previous = student_data.loc[student, 'Previous'].split(';')
         advisor = student_data.loc[student, 'Advisors'].split(';')
         for ci, (course, c_scores) in enumerate(course_scores.iterrows()):
-            if not pd.isna(c_scores[student]) and not pd.isna(s_scores[course]):
+            if not pd.isna(c_scores[student]) and course in s_scores and not pd.isna(s_scores[course]):
                 weights[si, ci] = s_scores[course] * \
                     params.STUDENT_PREF + c_scores[student] * params.PROF_PREF
                 if student_data.loc[student, course] == 'Favorite' and c_scores[student] > 0:
