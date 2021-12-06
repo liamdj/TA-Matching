@@ -301,6 +301,8 @@ def run_matching(path="", student_data="inputs/student_data.csv", course_data="i
             path + adjusted, dtype={'Netid': str, 'Course': str, 'Weight': float})
         for _, row in adjusted_matches.iterrows():
             si = student_scores.index.get_loc(row['Netid'])
+            if row['Course'] not in course_scores.index:
+                continue
             ci = course_scores.index.get_loc(row['Course'])
             weights[si, ci] += row['Weight']
 

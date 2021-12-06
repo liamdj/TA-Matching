@@ -24,3 +24,5 @@ DEFAULT_BANK = 3.0
 BANK_MULTIPLIER = -2.0
 # value by which to increase all MSE students
 MSE_BOOST = 20.0
+# weight added to (student, course) pairs for all courses in a student's OK list
+OKAY_COURSE_PENALTY = -2.0

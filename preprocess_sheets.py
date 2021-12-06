@@ -77,6 +77,24 @@ def parse_student_preferences(rows):
 
     rows = switch_keys_from_rows(rows, cols, True)
     for row in rows:
+        fav = format_course_list(row['Favorite'])
+        good = format_course_list(row['Good'])
+        okay = format_course_list(row['OK'])
+        fav = fav.split(';')
+        good = set(good.split(';'))
+        okay = set(okay.split(';'))
+        for fav_c in fav:
+            if fav_c in good:
+                good.remove(fav_c)
+            if fav_c in okay:
+                okay.remove(fav_c)
+        for good_c in good:
+            if good_c in okay:
+                okay.remove(good_c)
+
+        row['Favorite'] = ';'.join(fav)
+        row['Good'] = ';'.join(good)
+        row['OK'] = ';'.join(okay)
         students[row['Email']] = row
     return students
 
@@ -162,6 +180,19 @@ def parse_names(student_info):
     return names
 
 
+def parse_adjusted(students):
+    adjusted = {}
+    for email, student in students.items():
+        netid = format_netid(email)
+        adjustments = set()
+        for course in re.split(r"[,;]\s?", student['OK']):
+            if _sanitize(course):
+                adjustments.add((course, params.OKAY_COURSE_PENALTY))
+        if adjustments:
+            adjusted[netid] = adjustments
+    return adjusted
+
+
 def get_students(student_info_sheet_id, student_preferences_sheet_id):
     student_info = get_rows_with_tab_title(student_info_sheet_id,
                                            gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
@@ -179,7 +210,8 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
     # in case assigned students did not send in preferences
     students = add_in_assigned(students, assigned, names)
     students = fix_advisors(students, student_info)
-    return assigned, weights, years, students
+    adjusted = parse_adjusted(students)
+    return assigned, weights, years, students, adjusted
 
 
 def get_courses(planning_sheet_id):
@@ -330,11 +362,8 @@ def format_student(student, courses, weights, years):
     fav = student['Favorite']
     good = student['Good']
     okay = student['OK']
-    weight = lookup_weight(netid, weights, years)
     prev = format_prev(prev, courses)
-    fav = format_course_list(fav)
-    good = format_course_list(good)
-    okay = format_course_list(okay)
+    weight = lookup_weight(netid, weights, years)
     row = f'{netid},{full_name},{weight},{prev},{adv},{fav},{good},{okay}\n'
     return row
 
@@ -403,6 +432,14 @@ def write_assigned(path, assigned):
     write_csv(f"{path}/fixed.csv", data)
 
 
+def write_adjusted(path, adjusted):
+    data = 'Netid,Course,Weight\n'
+    for netid, adjustments in adjusted.items():
+        for course, weight in adjustments:
+            data += f"{netid},{course},{weight}\n"
+    write_csv(f"{path}/adjusted.csv", data)
+
+
 def write_csvs(output_directory_title=None, planning_sheet_id=None,
                student_prefs_sheet_id=None, instructor_prefs_sheet_id=None):
     auth.authenticate_user()
@@ -416,12 +453,13 @@ def write_csvs(output_directory_title=None, planning_sheet_id=None,
 
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
-    assigned, weights, years, students = get_students(planning_sheet_id,
-                                                      student_prefs_sheet_id)
+    assigned, weights, years, students, adjusted = get_students(
+        planning_sheet_id, student_prefs_sheet_id)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, weights, years, students)
     write_assigned(path, assigned)
+    write_adjusted(path, adjusted)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
 
 
