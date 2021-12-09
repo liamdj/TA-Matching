@@ -100,7 +100,7 @@ def parse_student_preferences(rows):
 
 
 def parse_courses(rows):
-    # cols = ['Course', 'Omit', 'TAs', 'Weight', 'Notes', 'Title']
+    # cols = ['Course', 'Omit', 'TAs', 'Weight', 'Instructor', 'Title', 'Notes']
     courses = {}
     for row in rows:
         courses[row['Course']] = row
@@ -249,7 +249,7 @@ def format_pref_list(pref):
 
 
 def format_course(course, prefs):
-    # cols = ['Course','Omit','TAs','Weight','Notes','Title']
+    # cols = ['Course','Omit','TAs','Weight','Instructor','Title','Notes']
     if 'Omit' in course and course['Omit']:
         return ''
     num = str(course['Course'])
@@ -258,6 +258,7 @@ def format_course(course, prefs):
         return ''
     weight = '' if 'Weight' not in course else course['Weight']
     title = course['Title']
+    instructors = ';'.join(re.split(r'[;,]', course['Instructor']))
 
     course_code = f'COS {num}'
     if re.search(r'[a-zA-Z]', num):
@@ -277,7 +278,7 @@ def format_course(course, prefs):
         veto = ''
 
     course_code = course_code.replace(' ', '')
-    row = f'{course_code},{slots},{weight},{fav},{veto},"{title}"\n'
+    row = f'{course_code},{slots},{weight},{fav},{veto},{instructors},"{title}"\n'
     return row
 
 
@@ -401,7 +402,7 @@ def make_path(dir_title=None):
 
 
 def write_courses(path, courses, prefs):
-    data = 'Course,Slots,Weight,Favorite,Veto,Title\n'
+    data = 'Course,Slots,Weight,Favorite,Veto,Instructor,Title\n'
     for num in courses:
         course = courses[num]
         data += format_course(course, prefs)

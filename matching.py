@@ -14,7 +14,7 @@ import min_cost_flow
 
 student_data_cols = ['Name', 'Weight', 'Previous', 'Advisors']
 student_options = ['Okay', 'Good', 'Favorite']
-course_data_cols = ['Slots', 'Weight']
+course_data_cols = ['Slots', 'Weight', 'Instructor']
 course_options = ['Veto', 'Favorite']
 
 
@@ -67,14 +67,15 @@ def get_course_scores(data: pd.DataFrame, cols: pd.Index) -> pd.DataFrame:
     return pd.concat(rows, axis='columns').T
 
 
-def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame, course_scores: pd.DataFrame) -> np.array:
+def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame, course_data: pd.DataFrame, course_scores: pd.DataFrame) -> np.array:
 
     weights = np.full((len(student_scores.index),
                        len(course_scores.index)), np.nan)
     for si, (student, s_scores) in enumerate(student_scores.iterrows()):
         previous = student_data.loc[student, 'Previous'].split(';')
-        advisor = student_data.loc[student, 'Advisors'].split(';')
+        advisors = student_data.loc[student, 'Advisors'].split(';')
         for ci, (course, c_scores) in enumerate(course_scores.iterrows()):
+            instructors = course_data.loc[course ,'Instructor'].split(';')
             if not pd.isna(c_scores[student]) and course in s_scores and not pd.isna(s_scores[course]):
                 weights[si, ci] = s_scores[course] * \
                     params.STUDENT_PREF + c_scores[student] * params.PROF_PREF
@@ -82,8 +83,9 @@ def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame, cour
                     weights[si, ci] += params.FAVORITE
                 if course in previous:
                     weights[si, ci] += params.PREVIOUS
-                if course in advisor:
-                    weights[si, ci] += params.ADVISORS
+                for advisor in advisors:
+                    if advisor in instructors:
+                        weights[si, ci] += params.ADVISORS
     return weights
 
 
@@ -298,7 +300,7 @@ def run_matching(path="", student_data="inputs/student_data.csv", course_data="i
     student_scores = get_student_scores(student_data, course_data.index)
     course_scores = get_course_scores(course_data, student_data.index)
 
-    weights = match_weights(student_data, student_scores, course_scores)
+    weights = match_weights(student_data, student_scores, course_data, course_scores)
 
     if os.path.isfile(path + adjusted):
         adjusted_matches = pd.read_csv(

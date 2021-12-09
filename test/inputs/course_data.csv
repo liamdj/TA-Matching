@@ -1,6 +1,6 @@
-Course,Slots,Weight,Favorite,Veto
-TEST 111,1,,a,e
-TEST 222,1,,b;c,d
-TEST 333,3,5,,
-TEST 444,1,,d,
-TEST 555,1,,,a;c
+Course,Slots,Weight,Favorite,Veto,Instructor,Title
+TEST 111,1,,a,e,Z,
+TEST 222,1,,b;c,d,Y,
+TEST 333,3,5,,X;W,
+TEST 444,1,,d,Z,
+TEST 555,1,,,a;c,Q,

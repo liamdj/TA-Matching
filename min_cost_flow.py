@@ -130,7 +130,8 @@ class MatchingGraph:
                     c_match_score = course_perspective[si, ci]
                     is_previous = course in student_data.loc[student, "Previous"].split(
                         ';')
-                    is_advisor_advisee = course in student_data.loc[student, "Advisors"].split(
+                    for instructor in course_data.loc[course, "Instructor"].split(';'):
+                        is_advisor_advisee = is_advisor_advisee or instructor in student_data.loc[student, "Advisors"].split(
                         ';')
                     writer.writerow([
                         student, name, course, "{} / {}".format(slots_filled[ci], slots), "{:.2f}".format(weights[si, ci]), is_fixed, is_previous, is_advisor_advisee, is_negative_student_weight, s_rank, "{:.2f}".format(s_rank_score), "{:.2f}".format(s_match_score), c_rank, "{:.2f}".format(c_rank_score), "{:.2f}".format(c_match_score)])
