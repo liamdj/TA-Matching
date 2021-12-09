@@ -32,7 +32,9 @@ def get_student_scores(data: pd.DataFrame, cols: pd.Index) -> pd.DataFrame:
         # collect values for qualified responses
         values = [v for _, v in student_rankings(row, cols)]
         # normalized scores associated with rankings
-        scores = np.nan_to_num(stats.zscore(values))
+        # AF and MW changed this next line:
+        # scores = np.nan_to_num(stats.zscore(values))
+        scores = [float(v) for v in values]
         rows.append(pd.Series({c: score for (c, _), score in zip(
             student_rankings(row, cols), scores)}, name=index))
     return pd.concat(rows, axis='columns').T
@@ -57,7 +59,9 @@ def get_course_scores(data: pd.DataFrame, cols: pd.Index) -> pd.DataFrame:
         # collect values for qualified responses
         values = [v for _, v in course_rankings(row, cols)]
         # normalized scores associated with rankings
-        scores = np.nan_to_num(stats.zscore(values))
+        # AF and MW changed this next line:
+        # scores = np.nan_to_num(stats.zscore(values))
+        scores = [float(v) for v in values]
         rows.append(pd.Series({c: score for (c, _), score in zip(
             course_rankings(row, cols), scores)}, name=index))
     return pd.concat(rows, axis='columns').T
