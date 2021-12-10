@@ -4,16 +4,21 @@ import random
 import string
 import copy
 
-COURSES = ['COS 126', 'COS 217', 'COS 226', 'COS 240', 'COS 302', 'COS 316', 'COS 320', 'COS 324', 'COS 333',  'COS 418',
-           'COS 426', 'COS 432', 'COS 445', 'COS 475', 'COS 484', 'COS 488', 'COS 495', 'COS 511', 'COS 518', 'COS 522', 'COS 585', 'EGR 154']
+COURSES = ['COS 126', 'COS 217', 'COS 226', 'COS 240', 'COS 302', 'COS 316',
+           'COS 320', 'COS 324', 'COS 333', 'COS 418', 'COS 426', 'COS 432',
+           'COS 445', 'COS 475', 'COS 484', 'COS 488', 'COS 495', 'COS 511',
+           'COS 518', 'COS 522', 'COS 585', 'EGR 154']
 
 
 def _weighted_rand(first, last, weights):
-    return random.choices([i for i in range(first, last+1)], weights=weights, k=1)[0]
+    return \
+    random.choices([i for i in range(first, last + 1)], weights=weights, k=1)[0]
 
 
 def gen_princeton_email():
-    return ''.join([random.choice(string.ascii_lowercase + string.digits) for _ in range(random.randint(7, 12))]) + '@princeton.edu'
+    return ''.join(
+        [random.choice(string.ascii_lowercase + string.digits) for _ in
+         range(random.randint(7, 12))]) + '@princeton.edu'
 
 
 def gen_name():
@@ -48,14 +53,15 @@ def gen_bank_join_score():
     option = _weighted_rand(0, 2, (5, 1, 1))
     bank, join = "", ""
     if option == 1:
-        bank = str(random.randint(2, 10)/2.0)
+        bank = str(random.randint(2, 10) / 2.0)
     elif option == 2:
-        join = str(random.randint(2, 10)/2.0)
+        join = str(random.randint(2, 10) / 2.0)
     return bank, join
 
 
 def gen_half_score():
-    return str(random.randint(2, 10)/2.0) if _weighted_rand(0, 1, (15, 1)) else ""
+    return str(random.randint(2, 10) / 2.0) if _weighted_rand(0, 1,
+                                                              (15, 1)) else ""
 
 
 def gen_course_name():
@@ -71,7 +77,8 @@ def gen_course_num():
 
 
 def gen_match_list():
-    return ', '.join([gen_course_name() for _ in range(random.choices([1, 2, 3, 4], weights=(4, 3, 2, 1), k=1)[0])])
+    return ', '.join([gen_course_name() for _ in range(
+        random.choices([1, 2, 3, 4], weights=(4, 3, 2, 1), k=1)[0])])
 
 
 def gen_course_assignment():
@@ -83,8 +90,8 @@ def gen_previously_taught_courses(at_princeton):
     courses = []
     while random.randint(0, last) >= 2:
         c = gen_course_name()
-        term = random.choices(["Fall", "Spring"])[0] + \
-            str(random.randint(17, 21))
+        term = random.choices(["Fall", "Spring"])[0] + str(
+            random.randint(17, 21))
         if at_princeton:
             courses.append(f"{c} ({term})")
         else:
@@ -108,8 +115,9 @@ def generate_faculty_sheet(entries=50):
         for _ in range(random.choices([0, 1, 2], weights=(25, 20, 1), k=1)[0]):
             if len(courses):
                 course.append(parse_course_num(courses.pop()))
-        matrix.append([last_name, gen_name().lower(),
-                      last_name, gen_name(), 'COS', ','.join(course)])
+        matrix.append(
+            [last_name, gen_name().lower(), last_name, gen_name(), 'COS',
+             ','.join(course)])
 
     matrix = sorted(matrix, key=lambda x: x[0])
     return titles + matrix
@@ -121,20 +129,23 @@ def generate_universal_student_matrix(entries, advisors_matrix):
     for _ in range(entries):
         advisor1 = random.choice(advisors_matrix)[2]  # just last name
         advisor2 = random.choice(advisors_matrix)[2]
-        advisors = advisor1 if _weighted_rand(
-            0, 1, (1, 14)) else f"{advisor1}, {advisor2}"
+        advisors = advisor1 if _weighted_rand(0, 1,
+            (1, 14)) else f"{advisor1}, {advisor2}"
         matrix.append((gen_name(), gen_name(), gen_name().lower(), advisors))
     return matrix
 
 
 def generate_student_info_sheet(entries=5):
-    titles = [["Last", "First", "Nickname", "NetID", "Form", "Track",
-               "Year", "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes"]]
+    titles = [["Last", "First", "Nickname", "NetID", "Form", "Track", "Year",
+               "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes",
+               "Special Notes"]]
     matrix = []
     for _ in range(entries):
         track, year = gen_track_year()
-        line = [gen_name(), gen_name(), gen_nickname(),
-                gen_name().lower(), "yes", track, year, gen_name(), gen_advisor2(), *gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
+        line = [gen_name(), gen_name(), gen_nickname(), gen_name().lower(),
+                "yes", track, year, gen_name(), gen_advisor2(),
+                *gen_bank_join_score(), gen_half_score(),
+                gen_course_assignment(), "", ""]
         matrix.append(line)
 
     matrix = sorted(matrix, key=lambda x: x[0])
@@ -143,16 +154,18 @@ def generate_student_info_sheet(entries=5):
 
 def generate_student_info_sheet_from_matrix(student_info):
     # student = ["First Name", "Last Name", "NetID", "Comma Separated Advisors"]
-    titles = [["Last", "First", "Nickname", "NetID", "Form", "Track",
-               "Year", "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes"]]
+    titles = [["Last", "First", "Nickname", "NetID", "Form", "Track", "Year",
+               "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes",
+               "Special Notes"]]
     matrix = []
     for student in student_info[1:]:
         track, year = gen_track_year()
         advisors = student[3].split(", ")
         advisor1 = advisors[0]
         advisor2 = "" if len(advisors) == 1 else advisors[1]
-        line = [student[0], student[1], gen_nickname(),
-                student[2], "yes", track, year, advisor1, advisor2,  *gen_bank_join_score(), gen_half_score(), gen_course_assignment(), ""]
+        line = [student[0], student[1], gen_nickname(), student[2], "yes",
+                track, year, advisor1, advisor2, *gen_bank_join_score(),
+                gen_half_score(), gen_course_assignment(), "", ""]
         matrix.append(line)
     matrix = sorted(matrix, key=lambda x: x[0])
     return titles + matrix
@@ -160,7 +173,7 @@ def generate_student_info_sheet_from_matrix(student_info):
 
 def generate_student_preferences(student_info_sheet, advisors_matrix):
     """
-    student has format ["Last", "First", "Nickname", "NetID", "Form", "Track", "Year", "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes"]
+    student has format ["Last", "First", "Nickname", "NetID", "Form", "Track", "Year", "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes", "Special Notes"]
 
     advisor has format ["Key", "NetID", "Last", "First", "Department", "Courses"]
     """
@@ -169,7 +182,10 @@ def generate_student_preferences(student_info_sheet, advisors_matrix):
     OTHER_COMMENTS_TITLE = """Any other comments that might be helpful for someone who is considering you for a TA position? (This will be shared with all instructors.) It is fine to leave this blank."""
     OTHER_PRIVATE_COMMENTS_TITLE = """Any other private comments for us as we optimize over TA assignments? (This will be shared with Adam Finkelstein and Matt Weinberg and possibly one or two others involved in TA assignments.) It is fine to leave this blank."""
     matrix = [["Timestamp", "Email", "Full Name", "Advisor",
-               PREVIOUS_PRINCETON_COURSES_TITLE, PREVIOUS_NON_PRINCETON_COURSES_TITLE, "Favorite Match", "Good Match", "OK Match", OTHER_COMMENTS_TITLE, OTHER_PRIVATE_COMMENTS_TITLE]]
+               PREVIOUS_PRINCETON_COURSES_TITLE,
+               PREVIOUS_NON_PRINCETON_COURSES_TITLE, "Favorite Match",
+               "Good Match", "OK Match", OTHER_COMMENTS_TITLE,
+               OTHER_PRIVATE_COMMENTS_TITLE]]
     advisors_matrix = advisors_matrix[1:]
     advisors_key_to_full = {}
     for advisor in advisors_matrix:
@@ -181,8 +197,11 @@ def generate_student_preferences(student_info_sheet, advisors_matrix):
             if advisor:
                 advisors.append(advisors_key_to_full[advisor])
 
-        line = [gen_timestamp(), f"{student[3]}@princeton.edu", f"{student[1]} {student[0]}", "; ".join(advisors),
-                gen_previously_taught_courses(True), gen_previously_taught_courses(False), gen_match_list(), gen_match_list(), gen_match_list(), "", ""]
+        line = [gen_timestamp(), f"{student[3]}@princeton.edu",
+                f"{student[1]} {student[0]}", "; ".join(advisors),
+                gen_previously_taught_courses(True),
+                gen_previously_taught_courses(False), gen_match_list(),
+                gen_match_list(), gen_match_list(), "", "", ""]
         matrix.append(line)
     return matrix
 
@@ -190,16 +209,16 @@ def generate_student_preferences(student_info_sheet, advisors_matrix):
 def generate_fac_preferences(student_preferences, advisors_matrix):
     def __gen_matches_list(possible_students, is_best=True):
         if is_best:
-            n = min(len(possible_students), random.choices(
-                [0, 1, 3, 6, 10, 14], weights=[1, 1, 3, 5, 6, 3], k=1)[0])
+            n = min(len(possible_students), random.choices([0, 1, 3, 6, 10, 14],
+                weights=[1, 1, 3, 5, 6, 3], k=1)[0])
         else:
-            n = min(len(possible_students), random.choices(
-                [0, 1, 3, 5], weights=[6, 5, 3, 1], k=1)[0])
+            n = min(len(possible_students),
+                    random.choices([0, 1, 3, 5], weights=[6, 5, 3, 1], k=1)[0])
         matches = random.choices(possible_students, k=n)
         return ', '.join(matches)
 
-    matrix = [["Timestamp", "Email Address", "Which course?",
-               "Best Match(es)", "Matches to Avoid"]]
+    matrix = [["Timestamp", "Email Address", "Which course?", "Best Match(es)",
+               "Matches to Avoid"]]
     courses = []
     courses_to_students = {}
     for course in COURSES:
@@ -222,15 +241,16 @@ def generate_fac_preferences(student_preferences, advisors_matrix):
         email = random.choice(teaching_advisors_netids) + '@princeton.edu'
         possible_students = courses_to_students[course]
         line = [gen_timestamp(), email, course,
-                __gen_matches_list(possible_students), __gen_matches_list(possible_students, False)]
+                __gen_matches_list(possible_students),
+                __gen_matches_list(possible_students, False)]
         matrix.append(line)
     return matrix
 
 
 def generate_courses_matrix(faculty_matrix):
     """ faculty_matrix has format ['Key', 'NetID', 'Last', 'First', 'Department', 'Courses'] """
-    titles = [["Course", "Omit", "TAs", "Weight",
-               "Instructor",  "Title", "Notes"]]
+    titles = [
+        ["Course", "Omit", "TAs", "Weight", "Instructor", "Title", "Notes"]]
     faculty = [fac[0] for fac in faculty_matrix]
     random.shuffle(faculty)
 
@@ -261,20 +281,17 @@ def generate_courses_matrix(faculty_matrix):
 def gen_full_input_sheets(student_entries=5, faculty_entries=50):
     faculty_sheet = generate_faculty_sheet(faculty_entries)
     courses_sheet = generate_courses_matrix(faculty_sheet)
-    student_matrix = generate_universal_student_matrix(
-        student_entries, faculty_sheet)
-    student_info_sheet = generate_student_info_sheet_from_matrix(
-        student_matrix)
+    student_matrix = generate_universal_student_matrix(student_entries,
+        faculty_sheet)
+    student_info_sheet = generate_student_info_sheet_from_matrix(student_matrix)
     student_prefs, fac_prefs = gen_preferences_from_student_info_and_advisors(
         student_info_sheet, faculty_sheet)
     return student_info_sheet, faculty_sheet, courses_sheet, student_prefs, fac_prefs
 
 
 def gen_preferences_from_student_info_and_advisors(student_info, advisors):
-    student_preferences = generate_student_preferences(
-        student_info, advisors)
-    fac_preferences = generate_fac_preferences(
-        student_preferences, advisors)
+    student_preferences = generate_student_preferences(student_info, advisors)
+    fac_preferences = generate_fac_preferences(student_preferences, advisors)
     return student_preferences, fac_preferences
 
 
@@ -282,24 +299,27 @@ def generate_and_write_all_input_sheets(student_entries=5, faculty_entries=50):
     student_info_sheet, faculty_sheet, courses_sheet, student_prefs, fac_prefs = gen_full_input_sheets(
         student_entries, faculty_entries)
     student_info_sheet_name = "TA Matching 22: TA Planning (Generated Randomly)"
-    write_gs.write_matrix_to_sheet(
-        student_info_sheet, student_info_sheet_name, "Students")
-    write_gs.write_matrix_to_new_tab(
-        faculty_sheet, student_info_sheet_name, "Faculty")
-    write_gs.write_matrix_to_new_tab(
-        courses_sheet, student_info_sheet_name, "Courses")
+    write_gs.write_matrix_to_sheet(student_info_sheet, student_info_sheet_name,
+        "Students")
+    write_gs.write_matrix_to_new_tab(faculty_sheet, student_info_sheet_name,
+        "Faculty")
+    write_gs.write_matrix_to_new_tab(courses_sheet, student_info_sheet_name,
+        "Courses")
     write_student_and_fac_preferences(student_prefs, fac_prefs)
 
 
 def write_student_and_fac_preferences(student_preferences, fac_preferences):
-    student_prefs_sheet_id = write_gs.write_matrix_to_sheet(
-        student_preferences, "TA Matching 22: Student Preferences (Generated Randomly)", "Form Responses 1")
-    fac_prefs_sheet_id = write_gs.write_matrix_to_sheet(
-        fac_preferences, "TA Matching 22: Instructor Preferences (Generated Randomly)", "Form Responses 1", wrap=True)
+    student_prefs_sheet_id = write_gs.write_matrix_to_sheet(student_preferences,
+        "TA Matching 22: Student Preferences (Generated Randomly)",
+        "Form Responses 1")
+    fac_prefs_sheet_id = write_gs.write_matrix_to_sheet(fac_preferences,
+        "TA Matching 22: Instructor Preferences (Generated Randomly)",
+        "Form Responses 1", wrap=True)
     return student_prefs_sheet_id, fac_prefs_sheet_id
 
 
-def generate_and_write_preferences_from_student_info_and_advisors(student_info_sheet_id):
+def generate_and_write_preferences_from_student_info_and_advisors(
+        student_info_sheet_id):
     sheet = write_gs.get_sheet_by_id(student_info_sheet_id)
     student_info = sheet.worksheet("Students").get_all_values()
     advisors = sheet.worksheet("Faculty").get_all_values()

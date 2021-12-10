@@ -193,6 +193,20 @@ def parse_adjusted(students):
     return adjusted
 
 
+def parse_notes(student_info):
+    notes = {}
+    for student in student_info:
+        notes[student['NetID']] = student['Special Notes']
+    return notes
+
+
+def add_in_notes(students, student_notes):
+    for email, info in students.items():
+        info['Notes'] = student_notes[format_netid(email)]
+        students[email] = info
+    return students
+
+
 def get_students(student_info_sheet_id, student_preferences_sheet_id):
     student_info = get_rows_with_tab_title(student_info_sheet_id,
                                            gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
@@ -203,12 +217,14 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
         if re.search(r"[mM]issing [Ff]orm", row['Last']):
             student_info.remove(row)
     names = parse_names(student_info)
+    student_notes = parse_notes(student_info)
     assigned = parse_pre_assign(student_info)
     weights = parse_weights(student_info)
     years = parse_years(student_info)
     students = parse_student_preferences(student_preferences_tab)
     # in case assigned students did not send in preferences
     students = add_in_assigned(students, assigned, names)
+    students = add_in_notes(students, student_notes)
     students = fix_advisors(students, student_info)
     adjusted = parse_adjusted(students)
     return assigned, weights, years, students, adjusted
@@ -355,7 +371,7 @@ def lookup_weight(netid, weights, years):
 
 
 def format_student(student, courses, weights, years):
-    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK']
+    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
     netid = format_netid(student['Email'])
     full_name = student['Name']
     prev = student['Previous']
@@ -363,9 +379,10 @@ def format_student(student, courses, weights, years):
     fav = student['Favorite']
     good = student['Good']
     okay = student['OK']
+    notes = student['Notes']
     prev = format_prev(prev, courses)
     weight = lookup_weight(netid, weights, years)
-    row = f'{netid},{full_name},{weight},{prev},{adv},{fav},{good},{okay}\n'
+    row = f'{netid},{full_name},{weight},{prev},{adv},{fav},{good},{okay},"{notes}"\n'
     return row
 
 
@@ -382,9 +399,9 @@ def format_phd(student, years):
     return row
 
 
-def format_assigned(netid, full_name, advisor, course):
-    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK']
-    return f'{netid},{full_name},,,{advisor},{course},,\n'
+def format_assigned(netid, full_name, advisor, course, notes):
+    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
+    return f'{netid},{full_name},,,{advisor},{course},,,{notes}\n'
 
 
 def get_date():
@@ -410,7 +427,7 @@ def write_courses(path, courses, prefs):
 
 
 def write_students(path, courses, assigned, weights, years, students):
-    data = 'Netid,Name,Weight,Previous,Advisors,Favorite,Good,Okay\n'
+    data = 'Netid,Name,Weight,Previous,Advisors,Favorite,Good,Okay,Notes\n'
     phds = 'Netid,Name,Year,Advisor\n'
     for email in students:
         if format_netid(email) in assigned:
@@ -421,7 +438,7 @@ def write_students(path, courses, assigned, weights, years, students):
     for netid, course in assigned.items():
         student = students[netid + '@princeton.edu']
         data += format_assigned(netid, student['Name'], student['Advisor'],
-                                course)
+                                course, student['Notes'])
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
 
