@@ -2,7 +2,6 @@ import csv
 import datetime
 import gspread
 import pytz
-from oauth2client.client import GoogleCredentials
 
 import g_sheet_consts as gs_consts
 
@@ -35,12 +34,12 @@ def get_worksheet(sheet_title, worksheet_title):
 
 
 def get_sheet(sheet_title):
-    gc = gspread.authorize(GoogleCredentials.get_application_default())
+    gc = gspread.service_account(filename='./credentials.json')
     return gc.open(sheet_title)
 
 
 def get_sheet_by_id(sheet_id):
-    gc = gspread.authorize(GoogleCredentials.get_application_default())
+    gc = gspread.service_account(filename='./credentials.json')
     return gc.open_by_key(sheet_id)
 
 
@@ -174,7 +173,7 @@ def build_links_to_output(executed_num: str, num_alternate_matchings: int):
 
 
 def write_matrix_to_sheet(matrix, sheetname, worksheet_name=None, wrap=False):
-    gc = gspread.authorize(GoogleCredentials.get_application_default())
+    gc = gspread.service_account(filename='./credentials.json')
     sheet = gc.create(sheetname)
     if worksheet_name:
         inital_worksheet = sheet.get_worksheet(0)

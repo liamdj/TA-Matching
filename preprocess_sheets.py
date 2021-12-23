@@ -3,15 +3,13 @@ import re
 import datetime
 
 import gspread
-from oauth2client.client import GoogleCredentials
-from google.colab import auth
 
 import params
 import g_sheet_consts as gs_consts
 
 
 def get_rows_with_tab_title(sheet_id, tab_title):
-    gc = gspread.authorize(GoogleCredentials.get_application_default())
+    gc = gspread.service_account(filename='./credentials.json')
 
     sheet = gc.open_by_key(sheet_id).worksheet(tab_title)
     all_rows = sheet.get_all_records()
@@ -458,17 +456,8 @@ def write_adjusted(path, adjusted):
     write_csv(f"{path}/adjusted.csv", data)
 
 
-def write_csvs(output_directory_title=None, planning_sheet_id=None,
-               student_prefs_sheet_id=None, instructor_prefs_sheet_id=None):
-    auth.authenticate_user()
-
-    if not planning_sheet_id:
-        planning_sheet_id = '1xcq575Wp_JMQ0j-6udK_Lwq3BrSZnL-ro_UZagIhAGk'
-    if not student_prefs_sheet_id:
-        student_prefs_sheet_id = '1TX6kEsIYB2rPqFnYkXyZbzN8CaK-jEh29Si40BWgCQ8'
-    if not instructor_prefs_sheet_id:
-        instructor_prefs_sheet_id = '1poN30Xdgs4_4STw-GxQuqE3UAq3WuNq02EqknJZScFo'
-
+def write_csvs(planning_sheet_id, student_prefs_sheet_id,
+               instructor_prefs_sheet_id, output_directory_title=None):
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
     assigned, weights, years, students, adjusted = get_students(
@@ -479,7 +468,3 @@ def write_csvs(output_directory_title=None, planning_sheet_id=None,
     write_assigned(path, assigned)
     write_adjusted(path, adjusted)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
-
-
-if __name__ == '__main__':
-    write_csvs()
