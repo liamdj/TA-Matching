@@ -38,3 +38,13 @@ def write_matchings(executor, output_dir_title, planning_sheet_id=None,
                                     planning_sheet_id,
                                     student_preferences_sheet_id,
                                     instructor_preferences_sheet_id)
+
+OFFICIAL_SPR22_TA_PLANNING_SHEET='1hOpAp7cdPyC1k018P0ANX7W6GFa9mALafeZwa4F9KkI'
+OFFICIAL_SPR22_TA_PREFS_SHEET='102ScjAAywvAorVg4MGDzlHsQAd5PiRZTbT89nfNfwqU'
+OFFICIAL_SPR22_INSTRUCTORS_SHEET='111z9ZiceHvrkWMV_zCxUQRfymF1l2cxAV1c8yVj2Vjw'
+preprocess_input_run_matching_and_write_matching(
+    executor='Nathan Local',
+    alternates=0,
+    planning_sheet_id=OFFICIAL_SPR22_TA_PLANNING_SHEET,
+    student_preferences_sheet_id=OFFICIAL_SPR22_TA_PREFS_SHEET,
+    instructor_preferences_sheet_id=OFFICIAL_SPR22_INSTRUCTORS_SHEET)

@@ -28,22 +28,6 @@ def _sanitize(input):
     return input if type(input) != str else input.strip()
 
 
-def parse_weights(rows):
-    weights = {}
-    for row in rows:
-        netid = row["NetID"]
-        bank = float(row["Bank"]) if _sanitize(
-            row["Bank"]) else params.DEFAULT_BANK
-        join = float(row["Join"]) if _sanitize(
-            row["Join"]) else params.DEFAULT_JOIN
-        w = params.BANK_MULTIPLIER * (
-                bank - params.DEFAULT_BANK) + params.JOIN_MULTIPLIER * (
-                    join - params.DEFAULT_JOIN)
-        if w:
-            weights[netid] = w
-    return weights
-
-
 def parse_years(rows):
     years = {}
     for row in rows:
@@ -205,6 +189,20 @@ def add_in_notes(students, student_notes):
     return students
 
 
+def add_in_bank_join(students, student_info):
+    bank = {}
+    join = {}
+    for student in student_info:
+        netid = student['NetID']
+        bank[netid] = student['Bank']
+        join[netid] = student['Join']
+
+    for email, student in students.items():
+        student['Bank'] = bank[format_netid(email)]
+        student['Join'] = join[format_netid(email)]
+    return students
+
+
 def get_students(student_info_sheet_id, student_preferences_sheet_id):
     student_info = get_rows_with_tab_title(student_info_sheet_id,
                                            gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
@@ -217,15 +215,15 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
     names = parse_names(student_info)
     student_notes = parse_notes(student_info)
     assigned = parse_pre_assign(student_info)
-    weights = parse_weights(student_info)
     years = parse_years(student_info)
     students = parse_student_preferences(student_preferences_tab)
+    students = add_in_bank_join(students, student_info)
     # in case assigned students did not send in preferences
     students = add_in_assigned(students, assigned, names)
     students = add_in_notes(students, student_notes)
     students = fix_advisors(students, student_info)
     adjusted = parse_adjusted(students)
-    return assigned, weights, years, students, adjusted
+    return assigned, years, students, adjusted
 
 
 def get_courses(planning_sheet_id):
@@ -357,30 +355,21 @@ def format_course_list(courses):
     return courses
 
 
-def lookup_weight(netid, weights, years):
-    weight = 0.0
-    if netid in weights:
-        weight += weights[netid]
-    if netid in years:
-        year = years[netid]
-        if 'MSE' in year:
-            weight += params.MSE_BOOST
-    return str(weight) if weight != 0.0 else ''
-
-
-def format_student(student, courses, weights, years):
-    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
+def format_student(student, courses, years):
+    # ['Netid','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
     netid = format_netid(student['Email'])
     full_name = student['Name']
+    year = years[netid]
+    bank = student['Bank']
+    join = student['Join']
     prev = student['Previous']
     adv = student['Advisor'].replace(',', ';')
     fav = student['Favorite']
     good = student['Good']
     okay = student['OK']
-    notes = student['Notes']
+    notes = student['Notes'].replace('"', '\'')
     prev = format_prev(prev, courses)
-    weight = lookup_weight(netid, weights, years)
-    row = f'{netid},{full_name},{weight},{prev},{adv},{fav},{good},{okay},"{notes}"\n'
+    row = f'{netid},{full_name},{year},{bank},{join},,{prev},{adv},{fav},{good},{okay},"{notes}"\n'
     return row
 
 
@@ -397,9 +386,9 @@ def format_phd(student, years):
     return row
 
 
-def format_assigned(netid, full_name, advisor, course, notes):
-    # ['NetID','Name','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
-    return f'{netid},{full_name},,,{advisor},{course},,,{notes}\n'
+def format_assigned(netid, full_name, year, advisor, course, notes):
+    # ['NetID','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
+    return f'{netid},{full_name},{year},,,,,{advisor},{course},,,{notes}\n'
 
 
 def get_date():
@@ -424,18 +413,18 @@ def write_courses(path, courses, prefs):
     write_csv(f"{path}/course_data.csv", data)
 
 
-def write_students(path, courses, assigned, weights, years, students):
-    data = 'Netid,Name,Weight,Previous,Advisors,Favorite,Good,Okay,Notes\n'
+def write_students(path, courses, assigned, years, students):
+    data = 'Netid,Name,Year,Bank,Join,Weight,Previous,Advisors,Favorite,Good,Okay,Notes\n'
     phds = 'Netid,Name,Year,Advisor\n'
     for email in students:
         if format_netid(email) in assigned:
             continue
         student = students[email]
-        data += format_student(student, courses, weights, years)
+        data += format_student(student, courses, years)
         phds += format_phd(student, years)
     for netid, course in assigned.items():
         student = students[netid + '@princeton.edu']
-        data += format_assigned(netid, student['Name'], student['Advisor'],
+        data += format_assigned(netid, student['Name'], years[netid], student['Advisor'],
                                 course, student['Notes'])
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
@@ -460,11 +449,21 @@ def write_csvs(planning_sheet_id, student_prefs_sheet_id,
                instructor_prefs_sheet_id, output_directory_title=None):
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
-    assigned, weights, years, students, adjusted = get_students(
-        planning_sheet_id, student_prefs_sheet_id)
+    assigned, years, students, adjusted = get_students(planning_sheet_id,
+        student_prefs_sheet_id)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
-    write_students(path, courses, assigned, weights, years, students)
+    write_students(path, courses, assigned, years, students)
     write_assigned(path, assigned)
     write_adjusted(path, adjusted)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
+
+
+OFFICIAL_SPR22_TA_PLANNING_SHEET = '1hOpAp7cdPyC1k018P0ANX7W6GFa9mALafeZwa4F9KkI'
+OFFICIAL_SPR22_TA_PREFS_SHEET = '102ScjAAywvAorVg4MGDzlHsQAd5PiRZTbT89nfNfwqU'
+OFFICIAL_SPR22_INSTRUCTORS_SHEET = '111z9ZiceHvrkWMV_zCxUQRfymF1l2cxAV1c8yVj2Vjw'
+write_csvs(
+    planning_sheet_id='1hOpAp7cdPyC1k018P0ANX7W6GFa9mALafeZwa4F9KkI',
+    student_prefs_sheet_id='102ScjAAywvAorVg4MGDzlHsQAd5PiRZTbT89nfNfwqU',
+    instructor_prefs_sheet_id='111z9ZiceHvrkWMV_zCxUQRfymF1l2cxAV1c8yVj2Vjw',
+    output_directory_title='matching')

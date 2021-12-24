@@ -12,7 +12,8 @@ import params
 
 import min_cost_flow
 
-student_data_cols = ['Name', 'Weight', 'Previous', 'Advisors', 'Notes']
+student_data_cols = ['Name', 'Weight', 'Year', 'Bank', 'Join', 'Previous',
+                     'Advisors', 'Notes']
 student_options = ['Okay', 'Good', 'Favorite']
 course_data_cols = ['Slots', 'Weight', 'Instructor']
 course_options = ['Veto', 'Favorite']
@@ -80,7 +81,7 @@ def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame,
             instructors = course_data.loc[course, 'Instructor'].split(';')
             if not pd.isna(
                     c_scores[student]) and course in s_scores and not pd.isna(
-                    s_scores[course]):
+                s_scores[course]):
                 weights[si, ci] = s_scores[course] * params.STUDENT_PREF + \
                                   c_scores[student] * params.PROF_PREF
                 if student_data.loc[student, course] == 'Favorite' and c_scores[
@@ -108,8 +109,14 @@ def read_student_data(filename: str) -> pd.DataFrame:
             rank_rows.append(pd.Series(collect, name=row['Netid']))
 
     df = pd.concat(rank_rows, axis='columns').T
+    df['Bank'] = pd.to_numeric(df['Bank'], errors='coerce', downcast='float')
+    df['Join'] = pd.to_numeric(df['Join'], errors='coerce', downcast='float')
     df['Weight'] = pd.to_numeric(df['Weight'], errors='coerce',
-        downcast='float').fillna(params.DEFAULT_ASSIGN)
+                                 downcast='float').fillna(params.DEFAULT_ASSIGN)
+    df['Weight'] += params.BANK_MULTIPLIER * (
+            df['Bank'].fillna(params.DEFAULT_BANK) - params.DEFAULT_BANK)
+    df['Weight'] += params.JOIN_MULTIPLIER * (
+            df['Join'].fillna(params.DEFAULT_JOIN) - params.DEFAULT_JOIN)
     return df
 
 
@@ -129,9 +136,10 @@ def read_course_data(filename: str) -> pd.DataFrame:
 
     df = pd.concat(rank_rows, axis='columns').T
     df['Slots'] = pd.to_numeric(df['Slots'], errors='coerce',
-        downcast='integer').fillna(1)
+                                downcast='integer').fillna(1)
     df['First weight'] = pd.to_numeric(df['Weight'], errors='coerce',
-        downcast='float').fillna(params.DEFAULT_FIRST_FILL)
+                                       downcast='float').fillna(
+        params.DEFAULT_FIRST_FILL)
     df['Base weight'] = params.DEFAULT_BASE_FILL
     return df
 
@@ -219,18 +227,28 @@ def test_additional_TA(path, student_data, course_data, student_scores,
     for ci, course in enumerate(course_data.index):
         # fill one additional course slot
         fixed_edit = pd.concat([fixed_matches.T, pd.Series(['', course, -1, ci],
-            index=['Student', 'Course', 'Student index', 'Course index'])],
+                                                           index=['Student',
+                                                                  'Course',
+                                                                  'Student index',
+                                                                  'Course index'])],
                                axis=1).T
         graph_edit = min_cost_flow.MatchingGraph(weights,
-            student_data['Weight'],
-            course_data[['Slots', 'Base weight', 'First weight']], fixed_edit)
+                                                 student_data['Weight'],
+                                                 course_data[
+                                                     ['Slots', 'Base weight',
+                                                      'First weight']],
+                                                 fixed_edit)
         if graph_edit.solve():
             new_matches = graph_edit.get_matching(fixed_edit)
             student_changes, course_changes = matching_differences(course,
-                initial_matches, new_matches, student_data, course_data,
-                student_scores, course_scores)
+                                                                   initial_matches,
+                                                                   new_matches,
+                                                                   student_data,
+                                                                   course_data,
+                                                                   student_scores,
+                                                                   course_scores)
             data[course] = (
-                                       graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS, single_line(
+                                   graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS, single_line(
                 student_changes), single_line(course_changes)
         else:
             data[course] = -100, '', ''
@@ -253,20 +271,27 @@ def test_removing_TA(path, student_data, course_data, student_scores,
             # no edges from student node
             fixed_edit = pd.concat([fixed_matches.T,
                                     pd.Series([student, '', si, -1],
-                                        index=['Student', 'Course',
-                                               'Student index',
-                                               'Course index'])], axis=1).T
+                                              index=['Student', 'Course',
+                                                     'Student index',
+                                                     'Course index'])],
+                                   axis=1).T
             graph_edit = min_cost_flow.MatchingGraph(weights,
-                student_data['Weight'],
-                course_data[['Slots', 'Base weight', 'First weight']],
-                fixed_edit)
+                                                     student_data['Weight'],
+                                                     course_data[['Slots',
+                                                                  'Base weight',
+                                                                  'First weight']],
+                                                     fixed_edit)
             if graph_edit.solve():
                 new_matches = graph_edit.get_matching(fixed_edit)
                 student_changes, course_changes = matching_differences(None,
-                    initial_matches, new_matches, student_data, course_data,
-                    student_scores, course_scores)
+                                                                       initial_matches,
+                                                                       new_matches,
+                                                                       student_data,
+                                                                       course_data,
+                                                                       student_scores,
+                                                                       course_scores)
                 data[student] = (
-                                            graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS, single_line(
+                                        graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS, single_line(
                     student_changes), single_line(course_changes)
             else:
                 data[student] = -100, '', ''
@@ -290,22 +315,32 @@ def find_alternate_matching(path, student_data, course_data, weights,
                 weights[si, ci] -= step
         cumulative += step
         graph_edit = min_cost_flow.MatchingGraph(weights,
-            student_data['Weight'],
-            course_data[['Slots', 'Base weight', 'First weight']],
-            fixed_matches)
+                                                 student_data['Weight'],
+                                                 course_data[
+                                                     ['Slots', 'Base weight',
+                                                      'First weight']],
+                                                 fixed_matches)
         if graph_edit.solve():
             new_matches = graph_edit.get_matching(fixed_matches)
             student_changes, course_changes = matching_differences(None,
-                last_matches, new_matches, student_data, course_data,
-                student_scores, course_scores)
+                                                                   last_matches,
+                                                                   new_matches,
+                                                                   student_data,
+                                                                   course_data,
+                                                                   student_scores,
+                                                                   course_scores)
             if len(student_changes) > 0 or len(course_changes) > 0:
                 student_changes, course_changes = matching_differences(None,
-                    initial_matches, new_matches, student_data, course_data,
-                    student_scores, course_scores)
+                                                                       initial_matches,
+                                                                       new_matches,
+                                                                       student_data,
+                                                                       course_data,
+                                                                       student_scores,
+                                                                       course_scores)
                 print('Solved alternate flow with total weight {:.2f}'.format(
                     -graph_edit.flow.OptimalCost() / 100 + (
-                                len(new_matches) - len(
-                            student_changes)) * cumulative))
+                            len(new_matches) - len(
+                        student_changes)) * cumulative))
                 with open(path, 'w', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerow(
@@ -341,7 +376,8 @@ def run_matching(path="", student_data="inputs/student_data.csv",
 
     if os.path.isfile(path + adjusted):
         adjusted_matches = pd.read_csv(path + adjusted,
-            dtype={'Netid': str, 'Course': str, 'Weight': float})
+                                       dtype={'Netid': str, 'Course': str,
+                                              'Weight': float})
         for _, row in adjusted_matches.iterrows():
             si = student_scores.index.get_loc(row['Netid'])
             if row['Course'] not in course_scores.index:
@@ -352,23 +388,26 @@ def run_matching(path="", student_data="inputs/student_data.csv",
     if os.path.isfile(path + fixed):
         fixed_matches = pd.read_csv(path + fixed, dtype=str)
         fixed_matches['Student index'] = [student_scores.index.get_loc(student)
-            for student in fixed_matches['Netid']]
+                                          for student in fixed_matches['Netid']]
         fixed_matches['Course index'] = [course_scores.index.get_loc(course) for
-            course in fixed_matches['Course']]
+                                         course in fixed_matches['Course']]
     else:
         fixed_matches = pd.DataFrame(
             columns=['Netid', 'Course', 'Student index', 'Course index'])
 
     graph = min_cost_flow.MatchingGraph(weights, student_data['Weight'],
-        course_data[['Slots', 'Base weight', 'First weight']], fixed_matches)
+                                        course_data[['Slots', 'Base weight',
+                                                     'First weight']],
+                                        fixed_matches)
 
     if graph.solve():
         print('Solved optimal flow with total weight {:.2f}'.format(
             -graph.flow.OptimalCost() / 100))
 
         graph.write_matching(path + output + 'matchings.csv', weights,
-            student_data, student_scores, course_data, course_scores,
-            fixed_matches[['Student index', 'Course index']])
+                             student_data, student_scores, course_data,
+                             course_scores,
+                             fixed_matches[['Student index', 'Course index']])
 
     else:
         print('Problem optimizing flow')

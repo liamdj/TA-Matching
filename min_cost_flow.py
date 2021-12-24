@@ -122,16 +122,22 @@ class MatchingGraph:
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["Netid", "Name", "Notes", "Course", "Slots Filled",
-                             "Total Match Weight", "Fixed", "Previous",
-                             "Advisor-Advisee", "Negative Student Weight",
-                             "Student Rank", "Student Rank Score",
-                             "Matches Score (Student)", "Professor Rank",
-                             "Professor Rank Score", "Match Score (Course)"])
+                             "Total Match Weight", "Fixed", "Year", "Bank",
+                             "Join", "Previous", "Advisor-Advisee",
+                             "Negative Student Weight", "Student Rank",
+                             "Student Rank Score", "Matches Score (Student)",
+                             "Professor Rank", "Professor Rank Score",
+                             "Match Score (Course)"])
 
             output = []
             for i, (si, ci) in enumerate(matches):
                 student = student_scores.index[si]
                 name = student_data.loc[student, "Name"]
+                year = student_data.loc[student, "Year"]
+                bank = student_data.loc[student, "Bank"]
+                bank = "" if np.isnan(bank) else bank
+                join = student_data.loc[student, "Join"]
+                join = "" if np.isnan(join) else join
                 is_fixed = i < len(fixed_matches.index)
                 is_previous = False
                 is_advisor_advisee = False
@@ -158,7 +164,8 @@ class MatchingGraph:
                     output.append([student, name, notes, course,
                                    "{} / {}".format(slots_filled[ci], slots),
                                    "{:.2f}".format(weights[si, ci]), is_fixed,
-                                   is_previous, is_advisor_advisee,
+                                   year, bank, join, is_previous,
+                                   is_advisor_advisee,
                                    is_negative_student_weight, s_rank,
                                    "{:.2f}".format(s_rank_score),
                                    "{:.2f}".format(s_match_score), c_rank,
@@ -168,7 +175,7 @@ class MatchingGraph:
                 else:
                     output.append(
                         [student, name, notes, "unassigned", "", "", is_fixed,
-                         is_previous, is_advisor_advisee,
+                         year, bank, join, is_previous, is_advisor_advisee,
                          is_negative_student_weight, "", "", "", "", "", ""])
             output = sorted(output, key=lambda x: x[3])
             writer.writerows(output)
