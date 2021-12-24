@@ -10,33 +10,59 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      planning_sheet_id=None,
                                                      student_preferences_sheet_id=None,
                                                      instructor_preferences_sheet_id=None):
-    sheet_ids = preprocess.write_csvs(
+    preprocess.write_csvs(
         output_directory_title=input_dir_title,
         planning_sheet_id=planning_sheet_id,
         student_prefs_sheet_id=student_preferences_sheet_id,
         instructor_prefs_sheet_id=instructor_preferences_sheet_id)
 
-    run_and_write_matchings(executor, input_dir_title, *sheet_ids, alternates)
+    num_executed = write_gs.get_num_execution_from_matchings_sheet()
+    input_sheets = write_gs.copy_input_worksheets(
+        num_executed, planning_sheet_id, student_preferences_sheet_id,
+        instructor_preferences_sheet_id)
+
+    run_and_write_matchings(
+        executor, input_dir_title, *input_sheets, num_executed, num_executed,
+        alternates)
 
 
-def run_and_write_matchings(executor, input_dir_title, planning_sheet_id=None,
-                            student_preferences_sheet_id=None,
-                            instructor_preferences_sheet_id=None, alternates=0):
+def run_and_write_matchings(executor, input_dir_title,
+                            planning_input_copy_sheet_id,
+                            student_preferences_input_copy_sheet_id,
+                            instructor_preferences_input_copy_sheet_id,
+                            output_num_executed=None, input_num_executed=None,
+                            alternates=0):
+    """
+    if `input_num_executed` is `None`, then use most recent copy
+    """
     output_dir_path = f"data/{input_dir_title}"
     matching_weight, alt_weights = matching.run_matching(
         path=output_dir_path, alternates=alternates)
     write_matchings(
-        executor, output_dir_path, matching_weight, planning_sheet_id,
-        student_preferences_sheet_id, instructor_preferences_sheet_id,
-        alt_weights)
+        executor, output_dir_path, matching_weight,
+        planning_input_copy_sheet_id, student_preferences_input_copy_sheet_id,
+        instructor_preferences_input_copy_sheet_id, output_num_executed,
+        input_num_executed, alt_weights)
 
 
 def write_matchings(executor, output_dir_title, matching_weight,
-                    planning_sheet_id=None, student_preferences_sheet_id=None,
-                    instructor_preferences_sheet_id=None, alt_weights=[]):
-    num_executed = write_gs.get_num_execution_from_matchings_sheet(
-        write_gs.get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE))
-    write_gs.write_output_csvs(len(alt_weights), num_executed, output_dir_title)
+                    planning_input_copy_sheet_id,
+                    student_preferences_input_copy_sheet_id,
+                    instructor_preferences_input_copy_sheet_id,
+                    output_num_executed=None, input_num_executed=None,
+                    alt_weights=[]):
+    """
+    if `input_num_executed` is `None`, then use most recent copy
+    """
+    if input_num_executed is None:
+        input_num_executed = str(write_gs.get_input_num_execution())
+    if output_num_executed is None:
+        output_num_executed = write_gs.get_num_execution_from_matchings_sheet(
+            input_num_executed=input_num_executed)
+    write_gs.write_output_csvs(
+        len(alt_weights), output_num_executed, output_dir_title)
     write_gs.write_execution_to_ToC(
-        executor, num_executed, matching_weight, alt_weights, planning_sheet_id,
-        student_preferences_sheet_id, instructor_preferences_sheet_id)
+        executor, output_num_executed, matching_weight, alt_weights,
+        planning_input_copy_sheet_id, student_preferences_input_copy_sheet_id,
+        instructor_preferences_input_copy_sheet_id,
+        input_num_executed=input_num_executed)

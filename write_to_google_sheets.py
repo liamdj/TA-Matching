@@ -8,20 +8,43 @@ import g_sheet_consts as gs_consts
 
 
 def get_worksheet_from_sheet(sheet, worksheet_title):
-    worksheets = [e.title for e in sheet.worksheets()]
-    if not worksheet_title in worksheets:
-        raise ValueError(f"{worksheet_title} not a worksheet in {sheet.title}")
-    return sheet.worksheet(worksheet_title)
+    return get_worksheet_from_worksheets(
+        sheet.worksheets(), worksheet_title, sheet.title)
 
 
-def get_num_execution_from_matchings_sheet(sheet) -> str:
-    worksheets = [e.title for e in sheet.worksheets()]
-    worksheets.remove('ToC')
-    worksheets.sort(key=int, reverse=True)
+def get_worksheet_from_worksheets(worksheets, worksheet_title, sheet_title):
+    for ws in worksheets:
+        if ws.title == worksheet_title:
+            return ws
+    raise ValueError(f"{worksheet_title} not a worksheet in {sheet_title}")
+
+
+def get_num_execution_from_matchings_sheet(input_num_executed=None) -> str:
+    matchings_sheet = get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
+    matchings_worksheets = [e.title for e in matchings_sheet.worksheets()]
+    matchings_worksheets.remove('ToC')
+    matchings_worksheets.sort(key=int, reverse=True)
+    max_matchings_tab = int(matchings_worksheets[0])
+
+    if input_num_executed:
+        max_planning_tab = int(input_num_executed)
+    else:
+        max_planning_tab = get_input_num_execution()
+
     worksheet_title = "001"
-    if len(worksheets) > 0:
-        worksheet_title = str(f"{(int(worksheets[0]) + 1):03d}")
+    if len(matchings_worksheets) > 0:
+        worksheet_title = str(
+            f"{(max(max_matchings_tab, max_planning_tab) + 1):03d}")
     return worksheet_title
+
+
+def get_input_num_execution() -> int:
+    planning_inputs_sheet = get_sheet(gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
+    planning_inputs_worksheets = [e.title for e in
+                                  planning_inputs_sheet.worksheets()]
+    planning_inputs_worksheets.sort(key=str, reverse=True)
+    max_planning_tab = int(planning_inputs_worksheets[0].split(":")[0])
+    return max_planning_tab
 
 
 def add_worksheet(sheet, worksheet_title, rows=100, cols=26, index=0):
@@ -105,7 +128,8 @@ def append_to_last_row(worksheet, values):
     update_cells(worksheet, cells, values)
 
 
-def build_hyperlink_to_sheet(sheet_id, link_text, worksheet_id=None):
+def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
+                             worksheet_id: str = None):
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
     if worksheet_id:
         url = f"{url}#gid={worksheet_id}"
@@ -115,17 +139,23 @@ def build_hyperlink_to_sheet(sheet_id, link_text, worksheet_id=None):
 def write_execution_to_ToC(executor: str, executed_num: str,
                            matching_weight: float,
                            alternate_matching_weights=[],
-                           planning_sheet_id: str = None,
-                           student_prefs_sheet_id: str = None,
-                           instructor_prefs_sheet_id: str = None):
+                           planning_input_copy_sheet_id: str = None,
+                           student_preferences_input_copy_sheet_id: str = None,
+                           instructor_preferences_input_copy_sheet_id: str = None,
+                           input_num_executed=None):
     now = datetime.datetime.now(pytz.timezone('America/New_York'))
     date = now.strftime('%m-%d-%Y')
     time = now.strftime('%H:%M:%S')
 
+    if input_num_executed is None:
+        input_num_executed = executed_num
+
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, alternate_matching_weights)
     links_to_input = build_links_to_input(
-        planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id)
+        input_num_executed, planning_input_copy_sheet_id,
+        student_preferences_input_copy_sheet_id,
+        instructor_preferences_input_copy_sheet_id)
 
     toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
                 *links_to_alternate_output]
@@ -134,18 +164,42 @@ def write_execution_to_ToC(executor: str, executed_num: str,
     toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
 
 
-def build_links_to_input(planning_sheet_id: str, student_prefs_sheet_id: str,
-                         instructor_prefs_sheet_id: str):
-    links_to_input = ['', '', '']
-    if planning_sheet_id:
+def build_links_to_input(executed_num: str, planning_input_copy_sheet_id: str,
+                         student_preferences_input_copy_sheet_id: str,
+                         instructor_preferences_input_copy_sheet_id: str):
+    links_to_input = ['', '', '', '', '']
+    if planning_input_copy_sheet_id:
+        planning_sheet = get_sheet_by_id(planning_input_copy_sheet_id)
+        planning_worksheets = get_sheet_by_id(
+            planning_input_copy_sheet_id).worksheets()
         links_to_input[0], _ = build_hyperlink_to_sheet(
-            planning_sheet_id, "TA Planning")
-    if student_prefs_sheet_id:
+            planning_input_copy_sheet_id, f"#{executed_num}",
+            get_worksheet_from_worksheets(
+                planning_worksheets, f"{executed_num}:Students",
+                planning_sheet.title).id)
         links_to_input[1], _ = build_hyperlink_to_sheet(
-            student_prefs_sheet_id, "Student Prefs")
-    if instructor_prefs_sheet_id:
+            planning_input_copy_sheet_id, f"#{executed_num}",
+            get_worksheet_from_worksheets(
+                planning_worksheets, f"{executed_num}:Faculty",
+                planning_sheet.title).id)
         links_to_input[2], _ = build_hyperlink_to_sheet(
-            instructor_prefs_sheet_id, "Instructor Prefs")
+            planning_input_copy_sheet_id, f"#{executed_num}",
+            get_worksheet_from_worksheets(
+                planning_worksheets, f"{executed_num}:Courses",
+                planning_sheet.title).id)
+        if student_preferences_input_copy_sheet_id:
+            links_to_input[3], _ = build_hyperlink_to_sheet(
+                student_preferences_input_copy_sheet_id, f"#{executed_num}",
+                get_worksheet_from_sheet(
+                    get_sheet_by_id(student_preferences_input_copy_sheet_id),
+                    executed_num).id)
+        if instructor_preferences_input_copy_sheet_id:
+            links_to_input[4], _ = build_hyperlink_to_sheet(
+                instructor_preferences_input_copy_sheet_id, f"#{executed_num}",
+                get_worksheet_from_sheet(
+                    get_sheet_by_id(instructor_preferences_input_copy_sheet_id),
+                    executed_num).id)
+
     return links_to_input
 
 
@@ -266,7 +320,33 @@ def remove_worksheets_for_execution(tab_num: str):
     additional_TA_sheet = get_sheet(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE)
     remove_ws(additional_TA_sheet, additional_TA_sheet.worksheets(), tab_num)
     remove_alternates_ws(get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE))
+    planning_input_copy_sheet = get_sheet(
+        gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
+    planning_input_copy_worksheets = planning_input_copy_sheet.worksheets()
+    remove_ws(
+        planning_input_copy_sheet, planning_input_copy_worksheets,
+        f"{tab_num}:Students")
+    remove_ws(
+        planning_input_copy_sheet, planning_input_copy_worksheets,
+        f"{tab_num}:Faculty")
+    remove_ws(
+        planning_input_copy_sheet, planning_input_copy_worksheets,
+        f"{tab_num}:Courses")
+    students_preferences_input_copy_sheet = get_sheet(
+        gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE)
+    remove_ws(
+        students_preferences_input_copy_sheet,
+        students_preferences_input_copy_sheet.worksheets(), tab_num)
+    instructor_preferences_input_copy_sheet = get_sheet(
+        gs_consts.INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE)
+    remove_ws(
+        instructor_preferences_input_copy_sheet,
+        instructor_preferences_input_copy_sheet.worksheets(), tab_num)
 
+    remove_entry_from_toc(matching_sheet, tab_num)
+
+
+def remove_entry_from_toc(matching_sheet, tab_num):
     toc_ws = get_worksheet_from_sheet(
         matching_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
     max_ws = matching_sheet.worksheets()[1].title
@@ -301,3 +381,54 @@ def write_output_csvs(alternates, num_executed, output_dir_title):
             f'{outputs_dir}/alternate{i + 1}.csv',
             gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE,
             num_executed + chr(ord('A') + i), i)
+
+
+def copy_input_worksheets(num_executed: str, planning_sheet_id: str,
+                          student_prefs_sheet_id: str,
+                          instructor_prefs_sheet_id: str):
+    planning_sheet = get_sheet_by_id(planning_sheet_id)
+    planning_worksheets = planning_sheet.worksheets()
+    planning_input_copy_sheet = get_sheet(
+        gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
+    copy_to_from_worksheets(
+        planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
+        gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE, f"{num_executed}:Courses")
+    copy_to_from_worksheets(
+        planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
+        gs_consts.PLANNING_INPUT_FACULTY_TAB_TITLE, f"{num_executed}:Faculty")
+    copy_to_from_worksheets(
+        planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
+        gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE, f"{num_executed}:Students")
+
+    student_prefs_input_copy_sheet = get_sheet(
+        gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE)
+    copy_to(
+        get_sheet_by_id(student_prefs_sheet_id), student_prefs_input_copy_sheet,
+        gs_consts.PREFERENCES_INPUT_TAB_TITLE, num_executed)
+
+    instructor_prefs_input_copy_sheet = get_sheet(
+        gs_consts.INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE)
+    copy_to(
+        get_sheet_by_id(instructor_prefs_sheet_id),
+        instructor_prefs_input_copy_sheet,
+        gs_consts.PREFERENCES_INPUT_TAB_TITLE, num_executed)
+    return planning_input_copy_sheet.id, student_prefs_input_copy_sheet.id, instructor_prefs_input_copy_sheet.id
+
+
+def copy_to_from_worksheets(old_worksheet_title: str, old_worksheets, new_sheet,
+                            old_tab_title: str, new_tab_title: str):
+    worksheet = get_worksheet_from_worksheets(
+        old_worksheets, old_tab_title, old_worksheet_title)
+    copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)
+
+
+def copy_to_from_worksheet(new_sheet, new_tab_title, worksheet):
+    copied_worksheet_title = worksheet.copy_to(new_sheet.id)['title']
+    new_ws = get_worksheet_from_sheet(new_sheet, copied_worksheet_title)
+    new_ws.update_title(new_tab_title)
+    new_sheet.reorder_worksheets([new_ws])
+
+
+def copy_to(old_sheet, new_sheet, old_tab_title, new_tab_title):
+    worksheet = get_worksheet_from_sheet(old_sheet, old_tab_title)
+    copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)
