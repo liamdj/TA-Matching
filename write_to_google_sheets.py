@@ -224,6 +224,7 @@ def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
             format(
                 worksheet, 1, len(matrix), 0, len(matrix[0]),
                 center_align=center_align)
+    return worksheet
 
 
 def write_matrix_to_new_tab(matrix, sheetname, tab_name, wrap=False,
@@ -285,9 +286,10 @@ def remove_worksheets_for_execution(tab_num: str):
 
 def write_output_csvs(alternates, num_executed, output_dir_title):
     outputs_dir = f'{output_dir_title}/outputs'
-    write_csv_to_new_tab(
+    matchings_worksheet = write_csv_to_new_tab(
         f'{outputs_dir}/matchings.csv', gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
         num_executed, 1)
+    format(matchings_worksheet, "", "", 4, 18, center_align=True)
     write_csv_to_new_tab(
         f'{outputs_dir}/additional_TA.csv',
         gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE, num_executed, wrap=True)
