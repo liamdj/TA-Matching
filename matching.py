@@ -120,6 +120,7 @@ def read_student_data(filename: str) -> pd.DataFrame:
             df['Bank'].fillna(params.DEFAULT_BANK) - params.DEFAULT_BANK)
     df['Weight'] += params.JOIN_MULTIPLIER * (
             df['Join'].fillna(params.DEFAULT_JOIN) - params.DEFAULT_JOIN)
+    df['Weight'] += params.MSE_BOOST * ((df['Year'] == 'MSE1') + (df['Year'] == 'MSE2'))
     return df
 
 
