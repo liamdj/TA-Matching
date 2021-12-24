@@ -457,13 +457,3 @@ def write_csvs(planning_sheet_id, student_prefs_sheet_id,
     write_assigned(path, assigned)
     write_adjusted(path, adjusted)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
-
-
-OFFICIAL_SPR22_TA_PLANNING_SHEET = '1hOpAp7cdPyC1k018P0ANX7W6GFa9mALafeZwa4F9KkI'
-OFFICIAL_SPR22_TA_PREFS_SHEET = '102ScjAAywvAorVg4MGDzlHsQAd5PiRZTbT89nfNfwqU'
-OFFICIAL_SPR22_INSTRUCTORS_SHEET = '111z9ZiceHvrkWMV_zCxUQRfymF1l2cxAV1c8yVj2Vjw'
-write_csvs(
-    planning_sheet_id='1hOpAp7cdPyC1k018P0ANX7W6GFa9mALafeZwa4F9KkI',
-    student_prefs_sheet_id='102ScjAAywvAorVg4MGDzlHsQAd5PiRZTbT89nfNfwqU',
-    instructor_prefs_sheet_id='111z9ZiceHvrkWMV_zCxUQRfymF1l2cxAV1c8yVj2Vjw',
-    output_directory_title='matching')

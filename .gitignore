@@ -6,3 +6,4 @@ real_data/
 venv
 colabtools
 credentials.json
+scripts/

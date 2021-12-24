@@ -2,6 +2,7 @@ import csv
 import datetime
 import gspread
 import pytz
+import re
 
 import g_sheet_consts as gs_consts
 
@@ -111,7 +112,8 @@ def build_hyperlink_to_sheet(sheet_id, link_text, worksheet_id=None):
 
 
 def write_execution_to_ToC(executor: str, executed_num: str,
-                           num_alternate_matchings=0,
+                           matching_weight: float,
+                           alternate_matching_weights=[],
                            planning_sheet_id: str = None,
                            student_prefs_sheet_id: str = None,
                            instructor_prefs_sheet_id: str = None):
@@ -120,7 +122,7 @@ def write_execution_to_ToC(executor: str, executed_num: str,
     time = now.strftime('%H:%M:%S')
 
     links_to_output, links_to_alternate_output = build_links_to_output(
-        executed_num, num_alternate_matchings)
+        executed_num, matching_weight, alternate_matching_weights)
     links_to_input = build_links_to_input(planning_sheet_id,
                                           student_prefs_sheet_id,
                                           instructor_prefs_sheet_id)
@@ -147,28 +149,31 @@ def build_links_to_input(planning_sheet_id: str, student_prefs_sheet_id: str,
     return links_to_input
 
 
-def build_links_to_output(executed_num: str, num_alternate_matchings: int):
-    def _build_hyperlink(sheet_title: str, text_prefix: str, num_alternate=0):
+def build_links_to_output(executed_num: str, matching_weight: float,
+                          alternate_matching_weights):
+    def _build_hyperlink(sheet_title: str, text_prefix="", text_suffix="",
+                         num_alternate=0):
         sheet = get_sheet(sheet_title)
         ws_title = executed_num
         if num_alternate:
             ws_title += chr(ord('A') + num_alternate - 1)
         worksheet_id = sheet.worksheet(ws_title).id
-        link_to_output, _ = build_hyperlink_to_sheet(sheet.id,
-                                                     f"{text_prefix} #{executed_num}",
+        link_text = f"{text_prefix}#{executed_num}{text_suffix}"
+        link_to_output, _ = build_hyperlink_to_sheet(sheet.id, link_text,
                                                      worksheet_id)
         return link_to_output
 
-    links_to_output = [
-        _build_hyperlink(gs_consts.MATCHING_OUTPUT_SHEET_TITLE, 'Matching'),
-        _build_hyperlink(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE,
-                         'Additional TA'),
-        _build_hyperlink(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE, 'Remove TA')]
+    links_to_output = [_build_hyperlink(gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
+                                        text_suffix=' ({:.2f})'.format(
+                                            matching_weight)), _build_hyperlink(
+        gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE),
+                       _build_hyperlink(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)]
     links_to_alternate_output = []
-    for i in range(1, num_alternate_matchings + 1):
+    for i in range(1, len(alternate_matching_weights) + 1):
         links_to_alternate_output.append(
             _build_hyperlink(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE,
-                             f'Alternate{i}', num_alternate=i))
+                             f'Alt{i} ', text_suffix=' ({:.2f})'.format(
+                    alternate_matching_weights[i - 1]), num_alternate=i))
     return links_to_output, links_to_alternate_output
 
 
@@ -264,10 +269,10 @@ def remove_worksheets_for_execution(tab_num: str):
     for i, row in enumerate(cells):
         if not row:
             continue
-        title = row[4].value.split("#")
-        if len(title) < 2:
+        match = re.match(r"#([0-9]{3})", row[4].value)
+        if match is None:
             continue
-        title = title[1]
+        title = match.group(1)
         if int(title) <= int(tab_num):
             if tab_num in title:
                 toc_ws.delete_rows(i + 2)

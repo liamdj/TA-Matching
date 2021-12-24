@@ -337,10 +337,10 @@ def find_alternate_matching(path, student_data, course_data, weights,
                                                                        course_data,
                                                                        student_scores,
                                                                        course_scores)
+                new_weight = -graph_edit.flow.OptimalCost() / 100 + (
+                        len(new_matches) - len(student_changes)) * cumulative
                 print('Solved alternate flow with total weight {:.2f}'.format(
-                    -graph_edit.flow.OptimalCost() / 100 + (
-                            len(new_matches) - len(
-                        student_changes)) * cumulative))
+                    new_weight))
                 with open(path, 'w', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerow(
@@ -350,7 +350,7 @@ def find_alternate_matching(path, student_data, course_data, weights,
                         writer.writerow([student, old, new, score_change])
                     for course, old, new, score_change in course_changes:
                         writer.writerow([course, old, new, score_change])
-                return new_matches, cumulative
+                return new_matches, cumulative, new_weight
 
 
 def run_matching(path="", student_data="inputs/student_data.csv",
@@ -400,9 +400,11 @@ def run_matching(path="", student_data="inputs/student_data.csv",
                                                      'First weight']],
                                         fixed_matches)
 
+    matching_weight = None
     if graph.solve():
+        matching_weight = -graph.flow.OptimalCost() / 100
         print('Solved optimal flow with total weight {:.2f}'.format(
-            -graph.flow.OptimalCost() / 100))
+            matching_weight))
 
         graph.write_matching(path + output + 'matchings.csv', weights,
                              student_data, student_scores, course_data,
@@ -423,11 +425,15 @@ def run_matching(path="", student_data="inputs/student_data.csv",
     best_matches = graph.get_matching(fixed_matches)
     last_matches = best_matches
     cumulative = 0
+    alt_weights = []
     for i in range(alternates):
-        last_matches, cumulative = find_alternate_matching(
+        last_matches, cumulative, alt_weight = find_alternate_matching(
             path + output + 'alternate{}.csv'.format(i + 1), student_data,
             course_data, weights, fixed_matches, best_matches, last_matches,
             cumulative, student_scores, course_scores)
+        alt_weights.append(alt_weight)
+
+    return matching_weight, alt_weights
 
 
 def validate_path_args(path, output):
