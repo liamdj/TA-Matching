@@ -25,8 +25,8 @@ def get_num_execution_from_matchings_sheet(sheet) -> str:
 
 
 def add_worksheet(sheet, worksheet_title, rows=100, cols=26, index=0):
-    return sheet.add_worksheet(title=worksheet_title, rows=str(rows),
-                               cols=str(cols), index=index)
+    return sheet.add_worksheet(
+        title=worksheet_title, rows=str(rows), cols=str(cols), index=index)
 
 
 def get_worksheet(sheet_title, worksheet_title):
@@ -46,8 +46,9 @@ def get_sheet_by_id(sheet_id):
 
 def wrap_rows(worksheet, row_start, row_end, cells):
     """ row_start and row_end are inclusive """
-    format(worksheet, row_start, row_end, 0, cells, center_align=False,
-           bold=False, wrap=True)
+    format(
+        worksheet, row_start, row_end, 0, cells, center_align=False, bold=False,
+        wrap=True)
 
 
 def format(worksheet, start_row, end_row, start_col, end_col,
@@ -123,14 +124,13 @@ def write_execution_to_ToC(executor: str, executed_num: str,
 
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, alternate_matching_weights)
-    links_to_input = build_links_to_input(planning_sheet_id,
-                                          student_prefs_sheet_id,
-                                          instructor_prefs_sheet_id)
+    links_to_input = build_links_to_input(
+        planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id)
 
     toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
                 *links_to_alternate_output]
-    toc_wsh = get_worksheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
-                            gs_consts.OUTPUT_TOC_TAB_TITLE)
+    toc_wsh = get_worksheet(
+        gs_consts.MATCHING_OUTPUT_SHEET_TITLE, gs_consts.OUTPUT_TOC_TAB_TITLE)
     toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
 
 
@@ -138,11 +138,11 @@ def build_links_to_input(planning_sheet_id: str, student_prefs_sheet_id: str,
                          instructor_prefs_sheet_id: str):
     links_to_input = ['', '', '']
     if planning_sheet_id:
-        links_to_input[0], _ = build_hyperlink_to_sheet(planning_sheet_id,
-                                                        "TA Planning")
+        links_to_input[0], _ = build_hyperlink_to_sheet(
+            planning_sheet_id, "TA Planning")
     if student_prefs_sheet_id:
-        links_to_input[1], _ = build_hyperlink_to_sheet(student_prefs_sheet_id,
-                                                        "Student Prefs")
+        links_to_input[1], _ = build_hyperlink_to_sheet(
+            student_prefs_sheet_id, "Student Prefs")
     if instructor_prefs_sheet_id:
         links_to_input[2], _ = build_hyperlink_to_sheet(
             instructor_prefs_sheet_id, "Instructor Prefs")
@@ -159,20 +159,21 @@ def build_links_to_output(executed_num: str, matching_weight: float,
             ws_title += chr(ord('A') + num_alternate - 1)
         worksheet_id = sheet.worksheet(ws_title).id
         link_text = f"{text_prefix}#{executed_num}{text_suffix}"
-        link_to_output, _ = build_hyperlink_to_sheet(sheet.id, link_text,
-                                                     worksheet_id)
+        link_to_output, _ = build_hyperlink_to_sheet(
+            sheet.id, link_text, worksheet_id)
         return link_to_output
 
-    links_to_output = [_build_hyperlink(gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
-                                        text_suffix=' ({:.2f})'.format(
-                                            matching_weight)), _build_hyperlink(
+    links_to_output = [_build_hyperlink(
+        gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
+        text_suffix=' ({:.2f})'.format(matching_weight)), _build_hyperlink(
         gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE),
-                       _build_hyperlink(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)]
+        _build_hyperlink(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)]
     links_to_alternate_output = []
     for i in range(1, len(alternate_matching_weights) + 1):
         links_to_alternate_output.append(
-            _build_hyperlink(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE,
-                             f'Alt{i} ', text_suffix=' ({:.2f})'.format(
+            _build_hyperlink(
+                gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE, f'Alt{i} ',
+                text_suffix=' ({:.2f})'.format(
                     alternate_matching_weights[i - 1]), num_alternate=i))
     return links_to_output, links_to_alternate_output
 
@@ -202,8 +203,9 @@ def add_worksheet_from_matrix(matrix, sheet, worksheet_name, index=0):
 def write_full_worksheet(matrix, worksheet, wrap):
     worksheet.update("A1", matrix)
     worksheet.freeze(rows=1)
-    format_row(worksheet, 1, len(matrix[0]) + 1, center_align=False, bold=True,
-               wrap=wrap)
+    format_row(
+        worksheet, 1, len(matrix[0]) + 1, center_align=False, bold=True,
+        wrap=wrap)
     if wrap:
         wrap_rows(worksheet, 1, len(matrix), len(matrix[0]))
 
@@ -215,12 +217,13 @@ def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
         print(f'Writing {csv_path} to {tab_name} in sheet {sheet_name}')
         matrix = list(reader)
         sheet = get_sheet(sheet_name)
-        worksheet = write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name,
-                                                       wrap, tab_index)
+        worksheet = write_matrix_to_new_tab_from_sheet(
+            matrix, sheet, tab_name, wrap, tab_index)
         resize_worksheet_columns(sheet, worksheet, len(matrix))
         if center_align:
-            format(worksheet, 1, len(matrix), 0, len(matrix[0]),
-                   center_align=center_align)
+            format(
+                worksheet, 1, len(matrix), 0, len(matrix[0]),
+                center_align=center_align)
 
 
 def write_matrix_to_new_tab(matrix, sheetname, tab_name, wrap=False,
@@ -250,8 +253,9 @@ def remove_worksheets_for_execution(tab_num: str):
         for j in range(100):
             alternate_title = f"{tab_num}{chr(ord('A') + j)}"
             if alternate_title in ws_titles:
-                if not remove_ws(alternates_sheet, alternates_worksheets,
-                                 alternate_title):
+                if not remove_ws(
+                        alternates_sheet, alternates_worksheets,
+                        alternate_title):
                     return
 
     matching_sheet = get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
@@ -262,8 +266,8 @@ def remove_worksheets_for_execution(tab_num: str):
     remove_ws(additional_TA_sheet, additional_TA_sheet.worksheets(), tab_num)
     remove_alternates_ws(get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE))
 
-    toc_ws = get_worksheet_from_sheet(matching_sheet,
-                                      gs_consts.OUTPUT_TOC_TAB_TITLE)
+    toc_ws = get_worksheet_from_sheet(
+        matching_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
     max_ws = matching_sheet.worksheets()[1].title
     cells = get_rows_of_cells(toc_ws, 2, int(max_ws) + 2, 5)
     for i, row in enumerate(cells):
@@ -281,15 +285,17 @@ def remove_worksheets_for_execution(tab_num: str):
 
 def write_output_csvs(alternates, num_executed, output_dir_title):
     outputs_dir = f'{output_dir_title}/outputs'
-    write_csv_to_new_tab(f'{outputs_dir}/matchings.csv',
-                         gs_consts.MATCHING_OUTPUT_SHEET_TITLE, num_executed, 1)
-    write_csv_to_new_tab(f'{outputs_dir}/additional_TA.csv',
-                         gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE,
-                         num_executed, wrap=True)
-    write_csv_to_new_tab(f'{outputs_dir}/remove_TA.csv',
-                         gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE, num_executed,
-                         wrap=True)
+    write_csv_to_new_tab(
+        f'{outputs_dir}/matchings.csv', gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
+        num_executed, 1)
+    write_csv_to_new_tab(
+        f'{outputs_dir}/additional_TA.csv',
+        gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE, num_executed, wrap=True)
+    write_csv_to_new_tab(
+        f'{outputs_dir}/remove_TA.csv', gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE,
+        num_executed, wrap=True)
     for i in range(alternates):
-        write_csv_to_new_tab(f'{outputs_dir}/alternate{i + 1}.csv',
-                             gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE,
-                             num_executed + chr(ord('A') + i), i)
+        write_csv_to_new_tab(
+            f'{outputs_dir}/alternate{i + 1}.csv',
+            gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE,
+            num_executed + chr(ord('A') + i), i)

@@ -204,8 +204,8 @@ def add_in_bank_join(students, student_info):
 
 
 def get_students(student_info_sheet_id, student_preferences_sheet_id):
-    student_info = get_rows_with_tab_title(student_info_sheet_id,
-                                           gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
+    student_info = get_rows_with_tab_title(
+        student_info_sheet_id, gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
     student_preferences_tab = get_rows_with_tab_title(
         student_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
 
@@ -227,15 +227,15 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
 
 
 def get_courses(planning_sheet_id):
-    tab = get_rows_with_tab_title(planning_sheet_id,
-                                  gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE)
+    tab = get_rows_with_tab_title(
+        planning_sheet_id, gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE)
     courses = parse_courses(tab)
     return courses
 
 
 def get_fac_prefs(instructor_preferences_sheet_id):
-    tab = get_rows_with_tab_title(instructor_preferences_sheet_id,
-                                  gs_consts.PREFERENCES_INPUT_TAB_TITLE)
+    tab = get_rows_with_tab_title(
+        instructor_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
     prefs = parse_fac_prefs(tab)
     return prefs
 
@@ -424,8 +424,9 @@ def write_students(path, courses, assigned, years, students):
         phds += format_phd(student, years)
     for netid, course in assigned.items():
         student = students[netid + '@princeton.edu']
-        data += format_assigned(netid, student['Name'], years[netid], student['Advisor'],
-                                course, student['Notes'])
+        data += format_assigned(
+            netid, student['Name'], years[netid], student['Advisor'], course,
+            student['Notes'])
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
 
@@ -449,8 +450,8 @@ def write_csvs(planning_sheet_id, student_prefs_sheet_id,
                instructor_prefs_sheet_id, output_directory_title=None):
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
-    assigned, years, students, adjusted = get_students(planning_sheet_id,
-        student_prefs_sheet_id)
+    assigned, years, students, adjusted = get_students(
+        planning_sheet_id, student_prefs_sheet_id)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, years, students)
