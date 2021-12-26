@@ -10,3 +10,5 @@ OUTPUT_TOC_TAB_TITLE = 'ToC'
 PLANNING_INPUT_COPY_SHEET_TITLE = 'TA-Matching Input: Planning'
 TA_PREFERENCES_INPUT_COPY_SHEET_TITLE = 'TA-Matching Input: TA Preferences'
 INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE = 'TA-Matching Input: Instructor Preferences'
+GENERATED_TA_PREFS_SHEET_TITLE = "TA Matching 22: Student Preferences (Generated Randomly)"
+GENERATED_INSTRUCTORS_PREFS_SHEET_TITLE = "TA Matching 22: Instructor Preferences (Generated Randomly)"

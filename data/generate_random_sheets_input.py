@@ -1,8 +1,9 @@
-import write_to_google_sheets as write_gs
 import datetime
 import random
 import string
 import copy
+import write_to_google_sheets as write_gs
+import g_sheet_consts as gs_const
 
 COURSES = ['COS 126', 'COS 217', 'COS 226', 'COS 240', 'COS 302', 'COS 316',
            'COS 320', 'COS 324', 'COS 333', 'COS 418', 'COS 426', 'COS 432',
@@ -11,8 +12,8 @@ COURSES = ['COS 126', 'COS 217', 'COS 226', 'COS 240', 'COS 302', 'COS 316',
 
 
 def _weighted_rand(first, last, weights):
-    return \
-    random.choices([i for i in range(first, last + 1)], weights=weights, k=1)[0]
+    return random.choices(
+        [i for i in range(first, last + 1)], weights=weights, k=1)[0]
 
 
 def gen_princeton_email():
@@ -60,8 +61,8 @@ def gen_bank_join_score():
 
 
 def gen_half_score():
-    return str(random.randint(2, 10) / 2.0) if _weighted_rand(0, 1,
-                                                              (15, 1)) else ""
+    return str(random.randint(2, 10) / 2.0) if _weighted_rand(
+        0, 1, (15, 1)) else ""
 
 
 def gen_course_name():
@@ -77,8 +78,9 @@ def gen_course_num():
 
 
 def gen_match_list():
-    return ', '.join([gen_course_name() for _ in range(
-        random.choices([1, 2, 3, 4], weights=(4, 3, 2, 1), k=1)[0])])
+    return ', '.join(
+        [gen_course_name() for _ in range(
+            random.choices([1, 2, 3, 4], weights=(4, 3, 2, 1), k=1)[0])])
 
 
 def gen_course_assignment():
@@ -129,8 +131,8 @@ def generate_universal_student_matrix(entries, advisors_matrix):
     for _ in range(entries):
         advisor1 = random.choice(advisors_matrix)[2]  # just last name
         advisor2 = random.choice(advisors_matrix)[2]
-        advisors = advisor1 if _weighted_rand(0, 1,
-            (1, 14)) else f"{advisor1}, {advisor2}"
+        advisors = advisor1 if _weighted_rand(
+            0, 1, (1, 14)) else f"{advisor1}, {advisor2}"
         matrix.append((gen_name(), gen_name(), gen_name().lower(), advisors))
     return matrix
 
@@ -209,11 +211,13 @@ def generate_student_preferences(student_info_sheet, advisors_matrix):
 def generate_fac_preferences(student_preferences, advisors_matrix):
     def __gen_matches_list(possible_students, is_best=True):
         if is_best:
-            n = min(len(possible_students), random.choices([0, 1, 3, 6, 10, 14],
-                weights=[1, 1, 3, 5, 6, 3], k=1)[0])
+            n = min(
+                len(possible_students), random.choices(
+                    [0, 1, 3, 6, 10, 14], weights=[1, 1, 3, 5, 6, 3], k=1)[0])
         else:
-            n = min(len(possible_students),
-                    random.choices([0, 1, 3, 5], weights=[6, 5, 3, 1], k=1)[0])
+            n = min(
+                len(possible_students),
+                random.choices([0, 1, 3, 5], weights=[6, 5, 3, 1], k=1)[0])
         matches = random.choices(possible_students, k=n)
         return ', '.join(matches)
 
@@ -281,8 +285,8 @@ def generate_courses_matrix(faculty_matrix):
 def gen_full_input_sheets(student_entries=5, faculty_entries=50):
     faculty_sheet = generate_faculty_sheet(faculty_entries)
     courses_sheet = generate_courses_matrix(faculty_sheet)
-    student_matrix = generate_universal_student_matrix(student_entries,
-        faculty_sheet)
+    student_matrix = generate_universal_student_matrix(
+        student_entries, faculty_sheet)
     student_info_sheet = generate_student_info_sheet_from_matrix(student_matrix)
     student_prefs, fac_prefs = gen_preferences_from_student_info_and_advisors(
         student_info_sheet, faculty_sheet)
@@ -299,22 +303,23 @@ def generate_and_write_all_input_sheets(student_entries=5, faculty_entries=50):
     student_info_sheet, faculty_sheet, courses_sheet, student_prefs, fac_prefs = gen_full_input_sheets(
         student_entries, faculty_entries)
     student_info_sheet_name = "TA Matching 22: TA Planning (Generated Randomly)"
-    write_gs.write_matrix_to_sheet(student_info_sheet, student_info_sheet_name,
-        "Students")
-    write_gs.write_matrix_to_new_tab(faculty_sheet, student_info_sheet_name,
-        "Faculty")
-    write_gs.write_matrix_to_new_tab(courses_sheet, student_info_sheet_name,
-        "Courses")
-    write_student_and_fac_preferences(student_prefs, fac_prefs)
+    planning = write_gs.write_matrix_to_sheet(
+        student_info_sheet, student_info_sheet_name, "Students")
+    write_gs.write_matrix_to_new_tab(
+        faculty_sheet, student_info_sheet_name, "Faculty")
+    write_gs.write_matrix_to_new_tab(
+        courses_sheet, student_info_sheet_name, "Courses")
+    s_pref, i_pref = write_student_and_fac_preferences(student_prefs, fac_prefs)
+    return planning, s_pref, i_pref
 
 
 def write_student_and_fac_preferences(student_preferences, fac_preferences):
-    student_prefs_sheet_id = write_gs.write_matrix_to_sheet(student_preferences,
-        "TA Matching 22: Student Preferences (Generated Randomly)",
-        "Form Responses 1")
-    fac_prefs_sheet_id = write_gs.write_matrix_to_sheet(fac_preferences,
-        "TA Matching 22: Instructor Preferences (Generated Randomly)",
-        "Form Responses 1", wrap=True)
+    student_prefs_sheet_id = write_gs.write_matrix_to_sheet(
+        student_preferences, gs_const.GENERATED_TA_PREFS_SHEET_TITLE,
+        gs_const.PREFERENCES_INPUT_TAB_TITLE)
+    fac_prefs_sheet_id = write_gs.write_matrix_to_sheet(
+        fac_preferences, gs_const.GENERATED_INSTRUCTORS_PREFS_SHEET_TITLE,
+        gs_const.PREFERENCES_INPUT_TAB_TITLE, wrap=True)
     return student_prefs_sheet_id, fac_prefs_sheet_id
 
 
