@@ -1,6 +1,7 @@
 import os
 import re
 import datetime
+import csv
 
 import gspread
 
@@ -241,9 +242,9 @@ def get_fac_prefs(instructor_preferences_sheet_id):
 
 
 def write_csv(fname, data):
-    f = open(fname, "w")
-    f.write(data)
-    f.close()
+    with open(fname, "w") as file:
+        writer = csv.writer(file)
+        writer.writerows(data)
 
 
 def format_pref_list(pref):
@@ -290,7 +291,7 @@ def format_course(course, prefs):
         veto = ''
 
     course_code = course_code.replace(' ', '')
-    row = f'{course_code},{slots},{weight},{fav},{veto},{instructors},"{title}"\n'
+    row = [course_code, slots, weight, fav, veto, instructors, title]
     return row
 
 
@@ -369,7 +370,8 @@ def format_student(student, courses, years):
     okay = student['OK']
     notes = student['Notes'].replace('"', '\'')
     prev = format_prev(prev, courses)
-    row = f'{netid},{full_name},{year},{bank},{join},,{prev},{adv},{fav},{good},{okay},"{notes}"\n'
+    row = [netid, full_name, year, bank, join, "", prev, adv, fav, good, okay,
+           notes]
     return row
 
 
@@ -380,15 +382,16 @@ def format_phd(student, years):
     advisor = student['Advisor'].replace(',', ';')
     year = years.get(netid)
     if not year.strip() or 'PHD' not in year:
-        return ''
+        return []
     year = year.replace('PHD', '')
-    row = f'{netid},{full_name},{year},{advisor}\n'
+    row = [netid, full_name, year, advisor]
     return row
 
 
 def format_assigned(netid, full_name, year, advisor, course, notes):
     # ['NetID','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
-    return f'{netid},{full_name},{year},,,,,{advisor},{course},,,{notes}\n'
+    return [netid, full_name, year, "", "", "", "", advisor, course, "", "",
+            notes]
 
 
 def get_date():
@@ -406,43 +409,48 @@ def make_path(dir_title=None):
 
 
 def write_courses(path, courses, prefs):
-    data = 'Course,Slots,Weight,Favorite,Veto,Instructor,Title\n'
+    data = [['Course','Slots','Weight','Favorite','Veto','Instructor','Title']]
     for num in courses:
         course = courses[num]
-        data += format_course(course, prefs)
+        row = format_course(course, prefs)
+        if row:
+            data.append(row)
     write_csv(f"{path}/course_data.csv", data)
 
 
 def write_students(path, courses, assigned, years, students):
-    data = 'Netid,Name,Year,Bank,Join,Weight,Previous,Advisors,Favorite,Good,Okay,Notes\n'
-    phds = 'Netid,Name,Year,Advisor\n'
+    data = [['Netid', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
+            'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
+    phds = [['Netid', 'Name', 'Year', 'Advisor']]
     for email in students:
         if format_netid(email) in assigned:
             continue
         student = students[email]
-        data += format_student(student, courses, years)
-        phds += format_phd(student, years)
+        data.append(format_student(student, courses, years))
+        phd_row = format_phd(student, years)
+        if phd_row:
+            phds.append(phd_row)
     for netid, course in assigned.items():
         student = students[netid + '@princeton.edu']
-        data += format_assigned(
+        data.append(format_assigned(
             netid, student['Name'], years[netid], student['Advisor'], course,
-            student['Notes'])
+            student['Notes']))
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
 
 
 def write_assigned(path, assigned):
-    data = 'Netid,Course\n'
+    data = [['Netid','Course']]
     for netid, course in assigned.items():
-        data += f"{netid},{course}\n"
+        data.append([netid,course])
     write_csv(f"{path}/fixed.csv", data)
 
 
 def write_adjusted(path, adjusted):
-    data = 'Netid,Course,Weight\n'
+    data = [['Netid','Course','Weight']]
     for netid, adjustments in adjusted.items():
         for course, weight in adjustments:
-            data += f"{netid},{course},{weight}\n"
+            data.append([netid,course,weight])
     write_csv(f"{path}/adjusted.csv", data)
 
 
@@ -458,3 +466,33 @@ def write_csvs(planning_sheet_id, student_prefs_sheet_id,
     write_assigned(path, assigned)
     write_adjusted(path, adjusted)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
+
+
+def check_if_preprocessing_equal(name1, name2):
+    with open(name1) as f1, open(name2) as f2:
+        reader1 = list(csv.reader(f1, delimiter=',', quotechar='"'))
+        reader2 = list(csv.reader(f2, delimiter=',', quotechar='"'))
+        reader1 = sorted(reader1)
+        reader2 = sorted(reader2)
+        if len(reader1) != len(reader2):
+            print(f"big lens of {name1},{name2} not equal")
+            return
+        for j in range(len(reader1)):
+            row1 = reader1[j]
+            row2 = reader2[j]
+            if len(row1) != len(row2):
+                print("lens not equal")
+                print(row1,row2)
+                continue
+
+            for i in range(len(row1)):
+                v1 = row1[i]
+                v2 = row2[i]
+                if ";" in v1:
+                    ar1 = v1.split(";").sort()
+                    ar2 = v2.split(";").sort()
+                    if ar1 != ar2:
+                        print("not equal")
+                else:
+                    if v1 != v2:
+                        print(f"vals {v1},{v2} not equal")
