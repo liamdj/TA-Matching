@@ -54,7 +54,7 @@ def add_COS(courses):
 
 def parse_student_preferences(rows):
     students = {}
-    cols = {'Timestamp': 'Time', 'Email': 'Email', 'Name': 'Name',
+    cols = {'Timestamp': 'Time', 'Email': 'NetID', 'Name': 'Name',
             'Advisor': 'Advisor', 'What courses at Princeton': 'Previous',
             'Favorite': 'Favorite', 'Good': 'Good', 'OK Match': 'OK'}
 
@@ -78,7 +78,8 @@ def parse_student_preferences(rows):
         row['Favorite'] = ';'.join(fav)
         row['Good'] = ';'.join(good)
         row['OK'] = ';'.join(okay)
-        students[row['Email']] = row
+        row['NetID'] = format_netid(row['NetID'])
+        students[row['NetID']] = row
     return students
 
 
@@ -138,8 +139,8 @@ def fix_advisors(students, student_info):
             advisors.append(row['Advisor2'])
         email_prefix_to_advisor[row['NetID']] = ';'.join(advisors)
 
-    for email, student in students.items():
-        email_prefix = format_netid(email)
+    for netid, student in students.items():
+        email_prefix = netid
         advisor = email_prefix_to_advisor[email_prefix]
         student['Advisor'] = advisor
 
@@ -148,11 +149,11 @@ def fix_advisors(students, student_info):
 
 def add_in_assigned(students, assigned, names):
     for netid, course in assigned.items():
-        student = {'Name': names[netid], 'Advisor': '',
-                   'Email': netid + '@princeton.edu',
+        student = {'Name': names[netid], 'Advisor': '', 'NetID': netid,
                    'Favorite': f"{course[:3]} {course[3:]}", 'Good': '',
-                   'OK': '', 'Previous': '', 'Time': get_date()}
-        students[netid + '@princeton.edu'] = student
+                   'OK': '', 'Previous': '', 'Bank': '',
+                   'Join': '', 'Time': get_date()}
+        students[netid] = student
     return students
 
 
@@ -165,8 +166,7 @@ def parse_names(student_info):
 
 def parse_adjusted(students):
     adjusted = {}
-    for email, student in students.items():
-        netid = format_netid(email)
+    for netid, student in students.items():
         adjustments = set()
         if adjustments:
             adjusted[netid] = adjustments
@@ -181,9 +181,9 @@ def parse_notes(student_info):
 
 
 def add_in_notes(students, student_notes):
-    for email, info in students.items():
-        info['Notes'] = student_notes[format_netid(email)]
-        students[email] = info
+    for netid, info in students.items():
+        info['Notes'] = student_notes[netid]
+        students[netid] = info
     return students
 
 
@@ -195,9 +195,9 @@ def add_in_bank_join(students, student_info):
         bank[netid] = student['Bank']
         join[netid] = student['Join']
 
-    for email, student in students.items():
-        student['Bank'] = bank[format_netid(email)]
-        student['Join'] = join[format_netid(email)]
+    for netid, student in students.items():
+        student['Bank'] = bank[netid]
+        student['Join'] = join[netid]
     return students
 
 
@@ -354,7 +354,7 @@ def format_course_list(courses):
 
 def format_student(student, courses, years):
     # ['Netid','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
-    netid = format_netid(student['Email'])
+    netid = student['NetID']
     full_name = student['Name']
     year = years[netid]
     bank = student['Bank']
@@ -373,7 +373,7 @@ def format_student(student, courses, years):
 
 def format_phd(student, years):
     # phds = 'Netid,Name,Year,Advisor\n'
-    netid = format_netid(student['Email'])
+    netid = student['NetID']
     full_name = student['Name']
     advisor = student['Advisor'].replace(',', ';')
     year = years.get(netid)
@@ -419,16 +419,16 @@ def write_students(path, courses, assigned, years, students):
     data = [['Netid', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
              'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
     phds = [['Netid', 'Name', 'Year', 'Advisor']]
-    for email in students:
-        if format_netid(email) in assigned:
+    for netid in students:
+        if netid in assigned:
             continue
-        student = students[email]
+        student = students[netid]
         data.append(format_student(student, courses, years))
         phd_row = format_phd(student, years)
         if phd_row:
             phds.append(phd_row)
     for netid, course in assigned.items():
-        student = students[netid + '@princeton.edu']
+        student = students[netid]
         data.append(
             format_assigned(
                 netid, student['Name'], years[netid], student['Advisor'],
@@ -452,12 +452,21 @@ def write_adjusted(path, adjusted):
     write_csv(f"{path}/adjusted.csv", data)
 
 
+def validate_bank_join_values(students, years):
+    for netid, student in students.items():
+        if student['Bank'] and student['Join']:
+            print(f"{netid} has both a bank and a join entry")
+        if 'MSE' in years[netid] and (student['Bank'] or student['Join']):
+            print(f"{netid} is an MSE student with a bank or a join entry")
+
+
 def write_csvs(planning_sheet_id, student_prefs_sheet_id,
                instructor_prefs_sheet_id, output_directory_title=None):
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
     assigned, years, students = get_students(
         planning_sheet_id, student_prefs_sheet_id)
+    validate_bank_join_values(students, years)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, years, students)

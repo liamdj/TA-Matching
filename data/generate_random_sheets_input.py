@@ -50,13 +50,14 @@ def gen_track_year():
     return ("PHD", _weighted_rand(1, 4, (5, 5, 1, 1)))
 
 
-def gen_bank_join_score():
+def gen_bank_join_score(track: str):
     option = _weighted_rand(0, 2, (5, 1, 1))
     bank, join = "", ""
-    if option == 1:
-        bank = str(random.randint(2, 10) / 2.0)
-    elif option == 2:
-        join = str(random.randint(2, 10) / 2.0)
+    if 'PHD' == track:
+        if option == 1:
+            bank = str(random.randint(2, 10) / 2.0)
+        elif option == 2:
+            join = str(random.randint(2, 10) / 2.0)
     return bank, join
 
 
@@ -146,7 +147,7 @@ def generate_student_info_sheet(entries=5):
         track, year = gen_track_year()
         line = [gen_name(), gen_name(), gen_nickname(), gen_name().lower(),
                 "yes", track, year, gen_name(), gen_advisor2(),
-                *gen_bank_join_score(), gen_half_score(),
+                *gen_bank_join_score(track), gen_half_score(),
                 gen_course_assignment(), "", ""]
         matrix.append(line)
 
@@ -166,7 +167,7 @@ def generate_student_info_sheet_from_matrix(student_info):
         advisor1 = advisors[0]
         advisor2 = "" if len(advisors) == 1 else advisors[1]
         line = [student[0], student[1], gen_nickname(), student[2], "yes",
-                track, year, advisor1, advisor2, *gen_bank_join_score(),
+                track, year, advisor1, advisor2, *gen_bank_join_score(track),
                 gen_half_score(), gen_course_assignment(), "", ""]
         matrix.append(line)
     matrix = sorted(matrix, key=lambda x: x[0])
