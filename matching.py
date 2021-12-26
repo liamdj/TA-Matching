@@ -89,6 +89,8 @@ def match_weights(student_data: pd.DataFrame, student_scores: pd.DataFrame,
                 if student_data.loc[student, course] == 'Favorite' and c_scores[
                     student] > 0:
                     weights[si, ci] += params.FAVORITE
+                if student_data.loc[student, course] == 'Okay':
+                    weights[si, ci] += params.OKAY_COURSE_PENALTY
                 if course in previous:
                     weights[si, ci] += params.PREVIOUS
                 for advisor in advisors:

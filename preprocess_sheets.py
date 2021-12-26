@@ -168,9 +168,6 @@ def parse_adjusted(students):
     for email, student in students.items():
         netid = format_netid(email)
         adjustments = set()
-        for course in re.split(r"[,;]\s?", student['OK']):
-            if _sanitize(course):
-                adjustments.add((course, params.OKAY_COURSE_PENALTY))
         if adjustments:
             adjusted[netid] = adjustments
     return adjusted
@@ -223,8 +220,7 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
     students = add_in_assigned(students, assigned, names)
     students = add_in_notes(students, student_notes)
     students = fix_advisors(students, student_info)
-    adjusted = parse_adjusted(students)
-    return assigned, years, students, adjusted
+    return assigned, years, students
 
 
 def get_courses(planning_sheet_id):
@@ -409,7 +405,8 @@ def make_path(dir_title=None):
 
 
 def write_courses(path, courses, prefs):
-    data = [['Course','Slots','Weight','Favorite','Veto','Instructor','Title']]
+    data = [['Course', 'Slots', 'Weight', 'Favorite', 'Veto', 'Instructor',
+             'Title']]
     for num in courses:
         course = courses[num]
         row = format_course(course, prefs)
@@ -420,7 +417,7 @@ def write_courses(path, courses, prefs):
 
 def write_students(path, courses, assigned, years, students):
     data = [['Netid', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
-            'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
+             'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
     phds = [['Netid', 'Name', 'Year', 'Advisor']]
     for email in students:
         if format_netid(email) in assigned:
@@ -432,25 +429,26 @@ def write_students(path, courses, assigned, years, students):
             phds.append(phd_row)
     for netid, course in assigned.items():
         student = students[netid + '@princeton.edu']
-        data.append(format_assigned(
-            netid, student['Name'], years[netid], student['Advisor'], course,
-            student['Notes']))
+        data.append(
+            format_assigned(
+                netid, student['Name'], years[netid], student['Advisor'],
+                course, student['Notes']))
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
 
 
 def write_assigned(path, assigned):
-    data = [['Netid','Course']]
+    data = [['Netid', 'Course']]
     for netid, course in assigned.items():
-        data.append([netid,course])
+        data.append([netid, course])
     write_csv(f"{path}/fixed.csv", data)
 
 
 def write_adjusted(path, adjusted):
-    data = [['Netid','Course','Weight']]
+    data = [['Netid', 'Course', 'Weight']]
     for netid, adjustments in adjusted.items():
         for course, weight in adjustments:
-            data.append([netid,course,weight])
+            data.append([netid, course, weight])
     write_csv(f"{path}/adjusted.csv", data)
 
 
@@ -458,13 +456,12 @@ def write_csvs(planning_sheet_id, student_prefs_sheet_id,
                instructor_prefs_sheet_id, output_directory_title=None):
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
-    assigned, years, students, adjusted = get_students(
+    assigned, years, students = get_students(
         planning_sheet_id, student_prefs_sheet_id)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, years, students)
     write_assigned(path, assigned)
-    write_adjusted(path, adjusted)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
 
 
@@ -482,7 +479,7 @@ def check_if_preprocessing_equal(name1, name2):
             row2 = reader2[j]
             if len(row1) != len(row2):
                 print("lens not equal")
-                print(row1,row2)
+                print(row1, row2)
                 continue
 
             for i in range(len(row1)):
