@@ -137,11 +137,8 @@ def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
 
 
 def write_execution_to_ToC(executor: str, executed_num: str,
-                           matching_weight: float,
+                           matching_weight: float, slots_unfilled: int,
                            alternate_matching_weights=[],
-                           planning_input_copy_sheet_id: str = None,
-                           student_preferences_input_copy_sheet_id: str = None,
-                           instructor_preferences_input_copy_sheet_id: str = None,
                            input_num_executed=None):
     now = datetime.datetime.now(pytz.timezone('America/New_York'))
     date = now.strftime('%m-%d-%Y')
@@ -151,11 +148,9 @@ def write_execution_to_ToC(executor: str, executed_num: str,
         input_num_executed = executed_num
 
     links_to_output, links_to_alternate_output = build_links_to_output(
-        executed_num, matching_weight, alternate_matching_weights)
-    links_to_input = build_links_to_input(
-        input_num_executed, planning_input_copy_sheet_id,
-        student_preferences_input_copy_sheet_id,
-        instructor_preferences_input_copy_sheet_id)
+        executed_num, matching_weight, slots_unfilled,
+        alternate_matching_weights)
+    links_to_input = build_links_to_input(input_num_executed, executed_num)
 
     toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
                 *links_to_alternate_output]
@@ -164,47 +159,46 @@ def write_execution_to_ToC(executor: str, executed_num: str,
     toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
 
 
-def build_links_to_input(executed_num: str, planning_input_copy_sheet_id: str,
-                         student_preferences_input_copy_sheet_id: str,
-                         instructor_preferences_input_copy_sheet_id: str):
-    links_to_input = ['', '', '', '', '']
-    if planning_input_copy_sheet_id:
-        planning_sheet = get_sheet_by_id(planning_input_copy_sheet_id)
-        planning_worksheets = get_sheet_by_id(
-            planning_input_copy_sheet_id).worksheets()
-        links_to_input[0], _ = build_hyperlink_to_sheet(
-            planning_input_copy_sheet_id, f"#{executed_num}",
-            get_worksheet_from_worksheets(
-                planning_worksheets, f"{executed_num}:Students",
-                planning_sheet.title).id)
-        links_to_input[1], _ = build_hyperlink_to_sheet(
-            planning_input_copy_sheet_id, f"#{executed_num}",
-            get_worksheet_from_worksheets(
-                planning_worksheets, f"{executed_num}:Faculty",
-                planning_sheet.title).id)
-        links_to_input[2], _ = build_hyperlink_to_sheet(
-            planning_input_copy_sheet_id, f"#{executed_num}",
-            get_worksheet_from_worksheets(
-                planning_worksheets, f"{executed_num}:Courses",
-                planning_sheet.title).id)
-        if student_preferences_input_copy_sheet_id:
-            links_to_input[3], _ = build_hyperlink_to_sheet(
-                student_preferences_input_copy_sheet_id, f"#{executed_num}",
-                get_worksheet_from_sheet(
-                    get_sheet_by_id(student_preferences_input_copy_sheet_id),
-                    executed_num).id)
-        if instructor_preferences_input_copy_sheet_id:
-            links_to_input[4], _ = build_hyperlink_to_sheet(
-                instructor_preferences_input_copy_sheet_id, f"#{executed_num}",
-                get_worksheet_from_sheet(
-                    get_sheet_by_id(instructor_preferences_input_copy_sheet_id),
-                    executed_num).id)
-
+def build_links_to_input(input_executed_num: str, params_executed_num: str):
+    links_to_input = ['', '', '', '', '', '']
+    planning_sheet = get_sheet(gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
+    planning_input_copy_sheet_id = planning_sheet.id
+    planning_worksheets = planning_sheet.worksheets()
+    links_to_input[0], _ = build_hyperlink_to_sheet(
+        planning_input_copy_sheet_id, f"#{input_executed_num}",
+        get_worksheet_from_worksheets(
+            planning_worksheets, f"{input_executed_num}:Students",
+            planning_sheet.title).id)
+    links_to_input[1], _ = build_hyperlink_to_sheet(
+        planning_input_copy_sheet_id, f"#{input_executed_num}",
+        get_worksheet_from_worksheets(
+            planning_worksheets, f"{input_executed_num}:Faculty",
+            planning_sheet.title).id)
+    links_to_input[2], _ = build_hyperlink_to_sheet(
+        planning_input_copy_sheet_id, f"#{input_executed_num}",
+        get_worksheet_from_worksheets(
+            planning_worksheets, f"{input_executed_num}:Courses",
+            planning_sheet.title).id)
+    student_prefs_sheet = get_sheet(
+        gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE)
+    links_to_input[3], _ = build_hyperlink_to_sheet(
+        student_prefs_sheet.id, f"#{input_executed_num}",
+        get_worksheet_from_sheet(
+            student_prefs_sheet, input_executed_num).id)
+    instructor_prefs = get_sheet(
+        gs_consts.INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE)
+    links_to_input[4], _ = build_hyperlink_to_sheet(
+        instructor_prefs.id, f"#{input_executed_num}", get_worksheet_from_sheet(
+            instructor_prefs, input_executed_num).id)
+    params_copy_sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
+    links_to_input[5], _ = build_hyperlink_to_sheet(
+        params_copy_sheet.id, f"#{params_executed_num}",
+        get_worksheet_from_sheet(params_copy_sheet, params_executed_num).id)
     return links_to_input
 
 
 def build_links_to_output(executed_num: str, matching_weight: float,
-                          alternate_matching_weights):
+                          slots_unfilled: int, alternate_matching_weights):
     def _build_hyperlink(sheet_title: str, text_prefix="", text_suffix="",
                          num_alternate=0):
         sheet = get_sheet(sheet_title)
@@ -217,18 +211,22 @@ def build_links_to_output(executed_num: str, matching_weight: float,
             sheet.id, link_text, worksheet_id)
         return link_to_output
 
+    if slots_unfilled != 0:
+        matching_suffix = f' ({slots_unfilled} slots unfilled)'
+    else:
+        matching_suffix = f' ({matching_weight:.2f})'
+
     links_to_output = [_build_hyperlink(
-        gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
-        text_suffix=' ({:.2f})'.format(matching_weight)), _build_hyperlink(
-        gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE),
+        gs_consts.MATCHING_OUTPUT_SHEET_TITLE, text_suffix=matching_suffix),
+        _build_hyperlink(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE),
         _build_hyperlink(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)]
     links_to_alternate_output = []
     for i in range(1, len(alternate_matching_weights) + 1):
         links_to_alternate_output.append(
             _build_hyperlink(
                 gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE, f'Alt{i} ',
-                text_suffix=' ({:.2f})'.format(
-                    alternate_matching_weights[i - 1]), num_alternate=i))
+                text_suffix=f' ({alternate_matching_weights[i - 1]:.2f})',
+                num_alternate=i))
     return links_to_output, links_to_alternate_output
 
 
@@ -264,13 +262,13 @@ def write_full_worksheet(matrix, worksheet, wrap):
         wrap_rows(worksheet, 1, len(matrix), len(matrix[0]))
 
 
-def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
-                         tab_index=0, center_align=False, wrap=False):
+def write_csv_to_new_tab_from_sheet(csv_path: str, sheet, tab_name: str,
+                                    tab_index=0, center_align=False,
+                                    wrap=False):
     with open(csv_path, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter=',', quotechar='"')
-        print(f'Writing {csv_path} to {tab_name} in sheet {sheet_name}')
+        print(f'Writing {csv_path} to {tab_name} in sheet {sheet.title}')
         matrix = list(reader)
-        sheet = get_sheet(sheet_name)
         worksheet = write_matrix_to_new_tab_from_sheet(
             matrix, sheet, tab_name, wrap, tab_index)
         resize_worksheet_columns(sheet, worksheet, len(matrix))
@@ -279,6 +277,13 @@ def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
                 worksheet, 1, len(matrix), 0, len(matrix[0]),
                 center_align=center_align)
     return worksheet
+
+
+def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
+                         tab_index=0, center_align=False, wrap=False):
+    sheet = get_sheet(sheet_name)
+    return write_csv_to_new_tab_from_sheet(
+        csv_path, sheet, tab_name, tab_index, center_align, wrap)
 
 
 def write_matrix_to_new_tab(matrix, sheetname, tab_name, wrap=False,
@@ -343,6 +348,10 @@ def remove_worksheets_for_execution(tab_num: str):
         instructor_preferences_input_copy_sheet,
         instructor_preferences_input_copy_sheet.worksheets(), tab_num)
 
+    params_copy_input_sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
+    remove_ws(
+        params_copy_input_sheet, params_copy_input_sheet.worksheets(), tab_num)
+
     remove_entry_from_toc(matching_sheet, tab_num)
 
 
@@ -381,6 +390,13 @@ def write_output_csvs(alternates, num_executed, output_dir_title):
             f'{outputs_dir}/alternate{i + 1}.csv',
             gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE,
             num_executed + chr(ord('A') + i), i)
+
+
+def write_params_csv(num_executed, output_dir_title):
+    sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
+    ws = write_csv_to_new_tab_from_sheet(
+        f'{output_dir_title}/outputs/params.csv', sheet, num_executed)
+    format(ws, "", "", 1, 1, center_align=True)
 
 
 def copy_input_worksheets(num_executed: str, planning_sheet_id: str,

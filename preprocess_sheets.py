@@ -320,7 +320,6 @@ def parse_previous_list(prev):
 
 
 def format_prev(prev, courses):
-    # """ Previously TA'ing in a different subject that's not COS is not recognized """
     # people didn't follow directions
     prev = prev.replace('),', ');').replace(')\n', ');')
     course_nums = set(parse_previous_list(prev))

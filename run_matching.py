@@ -17,38 +17,32 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         instructor_prefs_sheet_id=instructor_preferences_sheet_id)
 
     num_executed = write_gs.get_num_execution_from_matchings_sheet()
-    input_sheets = write_gs.copy_input_worksheets(
+    write_gs.copy_input_worksheets(
         num_executed, planning_sheet_id, student_preferences_sheet_id,
         instructor_preferences_sheet_id)
 
     run_and_write_matchings(
-        executor, input_dir_title, *input_sheets, num_executed, num_executed,
+        executor, input_dir_title, num_executed, num_executed,
         alternates)
 
 
 def run_and_write_matchings(executor, input_dir_title,
-                            planning_input_copy_sheet_id,
-                            student_preferences_input_copy_sheet_id,
-                            instructor_preferences_input_copy_sheet_id,
                             output_num_executed=None, input_num_executed=None,
                             alternates=0):
     """
     if `input_num_executed` is `None`, then use most recent copy
     """
     output_dir_path = f"data/{input_dir_title}"
-    matching_weight, alt_weights = matching.run_matching(
+    matching_weight, slots_unfilled, alt_weights = matching.run_matching(
         path=output_dir_path, alternates=alternates)
+    print(f"unfilled slots: {slots_unfilled}")
     write_matchings(
-        executor, output_dir_path, matching_weight,
-        planning_input_copy_sheet_id, student_preferences_input_copy_sheet_id,
-        instructor_preferences_input_copy_sheet_id, output_num_executed,
+        executor, output_dir_path, matching_weight, slots_unfilled,
+        output_num_executed,
         input_num_executed, alt_weights)
 
 
-def write_matchings(executor, output_dir_title, matching_weight,
-                    planning_input_copy_sheet_id,
-                    student_preferences_input_copy_sheet_id,
-                    instructor_preferences_input_copy_sheet_id,
+def write_matchings(executor, output_dir_title, matching_weight, slots_unfilled=0,
                     output_num_executed=None, input_num_executed=None,
                     alt_weights=[]):
     """
@@ -61,8 +55,7 @@ def write_matchings(executor, output_dir_title, matching_weight,
             input_num_executed=input_num_executed)
     write_gs.write_output_csvs(
         len(alt_weights), output_num_executed, output_dir_title)
+    write_gs.write_params_csv(output_num_executed, output_dir_title)
     write_gs.write_execution_to_ToC(
-        executor, output_num_executed, matching_weight, alt_weights,
-        planning_input_copy_sheet_id, student_preferences_input_copy_sheet_id,
-        instructor_preferences_input_copy_sheet_id,
+        executor, output_num_executed, matching_weight, slots_unfilled, alt_weights,
         input_num_executed=input_num_executed)

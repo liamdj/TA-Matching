@@ -122,7 +122,8 @@ def read_student_data(filename: str) -> pd.DataFrame:
             df['Bank'].fillna(params.DEFAULT_BANK) - params.DEFAULT_BANK)
     df['Weight'] += params.JOIN_MULTIPLIER * (
             df['Join'].fillna(params.DEFAULT_JOIN) - params.DEFAULT_JOIN)
-    df['Weight'] += params.MSE_BOOST * ((df['Year'] == 'MSE1') + (df['Year'] == 'MSE2'))
+    df['Weight'] += params.MSE_BOOST * (
+                (df['Year'] == 'MSE1') + (df['Year'] == 'MSE2'))
     return df
 
 
@@ -349,10 +350,19 @@ def find_alternate_matching(path, student_data, course_data, weights,
                 return new_matches, cumulative, new_weight
 
 
+def write_params(output_path):
+    with open(output_path + 'params.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Name', 'Weight'])
+        for param, param_val in params.__dict__.items():
+            if param.startswith("__"): continue
+            writer.writerow([param, param_val])
+
+
 def run_matching(path="", student_data="inputs/student_data.csv",
                  course_data="inputs/course_data.csv", fixed="inputs/fixed.csv",
                  adjusted="inputs/adjusted.csv", output="outputs/",
-                 alternates=3):
+                 alternates=3) -> Tuple[float, int, List[float]]:
     path = validate_path_args(path, output)
     student_data, course_data = read_student_and_course_data(
         path, student_data, course_data)
@@ -373,17 +383,16 @@ def run_matching(path="", student_data="inputs/student_data.csv",
         weights, student_data['Weight'],
         course_data[['Slots', 'Base weight', 'First weight']], fixed_matches)
 
-    matching_weight = None
+    matching_weight = 0
+    slots_unfilled = float('inf')
     if graph.solve():
-        matching_weight = -graph.flow.OptimalCost() / 100
-        print(
-            'Solved optimal flow with total weight {:.2f}'.format(
-                matching_weight))
-
-        graph.write_matching(
+        matching_weight, slots_unfilled = graph.write_matching(
             path + output + 'matchings.csv', weights, student_data,
             student_scores, course_data, course_scores,
             fixed_matches[['Student index', 'Course index']])
+        print(f'Solved optimal flow with total weight {matching_weight:.2f}')
+
+        write_params(path + output)
 
     else:
         print('Problem optimizing flow')
@@ -400,7 +409,7 @@ def run_matching(path="", student_data="inputs/student_data.csv",
         alternates, course_data, course_scores, fixed_matches, graph, output,
         path, student_data, student_scores, weights)
 
-    return matching_weight, alt_weights
+    return matching_weight, slots_unfilled, alt_weights
 
 
 def make_manual_adjustments(course_scores, path_adjusted, student_scores,

@@ -2,6 +2,7 @@ from ortools.graph import pywrapgraph
 from scipy import stats
 import numpy as np
 import csv
+from typing import Tuple
 
 DIGITS = 2
 
@@ -13,10 +14,10 @@ class MatchingGraph:
 
         self.num_students = len(student_weights)
         self.num_courses = len(course_info.index)
-        slots = course_info['Slots'].sum()
+        self.slots = course_info['Slots'].sum()
         source, sink = range(
-            self.num_students + self.num_courses + slots,
-            2 + self.num_students + self.num_courses + slots)
+            self.num_students + self.num_courses + self.slots,
+            2 + self.num_students + self.num_courses + self.slots)
         self.flow = pywrapgraph.SimpleMinCostFlow(sink + 1)
 
         # Each student cannot fill >1 course slot
@@ -65,15 +66,15 @@ class MatchingGraph:
         # Attempt to fill max number of slots
         self.flow.SetNodeSupply(
             source, int(
-                min(self.num_students, slots) - len(
+                min(self.num_students, self.slots) - len(
                     fixed_matches.index) + missing))
-        self.flow.SetNodeSupply(sink, -int(min(self.num_students, slots)))
+        self.flow.SetNodeSupply(sink, -int(min(self.num_students, self.slots)))
 
         # Option for not maximizing number of matches
         self.flow.AddArcWithCapacityAndUnitCost(
             source, sink, int(
                 min(
-                    self.num_students, slots)), 0)
+                    self.num_students, self.slots)), 0)
 
     # Value of filling slot is reciprocal with slot index
 
@@ -100,7 +101,8 @@ class MatchingGraph:
         return matches
 
     def write_matching(self, filename, weights, student_data, student_scores,
-                       course_data, course_scores, fixed_matches):
+                       course_data, course_scores, fixed_matches) -> Tuple[
+        float, int]:
 
         matches = self.get_matching(fixed_matches)
         # put fixed matches at top and unassigned at bottom
@@ -178,6 +180,9 @@ class MatchingGraph:
                          is_negative_student_weight, "", "", "", "", "", ""])
             output = sorted(output, key=lambda x: x[3])
             writer.writerows(output)
+            optimal_cost = -self.flow.OptimalCost() / (10 ** DIGITS)
+            unfilled_slots = self.slots - sum(slots_filled)
+            return optimal_cost, unfilled_slots
 
     def print(self):
         for arc in range(self.flow.NumArcs()):
