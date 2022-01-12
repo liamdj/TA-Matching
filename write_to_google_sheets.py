@@ -43,7 +43,7 @@ def get_input_num_execution() -> int:
     planning_inputs_worksheets = [e.title for e in
                                   planning_inputs_sheet.worksheets()]
     planning_inputs_worksheets.sort(key=str, reverse=True)
-    max_planning_tab = int(planning_inputs_worksheets[0].split(":")[0])
+    max_planning_tab = int(planning_inputs_worksheets[0].split("(")[0])
     return max_planning_tab
 
 
@@ -111,15 +111,36 @@ def update_cells(worksheet, cells, values):
 
 
 def get_row_of_cells(worksheet, row, cols_len):
-    return worksheet.range(f"A{row}:{chr(ord('A') + cols_len)}{row}")
+    return worksheet.get_values(f"A{row}:{chr(ord('A') + cols_len)}{row}")
 
 
-def get_rows_of_cells(worksheet, start_row, end_row, cols_len):
-    one_d = worksheet.range(f"A{start_row}:{chr(ord('A') + cols_len)}{end_row}")
-    two_d = []
-    for i in range(len(one_d) // cols_len):
-        two_d.append(one_d[i * (cols_len + 1):(i + 1) * (cols_len + 1)])
-    return two_d
+def get_rows_of_cells_full(worksheet, start_row, end_row, col_start, cols_len,
+                           formatted=False):
+    """
+    `start_row` is 1 indexed; `col_start` is 0 indexed; `cols_len` is 0 indexed
+    """
+    if formatted:
+        values = worksheet.get_values(
+            f"{chr(ord('A') + col_start)}{start_row}:{chr(ord('A') + col_start + cols_len)}{end_row}",
+            value_render_option='FORMULA')
+        if len(values) == 0:
+            return values
+        width_diff = cols_len + 1 - len(values[0])
+        if width_diff > 0:
+            for i, row in enumerate(values):
+                values[i] = row + ([""] * width_diff)
+        while len(values) < end_row - start_row + 1:
+            values.append([""] * (cols_len + 1))
+        return values
+    return worksheet.get_values(
+        f"{chr(ord('A') + col_start)}{start_row}:{chr(ord('A') + col_start + cols_len)}{end_row}")
+
+
+def get_rows_of_cells(worksheet, start_row, end_row, cols_len, formatted=False):
+    return get_rows_of_cells_full(
+        worksheet, start_row, end_row, 0, cols_len, formatted)
+
+    # from pprint import pprint  # pprint(one_d)  # two_d = []  # for i in range(len(one_d) // cols_len):  #     two_d.append(one_d[i * (cols_len + 1):(i + 1) * (cols_len + 1)])  # return two_d
 
 
 def append_to_last_row(worksheet, values):
@@ -140,7 +161,12 @@ def write_execution_to_ToC(executor: str, executed_num: str,
                            matching_weight: float, slots_unfilled: int,
                            alternate_matching_weights=[],
                            input_num_executed=None, matching_diff_ws_title=None,
-                           input_copy_ids=None, params_copy_ids=None):
+                           include_matching_diff=False, input_copy_ids=None,
+                           params_copy_ids=None):
+    """
+    If `include_matching_diff == False` then `matching_diff_ws_title` should be
+    the message to write in the place of the first of both diff hyperlinks
+    """
     now = datetime.datetime.now(pytz.timezone('America/New_York'))
     date = now.strftime('%m-%d-%Y')
     time = now.strftime('%H:%M:%S')
@@ -151,7 +177,8 @@ def write_execution_to_ToC(executor: str, executed_num: str,
     # need only sheet ids
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, slots_unfilled,
-        alternate_matching_weights, matching_diff_ws_title)
+        alternate_matching_weights, matching_diff_ws_title,
+        include_matching_diff)
 
     if input_copy_ids is None:
         input_copy_ids = initialize_input_copy_ids_tuples(input_num_executed)
@@ -228,7 +255,8 @@ def build_links_to_input(input_executed_num: str, params_executed_num: str,
 def build_links_to_output(executed_num: str, matching_weight: float,
                           slots_unfilled: int,
                           alternate_matching_weights: List[float],
-                          matching_diff_ws_title: str = None) -> Tuple[
+                          matching_diff_ws_title: str = None,
+                          include_matching_diff=False) -> Tuple[
     List[str], List[str]]:
     def _build_hyperlink(sheet_title: str, text_prefix="", text_suffix="",
                          num_alternate=0) -> str:
@@ -252,8 +280,8 @@ def build_links_to_output(executed_num: str, matching_weight: float,
     else:
         matching_suffix = f' ({slots_unfilled} slots unfilled)'
 
-    matching_diffs_hyperlinks = ["", ""]
-    if matching_diff_ws_title:
+    matching_diffs_hyperlinks = [matching_diff_ws_title, ""]
+    if include_matching_diff:
         for i, suffix in enumerate(["(S)", "(C)"]):
             matching_diffs_hyperlinks[i] = _build_hyperlink_from_primitives(
                 gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE,

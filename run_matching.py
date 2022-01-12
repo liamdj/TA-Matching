@@ -66,6 +66,8 @@ def write_matchings(executor, output_dir_title, matching_weight,
         output_num_executed = write_gs.get_num_execution_from_matchings_sheet(
             input_num_executed=input_num_executed)
 
+    include_matching_diff = False
+    matching_diff_ws_title = None
     if compare_matching_from_num_executed:
         student_changes, course_changes = compare_outputs.compare_matching_worksheet_with_csv(
             write_gs.get_worksheet(
@@ -76,14 +78,20 @@ def write_matchings(executor, output_dir_title, matching_weight,
             student_changes, course_changes, output_dir_title)
         print(
             f"{num_changes} different assignments between {compare_matching_from_num_executed} and {output_num_executed}")
+        if num_changes > 0:
+            include_matching_diff = True
+            matching_diff_ws_title = f'#{compare_matching_from_num_executed}->#{output_num_executed}'
 
-    matching_diff_ws_title = f'#{compare_matching_from_num_executed}->#{output_num_executed}'
     write_gs.write_output_csvs(
         len(alt_weights), output_num_executed, output_dir_title,
         matching_diff_ws_title)
+
+    if not include_matching_diff and compare_matching_from_num_executed:
+        matching_diff_ws_title = f'Same as #{compare_matching_from_num_executed}'
+
     param_copy_ids = write_gs.write_params_csv(
         output_num_executed, output_dir_title)
     write_gs.write_execution_to_ToC(
         executor, output_num_executed, matching_weight, slots_unfilled,
-        alt_weights, input_num_executed, matching_diff_ws_title, input_copy_ids,
-        param_copy_ids)
+        alt_weights, input_num_executed, matching_diff_ws_title,
+        include_matching_diff, input_copy_ids, param_copy_ids)

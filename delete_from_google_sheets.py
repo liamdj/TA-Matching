@@ -3,7 +3,7 @@ from typing import List
 
 import g_sheet_consts as gs_consts
 from write_to_google_sheets import get_sheet, get_worksheet_from_sheet, \
-    get_rows_of_cells
+    get_rows_of_cells, get_rows_of_cells_full
 
 
 def remove_worksheets_for_execution(tab_num: str):
@@ -74,15 +74,24 @@ def remove_entry_from_toc(matching_sheet, tab_num: str):
     toc_ws = get_worksheet_from_sheet(
         matching_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
     max_ws = matching_sheet.worksheets()[1].title
+    cells = get_rows_of_cells_full(toc_ws, 2, int(max_ws) + 2, 5, 1, formatted=True)
+    for row in cells:
+        if not row:
+            continue
+        if tab_num in row[0]:
+            row[0] = ""
+        if tab_num in row[1]:
+            row[1] = ""
+    toc_ws.update(f'F2:G{int(max_ws)+2}', cells, value_input_option='USER_ENTERED')
+
     cells = get_rows_of_cells(toc_ws, 2, int(max_ws) + 2, 5)
     for i, row in enumerate(cells):
         if not row:
             continue
-        match = re.match(r"#([0-9]{3})", row[4].value)
+        match = re.match(r"#([0-9]{3})", row[4])
         if match is None:
             continue
         title = match.group(1)
-        if int(title) <= int(tab_num):
+        if int(title) == int(tab_num):
             if tab_num in title:
                 toc_ws.delete_rows(i + 2)
-            return
