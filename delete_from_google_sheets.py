@@ -22,13 +22,13 @@ def remove_worksheets_for_execution(tab_num: str):
     planning_input_copy_worksheets = planning_input_copy_sheet.worksheets()
     remove_worksheet_from_worksheets(
         planning_input_copy_sheet, planning_input_copy_worksheets,
-        f"{tab_num}:Students")
+        f"{tab_num}(S)")
     remove_worksheet_from_worksheets(
         planning_input_copy_sheet, planning_input_copy_worksheets,
-        f"{tab_num}:Faculty")
+        f"{tab_num}(F)")
     remove_worksheet_from_worksheets(
         planning_input_copy_sheet, planning_input_copy_worksheets,
-        f"{tab_num}:Courses")
+        f"{tab_num}(C)")
     remove_worksheet(
         get_sheet(gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE), tab_num)
     remove_worksheet(

@@ -19,7 +19,8 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         instructor_prefs_sheet_id=instructor_preferences_sheet_id)
 
     num_executed = write_gs.get_num_execution_from_matchings_sheet()
-    write_gs.copy_input_worksheets(
+    # return tuples (with sheet ids and ws ids) - grab them bundled as one tuple
+    input_copy_ids = write_gs.copy_input_worksheets(
         num_executed, planning_sheet_id, student_preferences_sheet_id,
         instructor_preferences_sheet_id)
 
@@ -28,13 +29,14 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
 
     run_and_write_matchings(
         executor, input_dir_title, num_executed, num_executed,
-        compare_matching_from_num_executed, alternates)
+        compare_matching_from_num_executed, alternates, input_copy_ids)
 
 
+# pass in bundled tuple as optional (and pass through to write)
 def run_and_write_matchings(executor, input_dir_title, output_num_executed=None,
                             input_num_executed=None,
                             compare_matching_from_num_executed=None,
-                            alternates=0):
+                            alternates=0, input_copy_ids=None):
     """
     if `input_num_executed` is `None`, then use most recent copy
     """
@@ -46,13 +48,14 @@ def run_and_write_matchings(executor, input_dir_title, output_num_executed=None,
     write_matchings(
         executor, output_dir_path, matching_weight, slots_unfilled,
         output_num_executed, input_num_executed,
-        compare_matching_from_num_executed, alt_weights)
+        compare_matching_from_num_executed, alt_weights, input_copy_ids)
 
 
 def write_matchings(executor, output_dir_title, matching_weight,
                     slots_unfilled=0, output_num_executed=None,
                     input_num_executed=None,
-                    compare_matching_from_num_executed=None, alt_weights=[]):
+                    compare_matching_from_num_executed=None, alt_weights=[],
+                    input_copy_ids=None):
     """
     if `input_num_executed` is `None`, then use most recent copy;
     if `compare_matching_from_num_executed` is `None`, then do not compute diff
@@ -78,8 +81,9 @@ def write_matchings(executor, output_dir_title, matching_weight,
     write_gs.write_output_csvs(
         len(alt_weights), output_num_executed, output_dir_title,
         matching_diff_ws_title)
-    write_gs.write_params_csv(output_num_executed, output_dir_title)
+    param_copy_ids = write_gs.write_params_csv(
+        output_num_executed, output_dir_title)
     write_gs.write_execution_to_ToC(
         executor, output_num_executed, matching_weight, slots_unfilled,
-        alt_weights, input_num_executed=input_num_executed,
-        matching_diff_ws_title=matching_diff_ws_title)
+        alt_weights, input_num_executed, matching_diff_ws_title, input_copy_ids,
+        param_copy_ids)

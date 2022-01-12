@@ -139,8 +139,8 @@ def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
 def write_execution_to_ToC(executor: str, executed_num: str,
                            matching_weight: float, slots_unfilled: int,
                            alternate_matching_weights=[],
-                           input_num_executed=None,
-                           matching_diff_ws_title=None):
+                           input_num_executed=None, matching_diff_ws_title=None,
+                           input_copy_ids=None, params_copy_ids=None):
     now = datetime.datetime.now(pytz.timezone('America/New_York'))
     date = now.strftime('%m-%d-%Y')
     time = now.strftime('%H:%M:%S')
@@ -148,10 +148,17 @@ def write_execution_to_ToC(executor: str, executed_num: str,
     if input_num_executed is None:
         input_num_executed = executed_num
 
+    # need only sheet ids
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, slots_unfilled,
         alternate_matching_weights, matching_diff_ws_title)
-    links_to_input = build_links_to_input(input_num_executed, executed_num)
+
+    if input_copy_ids is None:
+        input_copy_ids = initialize_input_copy_ids_tuples(input_num_executed)
+    if params_copy_ids is None:
+        params_copy_ids = initialize_params_copy_ids(executed_num)
+    links_to_input = build_links_to_input(
+        input_num_executed, executed_num, *input_copy_ids, params_copy_ids)
 
     toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
                 *links_to_alternate_output]
@@ -160,42 +167,62 @@ def write_execution_to_ToC(executor: str, executed_num: str,
     toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
 
 
-def build_links_to_input(input_executed_num: str, params_executed_num: str):
-    links_to_input = ['', '', '', '', '', '']
+def initialize_input_copy_ids_tuples(input_executed_num: str) -> Tuple[
+    Tuple[str, str, str, str], Tuple[str, str], Tuple[str, str]]:
     planning_sheet = get_sheet(gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
-    planning_input_copy_sheet_id = planning_sheet.id
     planning_worksheets = planning_sheet.worksheets()
-    links_to_input[0], _ = build_hyperlink_to_sheet(
-        planning_input_copy_sheet_id, f"#{input_executed_num}",
-        get_worksheet_from_worksheets(
-            planning_worksheets, f"{input_executed_num}:Students",
-            planning_sheet.title).id)
-    links_to_input[1], _ = build_hyperlink_to_sheet(
-        planning_input_copy_sheet_id, f"#{input_executed_num}",
-        get_worksheet_from_worksheets(
-            planning_worksheets, f"{input_executed_num}:Faculty",
-            planning_sheet.title).id)
-    links_to_input[2], _ = build_hyperlink_to_sheet(
-        planning_input_copy_sheet_id, f"#{input_executed_num}",
-        get_worksheet_from_worksheets(
-            planning_worksheets, f"{input_executed_num}:Courses",
-            planning_sheet.title).id)
+    planning_input_copy_students_ws_id = get_worksheet_from_worksheets(
+        planning_worksheets, f"{input_executed_num}(S)",
+        planning_sheet.title).id
+    planning_input_copy_faculty_ws_id = get_worksheet_from_worksheets(
+        planning_worksheets, f"{input_executed_num}(F)",
+        planning_sheet.title).id
+    planning_input_copy_courses_ws_id = get_worksheet_from_worksheets(
+        planning_worksheets, f"{input_executed_num}(C)",
+        planning_sheet.title).id
+    planning_ids = (planning_sheet.id, planning_input_copy_students_ws_id,
+                    planning_input_copy_faculty_ws_id,
+                    planning_input_copy_courses_ws_id)
     student_prefs_sheet = get_sheet(
         gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE)
-    links_to_input[3], _ = build_hyperlink_to_sheet(
-        student_prefs_sheet.id, f"#{input_executed_num}",
-        get_worksheet_from_sheet(
-            student_prefs_sheet, input_executed_num).id)
-    instructor_prefs = get_sheet(
+    student_prefs_ws_id = get_worksheet_from_sheet(
+        student_prefs_sheet, input_executed_num)
+    student_prefs_ids = (student_prefs_sheet.id, student_prefs_ws_id)
+    instructor_prefs_sheet = get_sheet(
         gs_consts.INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE)
-    links_to_input[4], _ = build_hyperlink_to_sheet(
-        instructor_prefs.id, f"#{input_executed_num}", get_worksheet_from_sheet(
-            instructor_prefs, input_executed_num).id)
+    instructor_prefs_ws_id = get_worksheet_from_sheet(
+        instructor_prefs_sheet, input_executed_num)
+    instructor_prefs_ids = (instructor_prefs_sheet.id, instructor_prefs_ws_id)
+    return planning_ids, student_prefs_ids, instructor_prefs_ids
+
+
+def initialize_params_copy_ids(params_executed_num: str) -> Tuple[str, str]:
     params_copy_sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
-    links_to_input[5], _ = build_hyperlink_to_sheet(
-        params_copy_sheet.id, f"#{params_executed_num}",
-        get_worksheet_from_sheet(params_copy_sheet, params_executed_num).id)
-    return links_to_input
+    params_copy_ws_id = get_worksheet_from_sheet(
+        params_copy_sheet, params_executed_num)
+    return params_copy_sheet.id, params_copy_ws_id
+
+
+def build_links_to_input(input_executed_num: str, params_executed_num: str,
+                         planning_ids: Tuple[str, str, str, str],
+                         student_prefs_ids: Tuple[str, str],
+                         instructor_prefs_ids: Tuple[str, str],
+                         params_copy_ids: Tuple[str, str]):
+    """
+    for each of the last 4 inputs, the strings are the id's for sheets or ws's.
+    `planning_sheet` is `(sheet_id, students, faculty, courses)`
+    """
+    link_text = f"#{input_executed_num}"
+    links_to_input = [build_hyperlink_to_sheet(
+        planning_ids[0], link_text, planning_ids[1]), build_hyperlink_to_sheet(
+        planning_ids[0], link_text, planning_ids[2]), build_hyperlink_to_sheet(
+        planning_ids[0], link_text, planning_ids[3]), build_hyperlink_to_sheet(
+        student_prefs_ids[0], link_text, student_prefs_ids[1]),
+        build_hyperlink_to_sheet(
+            instructor_prefs_ids[0], link_text, instructor_prefs_ids[1]),
+        build_hyperlink_to_sheet(
+            params_copy_ids[0], f"#{params_executed_num}", params_copy_ids[1])]
+    return [link for link, _ in links_to_input]
 
 
 def build_links_to_output(executed_num: str, matching_weight: float,
@@ -345,59 +372,66 @@ def write_output_csvs(alternates: int, num_executed: str, output_dir_title: str,
             num_executed + chr(ord('A') + i), i)
 
 
-def write_params_csv(num_executed, output_dir_title):
+def write_params_csv(num_executed: str, output_dir_title: str) -> Tuple[
+    str, str]:
     sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
     ws = write_csv_to_new_tab_from_sheet(
         f'{output_dir_title}/outputs/params.csv', sheet, num_executed)
     format(ws, "", "", 1, 1, center_align=True)
+    return sheet.id, ws.id
 
 
 def copy_input_worksheets(num_executed: str, planning_sheet_id: str,
                           student_prefs_sheet_id: str,
-                          instructor_prefs_sheet_id: str):
+                          instructor_prefs_sheet_id: str) -> Tuple[
+    Tuple[str, str, str, str], Tuple[str, str], Tuple[str, str]]:
     planning_sheet = get_sheet_by_id(planning_sheet_id)
     planning_worksheets = planning_sheet.worksheets()
     planning_input_copy_sheet = get_sheet(
         gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
-    copy_to_from_worksheets(
+    _, planning_courses_copy_ws_id = copy_to_from_worksheets(
         planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
-        gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE, f"{num_executed}:Courses")
-    copy_to_from_worksheets(
+        gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE, f"{num_executed}(C)")
+    _, planning_faculty_copy_ws_id = copy_to_from_worksheets(
         planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
-        gs_consts.PLANNING_INPUT_FACULTY_TAB_TITLE, f"{num_executed}:Faculty")
-    copy_to_from_worksheets(
+        gs_consts.PLANNING_INPUT_FACULTY_TAB_TITLE, f"{num_executed}(F)")
+    _, planning_students_copy_ws_id = copy_to_from_worksheets(
         planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
-        gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE, f"{num_executed}:Students")
+        gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE, f"{num_executed}(S)")
+    planning_input_copy_ids = (
+        planning_input_copy_sheet.id, planning_students_copy_ws_id,
+        planning_faculty_copy_ws_id, planning_courses_copy_ws_id)
 
-    student_prefs_input_copy_sheet = get_sheet(
-        gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE)
-    copy_to(
-        get_sheet_by_id(student_prefs_sheet_id), student_prefs_input_copy_sheet,
+    student_prefs_copy_ids = copy_to(
+        get_sheet_by_id(student_prefs_sheet_id), get_sheet(
+            gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE),
         gs_consts.PREFERENCES_INPUT_TAB_TITLE, num_executed)
 
-    instructor_prefs_input_copy_sheet = get_sheet(
-        gs_consts.INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE)
-    copy_to(
-        get_sheet_by_id(instructor_prefs_sheet_id),
-        instructor_prefs_input_copy_sheet,
+    instructor_prefs_copy_ids = copy_to(
+        get_sheet_by_id(instructor_prefs_sheet_id), get_sheet(
+            gs_consts.INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE),
         gs_consts.PREFERENCES_INPUT_TAB_TITLE, num_executed)
-    return planning_input_copy_sheet.id, student_prefs_input_copy_sheet.id, instructor_prefs_input_copy_sheet.id
+    return planning_input_copy_ids, student_prefs_copy_ids, instructor_prefs_copy_ids
 
 
 def copy_to_from_worksheets(old_worksheet_title: str, old_worksheets, new_sheet,
-                            old_tab_title: str, new_tab_title: str):
+                            old_tab_title: str, new_tab_title: str) -> Tuple[
+    str, str]:
     worksheet = get_worksheet_from_worksheets(
         old_worksheets, old_tab_title, old_worksheet_title)
-    copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)
+    return copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)
 
 
-def copy_to_from_worksheet(new_sheet, new_tab_title, worksheet):
+def copy_to_from_worksheet(new_sheet, new_tab_title: str, worksheet) -> Tuple[
+    str, str]:
     copied_worksheet_title = worksheet.copy_to(new_sheet.id)['title']
     new_ws = get_worksheet_from_sheet(new_sheet, copied_worksheet_title)
     new_ws.update_title(new_tab_title)
     new_sheet.reorder_worksheets([new_ws])
+    return new_sheet.id, new_ws.id
 
 
-def copy_to(old_sheet, new_sheet, old_tab_title, new_tab_title):
+def copy_to(old_sheet, new_sheet, old_tab_title: str, new_tab_title: str) -> \
+        Tuple[str, str]:
     worksheet = get_worksheet_from_sheet(old_sheet, old_tab_title)
-    copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)
+    return copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)
