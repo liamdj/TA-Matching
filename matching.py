@@ -123,7 +123,7 @@ def read_student_data(filename: str) -> pd.DataFrame:
     df['Weight'] += params.JOIN_MULTIPLIER * (
             df['Join'].fillna(params.DEFAULT_JOIN) - params.DEFAULT_JOIN)
     df['Weight'] += params.MSE_BOOST * (
-                (df['Year'] == 'MSE1') + (df['Year'] == 'MSE2'))
+            (df['Year'] == 'MSE1') + (df['Year'] == 'MSE2'))
     return df
 
 
@@ -185,8 +185,10 @@ def parse_course_changes(course_data, course_diffs, course_scores):
         students_old = str(row[0]).split(';')
         students_new = str(row[1]).split(';')
         for old, new in zip(students_old, students_new):
-            score_change = course_scores.loc[row.name, new] - course_scores.loc[
-                row.name, old] if old in course_data.columns and new in course_data.columns else 'NA'
+            score_change = 'NA'
+            if old in course_data.columns and new in course_data.columns:
+                score_change = course_scores.loc[row.name, new] - \
+                               course_scores.loc[row.name, old]
 
             if old in course_data.columns:
                 old += ' ({})'.format(course_data.loc[row.name, old])
@@ -205,11 +207,10 @@ def get_matching_changes(course_data, extra_course, student_data, student_diffs,
         student = student_data.index[row.name]
         course_old = course_data.index[row[0]] if row[0] >= 0 else 'unassigned'
         course_new = course_data.index[row[1]] if row[1] >= 0 else 'unassigned'
-        score_change = student_scores.loc[student, course_new] - \
-                       student_scores.loc[student, course_old] if row[
-                                                                      0] >= 0 and \
-                                                                  row[
-                                                                      1] >= 0 else 'NA'
+        score_change = 'NA'
+        if row[0] >= 0 and row[1] >= 0:
+            score_change = student_scores.loc[student, course_new] - \
+                           student_scores.loc[student, course_old]
 
         if row[0] >= 0:
             course_matches_old[course_old].append(student)

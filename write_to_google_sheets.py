@@ -2,7 +2,7 @@ import csv
 import datetime
 import gspread
 import pytz
-import re
+from typing import List, Tuple
 
 import g_sheet_consts as gs_consts
 
@@ -139,7 +139,8 @@ def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
 def write_execution_to_ToC(executor: str, executed_num: str,
                            matching_weight: float, slots_unfilled: int,
                            alternate_matching_weights=[],
-                           input_num_executed=None):
+                           input_num_executed=None,
+                           matching_diff_ws_title=None):
     now = datetime.datetime.now(pytz.timezone('America/New_York'))
     date = now.strftime('%m-%d-%Y')
     time = now.strftime('%H:%M:%S')
@@ -149,7 +150,7 @@ def write_execution_to_ToC(executor: str, executed_num: str,
 
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, slots_unfilled,
-        alternate_matching_weights)
+        alternate_matching_weights, matching_diff_ws_title)
     links_to_input = build_links_to_input(input_num_executed, executed_num)
 
     toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
@@ -198,26 +199,42 @@ def build_links_to_input(input_executed_num: str, params_executed_num: str):
 
 
 def build_links_to_output(executed_num: str, matching_weight: float,
-                          slots_unfilled: int, alternate_matching_weights):
+                          slots_unfilled: int,
+                          alternate_matching_weights: List[float],
+                          matching_diff_ws_title: str = None) -> Tuple[
+    List[str], List[str]]:
     def _build_hyperlink(sheet_title: str, text_prefix="", text_suffix="",
-                         num_alternate=0):
-        sheet = get_sheet(sheet_title)
+                         num_alternate=0) -> str:
         ws_title = executed_num
         if num_alternate:
             ws_title += chr(ord('A') + num_alternate - 1)
-        worksheet_id = sheet.worksheet(ws_title).id
         link_text = f"{text_prefix}#{executed_num}{text_suffix}"
+        return _build_hyperlink_from_primitives(
+            sheet_title, ws_title, link_text)
+
+    def _build_hyperlink_from_primitives(sheet_title: str, ws_title: str,
+                                         link_text: str) -> str:
+        sheet = get_sheet(sheet_title)
+        worksheet_id = sheet.worksheet(ws_title).id
         link_to_output, _ = build_hyperlink_to_sheet(
             sheet.id, link_text, worksheet_id)
         return link_to_output
 
-    if slots_unfilled != 0:
-        matching_suffix = f' ({slots_unfilled} slots unfilled)'
-    else:
+    if slots_unfilled == 0:
         matching_suffix = f' ({matching_weight:.2f})'
+    else:
+        matching_suffix = f' ({slots_unfilled} slots unfilled)'
+
+    matching_diffs_hyperlinks = ["", ""]
+    if matching_diff_ws_title:
+        for i, suffix in enumerate(["(S)", "(C)"]):
+            matching_diffs_hyperlinks[i] = _build_hyperlink_from_primitives(
+                gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE,
+                matching_diff_ws_title + suffix, matching_diff_ws_title)
 
     links_to_output = [_build_hyperlink(
         gs_consts.MATCHING_OUTPUT_SHEET_TITLE, text_suffix=matching_suffix),
+        *matching_diffs_hyperlinks,
         _build_hyperlink(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE),
         _build_hyperlink(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)]
     links_to_alternate_output = []
@@ -299,86 +316,22 @@ def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap,
     return worksheet
 
 
-def remove_worksheets_for_execution(tab_num: str):
-    def remove_ws(sheet, worksheets, worksheet_title):
-        for ws in worksheets:
-            if worksheet_title == ws.title:
-                sheet.del_worksheet(ws)
-                return True
-        return False
-
-    def remove_alternates_ws(alternates_sheet):
-        alternates_worksheets = alternates_sheet.worksheets()
-        ws_titles = [ws.title for ws in alternates_worksheets]
-        for j in range(100):
-            alternate_title = f"{tab_num}{chr(ord('A') + j)}"
-            if alternate_title in ws_titles:
-                if not remove_ws(
-                        alternates_sheet, alternates_worksheets,
-                        alternate_title):
-                    return
-
-    matching_sheet = get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
-    remove_ws(matching_sheet, matching_sheet.worksheets(), tab_num)
-    remove_TA_sheet = get_sheet(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)
-    remove_ws(remove_TA_sheet, remove_TA_sheet.worksheets(), tab_num)
-    additional_TA_sheet = get_sheet(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE)
-    remove_ws(additional_TA_sheet, additional_TA_sheet.worksheets(), tab_num)
-    remove_alternates_ws(get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE))
-    planning_input_copy_sheet = get_sheet(
-        gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
-    planning_input_copy_worksheets = planning_input_copy_sheet.worksheets()
-    remove_ws(
-        planning_input_copy_sheet, planning_input_copy_worksheets,
-        f"{tab_num}:Students")
-    remove_ws(
-        planning_input_copy_sheet, planning_input_copy_worksheets,
-        f"{tab_num}:Faculty")
-    remove_ws(
-        planning_input_copy_sheet, planning_input_copy_worksheets,
-        f"{tab_num}:Courses")
-    students_preferences_input_copy_sheet = get_sheet(
-        gs_consts.TA_PREFERENCES_INPUT_COPY_SHEET_TITLE)
-    remove_ws(
-        students_preferences_input_copy_sheet,
-        students_preferences_input_copy_sheet.worksheets(), tab_num)
-    instructor_preferences_input_copy_sheet = get_sheet(
-        gs_consts.INSTRUCTOR_PREFERENCES_INPUT_COPY_SHEET_TITLE)
-    remove_ws(
-        instructor_preferences_input_copy_sheet,
-        instructor_preferences_input_copy_sheet.worksheets(), tab_num)
-
-    params_copy_input_sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
-    remove_ws(
-        params_copy_input_sheet, params_copy_input_sheet.worksheets(), tab_num)
-
-    remove_entry_from_toc(matching_sheet, tab_num)
-
-
-def remove_entry_from_toc(matching_sheet, tab_num):
-    toc_ws = get_worksheet_from_sheet(
-        matching_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
-    max_ws = matching_sheet.worksheets()[1].title
-    cells = get_rows_of_cells(toc_ws, 2, int(max_ws) + 2, 5)
-    for i, row in enumerate(cells):
-        if not row:
-            continue
-        match = re.match(r"#([0-9]{3})", row[4].value)
-        if match is None:
-            continue
-        title = match.group(1)
-        if int(title) <= int(tab_num):
-            if tab_num in title:
-                toc_ws.delete_rows(i + 2)
-            return
-
-
-def write_output_csvs(alternates, num_executed, output_dir_title):
+def write_output_csvs(alternates: int, num_executed: str, output_dir_title: str,
+                      matching_diffs_ws_title: str = None):
     outputs_dir = f'{output_dir_title}/outputs'
     matchings_worksheet = write_csv_to_new_tab(
         f'{outputs_dir}/matchings.csv', gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
         num_executed, 1)
     format(matchings_worksheet, "", "", 4, 18, center_align=True)
+    if matching_diffs_ws_title is not None:
+        write_csv_to_new_tab(
+            f'{outputs_dir}/matchings_students_diff.csv',
+            gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE,
+            matching_diffs_ws_title + '(S)')
+        write_csv_to_new_tab(
+            f'{outputs_dir}/matchings_courses_diff.csv',
+            gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE,
+            matching_diffs_ws_title + '(C)')
     write_csv_to_new_tab(
         f'{outputs_dir}/additional_TA.csv',
         gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE, num_executed, wrap=True)
