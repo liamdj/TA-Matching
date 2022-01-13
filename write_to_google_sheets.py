@@ -157,7 +157,7 @@ def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
     return f"=HYPERLINK(\"{url}\", \"{link_text}\")", url
 
 
-def write_execution_to_ToC(executor: str, executed_num: str,
+def write_execution_to_ToC(toc_ws, executor: str, executed_num: str,
                            matching_weight: float, slots_unfilled: int,
                            alternate_matching_weights=[],
                            input_num_executed=None, matching_diff_ws_title=None,
@@ -189,9 +189,7 @@ def write_execution_to_ToC(executor: str, executed_num: str,
 
     toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
                 *links_to_alternate_output]
-    toc_wsh = get_worksheet(
-        gs_consts.MATCHING_OUTPUT_SHEET_TITLE, gs_consts.OUTPUT_TOC_TAB_TITLE)
-    toc_wsh.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
+    toc_ws.insert_row(toc_vals, 2, value_input_option='USER_ENTERED')
 
 
 def initialize_input_copy_ids_tuples(input_executed_num: str) -> Tuple[
@@ -371,11 +369,11 @@ def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap,
     return worksheet
 
 
-def write_output_csvs(alternates: int, num_executed: str, output_dir_title: str,
+def write_output_csvs(matching_output_sheet, alternates: int, num_executed: str, output_dir_title: str,
                       matching_diffs_ws_title: str = None):
     outputs_dir = f'{output_dir_title}/outputs'
-    matchings_worksheet = write_csv_to_new_tab(
-        f'{outputs_dir}/matchings.csv', gs_consts.MATCHING_OUTPUT_SHEET_TITLE,
+    matchings_worksheet = write_csv_to_new_tab_from_sheet(
+        f'{outputs_dir}/matchings.csv', matching_output_sheet,
         num_executed, 1)
     format(matchings_worksheet, "", "", 4, 18, center_align=True)
     if matching_diffs_ws_title is not None:
