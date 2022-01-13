@@ -404,8 +404,8 @@ def write_matrix_to_new_tab(matrix, sheetname, tab_name, wrap=False,
     write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap, tab_index)
 
 
-def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap,
-                                       tab_index):
+def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name:str, wrap=False,
+                                       tab_index=0):
     worksheet = add_worksheet_from_matrix(matrix, sheet, tab_name, tab_index)
     write_full_worksheet(matrix, worksheet, wrap)
     return worksheet
@@ -467,6 +467,7 @@ def copy_input_worksheets(num_executed: str, planning_sheet_id: str,
                           student_prefs_sheet_id: str,
                           instructor_prefs_sheet_id: str) -> Tuple[
     Tuple[str, str, str, str], Tuple[str, str], Tuple[str, str]]:
+    print(f"Copying input for execution #{num_executed}")
     planning_sheet = get_sheet_by_id(planning_sheet_id)
     planning_worksheets = planning_sheet.worksheets()
     planning_input_copy_sheet = get_sheet(
