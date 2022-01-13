@@ -19,7 +19,6 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         instructor_prefs_sheet_id=instructor_preferences_sheet_id)
 
     num_executed = write_gs.get_num_execution_from_matchings_sheet()
-    # return tuples (with sheet ids and ws ids) - grab them bundled as one tuple
     input_copy_ids = write_gs.copy_input_worksheets(
         num_executed, planning_sheet_id, student_preferences_sheet_id,
         instructor_preferences_sheet_id)
@@ -32,7 +31,6 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         compare_matching_from_num_executed, alternates, input_copy_ids)
 
 
-# pass in bundled tuple as optional (and pass through to write)
 def run_and_write_matchings(executor, input_dir_title, output_num_executed=None,
                             input_num_executed=None,
                             compare_matching_from_num_executed=None,
@@ -84,7 +82,7 @@ def write_matchings(executor, output_dir_title, matching_weight,
             include_matching_diff = True
             matching_diff_ws_title = f'#{compare_matching_from_num_executed}->#{output_num_executed}'
 
-    write_gs.write_output_csvs(
+    output_ids = write_gs.write_output_csvs(
         matching_output_sheet, len(alt_weights), output_num_executed,
         output_dir_title, matching_diff_ws_title)
 
@@ -98,4 +96,4 @@ def write_matchings(executor, output_dir_title, matching_weight,
     write_gs.write_execution_to_ToC(
         toc_ws, executor, output_num_executed, matching_weight, slots_unfilled,
         alt_weights, input_num_executed, matching_diff_ws_title,
-        include_matching_diff, input_copy_ids, param_copy_ids)
+        include_matching_diff, input_copy_ids, param_copy_ids, output_ids)
