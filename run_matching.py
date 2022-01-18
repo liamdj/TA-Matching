@@ -7,6 +7,7 @@ import g_sheet_consts as gs_consts
 
 def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      input_dir_title='colab',
+                                                     include_removal_and_additional=True,
                                                      alternates=0,
                                                      planning_sheet_id=None,
                                                      student_preferences_sheet_id=None,
@@ -27,12 +28,14 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         compare_matching_from_num_executed = f"{(int(num_executed) - 1):03d}"
 
     run_and_write_matchings(
-        executor, input_dir_title, num_executed, num_executed,
-        compare_matching_from_num_executed, alternates, input_copy_ids)
+        executor, input_dir_title, include_removal_and_additional, num_executed,
+        num_executed, compare_matching_from_num_executed, alternates,
+        input_copy_ids)
 
 
-def run_and_write_matchings(executor, input_dir_title, output_num_executed=None,
-                            input_num_executed=None,
+def run_and_write_matchings(executor, input_dir_title,
+                            include_removal_and_additional=True,
+                            output_num_executed=None, input_num_executed=None,
                             compare_matching_from_num_executed=None,
                             alternates=0, input_copy_ids=None):
     """
@@ -44,14 +47,15 @@ def run_and_write_matchings(executor, input_dir_title, output_num_executed=None,
     if slots_unfilled > 0:
         print(f"\tunfilled slots: {slots_unfilled}")
     write_matchings(
-        executor, output_dir_path, matching_weight, slots_unfilled,
-        output_num_executed, input_num_executed,
-        compare_matching_from_num_executed, alt_weights, input_copy_ids)
+        executor, output_dir_path, matching_weight,
+        include_removal_and_additional, slots_unfilled, output_num_executed,
+        input_num_executed, compare_matching_from_num_executed, alt_weights,
+        input_copy_ids)
 
 
 def write_matchings(executor, output_dir_title, matching_weight,
-                    slots_unfilled=0, output_num_executed=None,
-                    input_num_executed=None,
+                    include_removal_and_additional=True, slots_unfilled=0,
+                    output_num_executed=None, input_num_executed=None,
                     compare_matching_from_num_executed=None, alt_weights=[],
                     input_copy_ids=None):
     """
@@ -83,8 +87,8 @@ def write_matchings(executor, output_dir_title, matching_weight,
             matching_diff_ws_title = f'#{compare_matching_from_num_executed}->#{output_num_executed}'
 
     output_ids = write_gs.write_output_csvs(
-        matching_output_sheet, len(alt_weights), output_num_executed,
-        output_dir_title, matching_diff_ws_title)
+        matching_output_sheet, include_removal_and_additional, len(alt_weights),
+        output_num_executed, output_dir_title, matching_diff_ws_title)
 
     if not include_matching_diff and compare_matching_from_num_executed:
         matching_diff_ws_title = f'Same as #{compare_matching_from_num_executed}'
@@ -95,5 +99,6 @@ def write_matchings(executor, output_dir_title, matching_weight,
         matching_output_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
     write_gs.write_execution_to_ToC(
         toc_ws, executor, output_num_executed, matching_weight, slots_unfilled,
-        alt_weights, input_num_executed, matching_diff_ws_title,
-        include_matching_diff, input_copy_ids, param_copy_ids, output_ids)
+        include_removal_and_additional, alt_weights, input_num_executed,
+        matching_diff_ws_title, include_matching_diff, input_copy_ids,
+        param_copy_ids, output_ids)

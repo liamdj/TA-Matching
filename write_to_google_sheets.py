@@ -157,6 +157,7 @@ def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
 
 def write_execution_to_ToC(toc_ws, executor: str, executed_num: str,
                            matching_weight: float, slots_unfilled: int,
+                           include_removal_and_additional=True,
                            alternate_matching_weights=[],
                            input_num_executed: str = None,
                            matching_diff_ws_title: str = None,
@@ -165,7 +166,8 @@ def write_execution_to_ToC(toc_ws, executor: str, executed_num: str,
                            params_copy_ids: Tuple[str, str] = None,
                            output_ids: Tuple[
                                Tuple[str, str], Optional[Tuple[str, str, str]],
-                               Tuple[str, str], Tuple[str, str], Optional[
+                               Optional[Tuple[str, str]], Optional[
+                                   Tuple[str, str]], Optional[
                                    Tuple[str, List[str]]]] = None):
     """
     If `include_matching_diff == False` then `matching_diff_ws_title` should be
@@ -184,8 +186,8 @@ def write_execution_to_ToC(toc_ws, executor: str, executed_num: str,
             len(alternate_matching_weights))
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, slots_unfilled,
-        alternate_matching_weights, *output_ids, matching_diff_ws_title,
-        include_matching_diff)
+        include_removal_and_additional, alternate_matching_weights, *output_ids,
+        matching_diff_ws_title, include_matching_diff)
 
     if input_copy_ids is None:
         input_copy_ids = initialize_input_copy_ids_tuples(input_num_executed)
@@ -300,6 +302,7 @@ def build_links_to_input(input_executed_num: str, params_executed_num: str,
 
 def build_links_to_output(executed_num: str, matching_weight: float,
                           slots_unfilled: int,
+                          include_removal_and_additional: bool,
                           alternate_matching_weights: List[float],
                           matchings_ids: Tuple[str, str],
                           matching_diffs_ids: Optional[Tuple[str, str, str]],
@@ -328,17 +331,21 @@ def build_links_to_output(executed_num: str, matching_weight: float,
                 matching_diffs_ids[0], matching_diff_ws_title + suffix,
                 matching_diffs_ids[1 + i])
 
+    additional_ta_links, remove_ta_links = "", ""
+    if include_removal_and_additional:
+        additional_ta_links = _build_hyperlink(*additional_ta_ids)
+        remove_ta_links = _build_hyperlink(*remove_ta_ids)
+
     links_to_output = [
         _build_hyperlink(*matchings_ids, text_suffix=matching_suffix),
-        *matching_diffs_hyperlinks, _build_hyperlink(*additional_ta_ids),
-        _build_hyperlink(*remove_ta_ids)]
+        *matching_diffs_hyperlinks, additional_ta_links, remove_ta_links]
     links_to_alternate_output = []
     for i in range(1, len(alternate_matching_weights) + 1):
         s = f'{chr(ord("A") + i - 1)} ({alternate_matching_weights[i - 1]:.2f})'
         links_to_alternate_output.append(
             _build_hyperlink(
-                alternates_ids[0], alternates_ids[1][i-1], text_prefix=f'Alt{i} ',
-                text_suffix=s))
+                alternates_ids[0], alternates_ids[1][i - 1],
+                text_prefix=f'Alt{i} ', text_suffix=s))
     return links_to_output, links_to_alternate_output
 
 
@@ -404,18 +411,19 @@ def write_matrix_to_new_tab(matrix, sheetname, tab_name, wrap=False,
     write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap, tab_index)
 
 
-def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name:str, wrap=False,
+def write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name: str, wrap=False,
                                        tab_index=0):
     worksheet = add_worksheet_from_matrix(matrix, sheet, tab_name, tab_index)
     write_full_worksheet(matrix, worksheet, wrap)
     return worksheet
 
 
-def write_output_csvs(matching_output_sheet, alternates: int, num_executed: str,
-                      output_dir_title: str,
+def write_output_csvs(matching_output_sheet,
+                      include_removal_and_additional: bool, alternates: int,
+                      num_executed: str, output_dir_title: str,
                       matching_diffs_ws_title: str = None) -> Tuple[
-    Tuple[str, str], Tuple[str, str, str], Tuple[str, str], Tuple[str, str],
-    Tuple[str, List[str]]]:
+    Tuple[str, str], Optional[Tuple[str, str, str]], Optional[Tuple[str, str]],
+    Optional[Tuple[str, str]], Optional[Tuple[str, List[str]]]]:
     outputs_dir = f'{output_dir_title}/outputs'
     matchings_worksheet = write_csv_to_new_tab_from_sheet(
         f'{outputs_dir}/matchings.csv', matching_output_sheet, num_executed, 1)
@@ -433,15 +441,18 @@ def write_output_csvs(matching_output_sheet, alternates: int, num_executed: str,
             matching_diffs_ws_title + '(C)').id
         matching_diffs_ids = (
             matching_diff_sheet.id, students_diff_id, courses_diff_id)
-    additional_ta_sheet, additional_ta_ws = write_csv_to_new_tab(
-        f'{outputs_dir}/additional_TA.csv',
-        gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE, num_executed, wrap=True)
-    additional_ta_ids = (additional_ta_sheet.id, additional_ta_ws.id)
-    remove_ta_sheet, remove_ta_ws = write_csv_to_new_tab(
-        f'{outputs_dir}/remove_TA.csv', gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE,
-        num_executed, wrap=True)
-    remove_ta_ids = (remove_ta_sheet.id, remove_ta_ws.id)
-    alternates_ids = None
+    additional_ta_ids, remove_ta_ids, alternates_ids = None, None, None
+
+    if include_removal_and_additional:
+        additional_ta_sheet, additional_ta_ws = write_csv_to_new_tab(
+            f'{outputs_dir}/additional_TA.csv',
+            gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE, num_executed, wrap=True)
+        additional_ta_ids = (additional_ta_sheet.id, additional_ta_ws.id)
+        remove_ta_sheet, remove_ta_ws = write_csv_to_new_tab(
+            f'{outputs_dir}/remove_TA.csv',
+            gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE, num_executed, wrap=True)
+        remove_ta_ids = (remove_ta_sheet.id, remove_ta_ws.id)
+
     if alternates > 0:
         alternates_sheet = get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE)
         alternates_worksheets_ids = []
