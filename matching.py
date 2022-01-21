@@ -38,14 +38,13 @@ def get_student_scores(data: pd.DataFrame, cols: pd.Index) -> pd.DataFrame:
         rows.append(
             pd.Series(
                 {c: score for (c, _), score in
-                 zip(student_rankings(row, cols), scores)}, name=index))
+                 zip(student_rankings(row, cols), scores)}, name=index,
+                dtype=np.float64))
     return pd.concat(rows, axis='columns').T
 
 
-# generator for values for students that prof indicated is qualified for
-
-
 def course_rankings(series, cols):
+    """generator for values for students that prof indicated is qualified for"""
     for c in cols:
         if c not in series or pd.isna(series[c]):
             yield c, 0
@@ -279,6 +278,8 @@ def test_removing_TA(path, student_data, course_data, student_scores,
     data = {}
     initial_matches = graph.get_matching(fixed_matches)
     for si, student in enumerate(student_data.index):
+        bank = str(student_data.loc[student, 'Bank']).replace('nan', '')
+        join = str(student_data.loc[student, 'Join']).replace('nan', '')
         if si not in fixed_matches['Student index'].values:
             # no edges from student node
             fixed_edit = pd.concat(
@@ -295,21 +296,23 @@ def test_removing_TA(path, student_data, course_data, student_scores,
                 student_changes, course_changes = matching_differences(
                     None, initial_matches, new_matches, student_data,
                     course_data, student_scores, course_scores)
-                data[student] = (
-                                        graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS, single_line(
-                    student_changes), single_line(course_changes)
+                weight_change = (
+                                        graph.flow.OptimalCost() - graph_edit.flow.OptimalCost()) / 10 ** min_cost_flow.DIGITS
+                data[student] = weight_change, bank, join, single_line(
+                    student_changes), single_line(
+                    course_changes)
             else:
-                data[student] = -100, '', ''
+                data[student] = -100, bank, join, '', ''
 
     with open(path, 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(
-            ['Student', 'Weight change', 'Student differences',
+            ['Student', 'Weight change', 'Bank', 'Join', 'Student differences',
              'Course differences'])
         for student, tup in sorted(data.items(), key=lambda item: -item[1][0]):
             writer.writerow(
-                [student, tup[0] if tup[0] != -
-                100 else 'Error', tup[1], tup[2]])
+                [student, tup[0] if tup[0] != -100 else 'Error', tup[1], tup[2],
+                 tup[3], tup[4]])
 
 
 def find_alternate_matching(path, student_data, course_data, weights,
