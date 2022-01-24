@@ -1,6 +1,7 @@
 Student/Course,Previous match,New match,Preference change
 a,TEST 111 (Good),TEST 333 (Good),0.0
 b,TEST 333 (Favorite),TEST 444 (Favorite),0.0
+c,TEST 333 (Good),unassigned,NA
 d,TEST 444 (Favorite),TEST 111 (Favorite),0.0
 TEST 111,a (Favorite),d (nan),-1.0
 TEST 333,b (nan),a (nan),0.0

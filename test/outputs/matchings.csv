@@ -1,7 +1,7 @@
-Netid,Name,Course,Slots Filled,Total Match Weight,Notes,Student Rank,Student Rank Score,Matches Score (Student),Professor Rank,Professor Rank Score,Match Score (Course)
-e,Student E,TEST 555,1 / 1,4.00,"fixed, previous, advisor-advisee",Favorite,0.00,1.00,nan,0.00,1.00
-d,Student D,TEST 444,1 / 1,4.06,,Favorite,0.71,1.12,Favorite,2.24,1.09
-a,Student A,TEST 111,1 / 1,3.50,,Good,0.00,1.22,Favorite,2.00,1.20
-f,Student F,TEST 333,2 / 3,3.00,advisor-advisee,Favorite,1.00,1.00,nan,0.00,1.73
-c,Student C,TEST 222,1 / 1,1.13,,Okay,-0.71,0.98,Favorite,1.22,0.41
-b,Student B,TEST 333,2 / 3,0.90,,Favorite,0.90,1.07,nan,0.00,0.36
+Netid,Name,Notes,Course,Slots Filled,Total Match Weight,Fixed,Year,Bank,Join,Previous,Advisor-Advisee,Negative Student Weight,Student Rank,Student Rank Score,Matches Score (Student),Professor Rank,Professor Rank Score,Match Score (Course)
+a,Student A,,TEST 111,1 / 1,6.50,False,MSE1,,,False,False,False,Good,1.00,1.11,Favorite,1.00,1.13
+f,Student F,,TEST 222,1 / 1,2.00,False,PHD3,,4.5,False,False,False,Favorite,2.00,nan,nan,0.00,-1.22
+b,Student B,,TEST 333,2 / 3,4.00,False,MSE2,,,False,True,False,Favorite,2.00,0.82,nan,0.00,1.35
+c,Student C,test note,TEST 333,2 / 3,1.00,False,PHD1,,,False,False,False,Good,1.00,-1.00,nan,0.00,-0.96
+d,Student D,,TEST 444,1 / 1,8.00,False,PHD2,5.0,,False,False,True,Favorite,2.00,1.40,Favorite,1.00,1.20
+e,Student E,,TEST 555,1 / 1,4.00,True,PHD2,,2.0,True,False,True,Favorite,2.00,nan,nan,0.00,1.00
