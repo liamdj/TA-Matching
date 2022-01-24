@@ -1,6 +1,6 @@
-numpy
-pandas
-scipy
-ortools
-gspread >= 4.0
-pytz
+numpy >=1.19
+pandas >=1.1.5
+scipy ~=1.7
+ortools ~=9.2
+gspread ~= 5.0
+pytz ~= 2021.3
