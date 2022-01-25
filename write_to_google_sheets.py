@@ -342,7 +342,7 @@ def build_links_to_output(executed_num: str, matching_weight: float,
 
 
 def write_matrix_to_sheet(matrix: list[list[str]], sheet_name: str,
-                          worksheet_name: str = None, wrap=False):
+                          worksheet_name: str = None, wrap=False) -> str:
     gc = gspread.service_account(filename='./credentials.json')
     sheet = gc.create(sheet_name)
     if worksheet_name:
@@ -358,7 +358,7 @@ def write_matrix_to_sheet(matrix: list[list[str]], sheet_name: str,
 
 
 def add_worksheet_from_matrix(matrix: list[list[str]], sheet: Spreadsheet,
-                              worksheet_name: str, index=0):
+                              worksheet_name: str, index=0) -> Worksheet:
     rows = max(200, len(matrix) + 50)
     cols = max(26, len(matrix[0]) + 3)
     worksheet = add_worksheet(sheet, worksheet_name, rows, cols, index)
@@ -378,7 +378,8 @@ def write_full_worksheet(matrix: list[list[str]], worksheet: Worksheet,
 
 def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
                                     tab_name: str, tab_index=0,
-                                    center_align=False, wrap=False):
+                                    center_align=False,
+                                    wrap=False) -> Worksheet:
     with open(csv_path, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter=',', quotechar='"')
         print(f'Writing {csv_path} to {tab_name} in sheet {sheet.title}')
@@ -394,7 +395,8 @@ def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
 
 
 def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
-                         tab_index=0, center_align=False, wrap=False):
+                         tab_index=0, center_align=False, wrap=False) -> tuple[
+    Spreadsheet, Worksheet]:
     sheet = get_sheet(sheet_name)
     return sheet, write_csv_to_new_tab_from_sheet(
         csv_path, sheet, tab_name, tab_index, center_align, wrap)
@@ -408,7 +410,7 @@ def write_matrix_to_new_tab(matrix: list[list[str]], sheet_name: str,
 
 def write_matrix_to_new_tab_from_sheet(matrix: list[list[str]],
                                        sheet: Spreadsheet, tab_name: str,
-                                       wrap=False, tab_index=0):
+                                       wrap=False, tab_index=0) -> Worksheet:
     worksheet = add_worksheet_from_matrix(matrix, sheet, tab_name, tab_index)
     write_full_worksheet(matrix, worksheet, wrap)
     return worksheet
@@ -512,10 +514,8 @@ def copy_to_from_worksheets(old_worksheet_title: str,
 
 def copy_to_from_worksheet(new_sheet: Spreadsheet, new_tab_title: str,
                            worksheet: Worksheet) -> tuple[str, str]:
-    copied_worksheet_title = worksheet.copy_to(new_sheet.id)['title']
-    new_ws = get_worksheet_from_sheet(new_sheet, copied_worksheet_title)
-    new_ws.update_title(new_tab_title)
-    new_sheet.reorder_worksheets([new_ws])
+    old_values = worksheet.get_all_values()
+    new_ws = write_matrix_to_new_tab_from_sheet(old_values, new_sheet, new_tab_title)
     return new_sheet.id, new_ws.id
 
 

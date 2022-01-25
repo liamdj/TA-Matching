@@ -327,9 +327,7 @@ def format_pref_list(pref: str) -> str:
 
 
 def format_course(course: CourseValue, prefs) -> Optional[list[str]]:
-    # cols = ['Course','Omit','TAs','Weight','Instructor','Title','Notes']
-    if 'Omit' in course and course['Omit']:
-        return None
+    # cols = ['Course','TAs','Weight','Instructor','Title','Notes']
     num = str(course['Course'])
     slots = course['TAs']
     if int(slots) == 0:
