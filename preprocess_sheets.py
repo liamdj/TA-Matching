@@ -2,14 +2,75 @@ import os
 import re
 import datetime
 import csv
+from typing import Union, Any, TypedDict, Optional
 
 import gspread
 
-import params
 import g_sheet_consts as gs_consts
 
 
-def get_rows_with_tab_title(sheet_id, tab_title):
+class StudentType(TypedDict, total=False):
+    NetID: str
+    Name: str
+    Advisor: str
+    Previous: str
+    Favorite: str
+    Good: str
+    OK: str
+    Bank: Union[str, float]
+    Join: Union[str, float]
+    Notes: str
+
+
+class StudentInfoValue(TypedDict):
+    Last: str
+    First: str
+    Nickname: str
+    NetID: str
+    Form: str
+    Dept: str
+    Track: str
+    Year: int
+    Advisor: str
+    Advisor2: str
+    Bank: Union[str, float]
+    Join: Union[str, float]
+    Half: Union[str, float]
+    Course: str
+    Notes: str
+    Shorthand: str
+
+
+class CourseValue(TypedDict):
+    Course: Union[str, int]
+    TAs: int
+    Weight: Union[str, float]
+    Instructor: str
+    Title: str
+    Notes: str
+
+
+class FacultyPref(TypedDict):
+    Timestamp: str
+    Email: str
+    Course: str
+    Favorite: str
+    Veto: str
+
+
+StudentsType = dict[str, StudentType]
+StudentInfoType = list[StudentInfoValue]
+CoursesType = dict[str, CourseValue]
+FacultyPrefsType = dict[str, FacultyPref]
+AdjustedType = dict[str, set[str]]
+AssignedType = dict[str, str]
+NamesType = dict[str, str]
+NotesType = dict[str, str]
+YearsType = dict[str, str]
+
+
+def get_rows_with_tab_title(sheet_id: str, tab_title: str) -> Union[
+    list, list[dict]]:
     gc = gspread.service_account(filename='./credentials.json')
 
     sheet = gc.open_by_key(sheet_id).worksheet(tab_title)
@@ -17,29 +78,29 @@ def get_rows_with_tab_title(sheet_id, tab_title):
     return all_rows
 
 
-def parse_pre_assign(rows):
+def parse_pre_assign(student_info: StudentInfoType) -> AssignedType:
     fixed = {}
-    for row in rows:
+    for row in student_info:
         if _sanitize(row["Course"]):
             fixed[row["NetID"]] = add_COS(row["Course"])
     return fixed
 
 
-def _sanitize(input):
-    return input if type(input) != str else input.strip()
+def _sanitize(raw: Any) -> Any:
+    return raw if type(raw) != str else raw.strip()
 
 
-def parse_years(rows):
+def parse_years(student_info: StudentInfoType) -> YearsType:
     years = {}
-    for row in rows:
-        netid = row["NetID"]
-        track = row["Track"]
-        year = row["Year"]
+    for student in student_info:
+        netid = student["NetID"]
+        track = student["Track"]
+        year = student["Year"]
         years[netid] = track + str(year)
     return years
 
 
-def add_COS(courses):
+def add_COS(courses: str) -> str:
     """ Ignores COS """
     parts = str(courses).split(';')
     for i, part in enumerate(parts):
@@ -52,14 +113,15 @@ def add_COS(courses):
     return courses
 
 
-def parse_student_preferences(rows):
+def parse_student_preferences(
+        student_prefs: list[dict[str, str]]) -> StudentsType:
     students = {}
-    cols = {'Timestamp': 'Time', 'Email': 'NetID', 'Name': 'Name',
-            'Advisor': 'Advisor', 'What courses at Princeton': 'Previous',
-            'Favorite': 'Favorite', 'Good': 'Good', 'OK Match': 'OK'}
+    cols = {'Email': 'NetID', 'Name': 'Name', 'Advisor': 'Advisor',
+            'What courses at Princeton': 'Previous', 'Favorite': 'Favorite',
+            'Good': 'Good', 'OK Match': 'OK'}
 
-    rows = switch_keys_from_rows(rows, cols, True)
-    for row in rows:
+    student_prefs = switch_keys_from_rows(student_prefs, cols, True)
+    for row in student_prefs:
         fav = format_course_list(row['Favorite'])
         good = format_course_list(row['Good'])
         okay = format_course_list(row['OK'])
@@ -83,15 +145,15 @@ def parse_student_preferences(rows):
     return students
 
 
-def parse_courses(rows):
-    # cols = ['Course', 'Omit', 'TAs', 'Weight', 'Instructor', 'Title', 'Notes']
+def parse_courses(course_info: list[dict]) -> CoursesType:
     courses = {}
-    for row in rows:
+    for row in course_info:
         courses[row['Course']] = row
     return courses
 
 
-def switch_keys(dictionary, key_to_switch_dict):
+def switch_keys(dictionary: dict[str, Any],
+                key_to_switch_dict: dict[str, str]) -> dict[str, Any]:
     new = {}
     for key, val in dictionary.items():
         if key in key_to_switch_dict:
@@ -99,7 +161,8 @@ def switch_keys(dictionary, key_to_switch_dict):
     return new
 
 
-def switch_keys_from_rows(rows, keys_to_switch_dict, is_paraphrased=False):
+def switch_keys_from_rows(rows: list[dict], keys_to_switch_dict: dict[str, str],
+                          is_paraphrased=False) -> list[dict]:
     """
     If `is_paraphrased`, then assume that the keys in `keys_to_switch_dict`
     are only key phrases in the full keys in `rows` (that will only be 
@@ -121,17 +184,19 @@ def switch_keys_from_rows(rows, keys_to_switch_dict, is_paraphrased=False):
     return new_rows
 
 
-def parse_fac_prefs(rows):
-    cols = {'Timestamp': 'Time', 'Email': 'Email', 'Which course?': 'Course',
-            'Best': 'Favorite', 'Avoid': 'Veto'}
+def parse_faculty_prefs(
+        faculty_prefs: list[dict[str, str]]) -> FacultyPrefsType:
+    cols = {'Email': 'Email', 'Which course?': 'Course', 'Best': 'Favorite',
+            'Avoid': 'Veto'}
     courses = {}
-    rows = switch_keys_from_rows(rows, cols, True)
-    for row in rows:
+    faculty_prefs = switch_keys_from_rows(faculty_prefs, cols, True)
+    for row in faculty_prefs:
         courses[row['Course']] = row
     return courses
 
 
-def fix_advisors(students, student_info):
+def fix_advisors(students: StudentsType,
+                 student_info: StudentInfoType) -> StudentsType:
     email_prefix_to_advisor = {}
     for row in student_info:
         advisors = [row['Advisor']]
@@ -141,30 +206,30 @@ def fix_advisors(students, student_info):
 
     for netid, student in students.items():
         email_prefix = netid
-        advisor = email_prefix_to_advisor[email_prefix]
-        student['Advisor'] = advisor
+        student['Advisor'] = email_prefix_to_advisor[email_prefix]
 
     return students
 
 
-def add_in_assigned(students, assigned, names):
+def add_in_assigned(students: StudentsType, assigned: AssignedType,
+                    names: NamesType) -> StudentsType:
     for netid, course in assigned.items():
         student = {'Name': names[netid], 'Advisor': '', 'NetID': netid,
                    'Favorite': f"{course[:3]} {course[3:]}", 'Good': '',
-                   'OK': '', 'Previous': '', 'Bank': '',
-                   'Join': '', 'Time': get_date()}
+                   'OK': '', 'Previous': '', 'Bank': '', 'Join': '',
+                   'Time': get_date()}
         students[netid] = student
     return students
 
 
-def parse_names(student_info):
+def parse_names(student_info: StudentInfoType) -> NamesType:
     names = {}
     for student in student_info:
         names[student['NetID']] = f"{student['First']} {student['Last']}"
     return names
 
 
-def parse_adjusted(students):
+def parse_adjusted(students: StudentsType) -> AdjustedType:
     adjusted = {}
     for netid, student in students.items():
         adjustments = set()
@@ -173,21 +238,23 @@ def parse_adjusted(students):
     return adjusted
 
 
-def parse_notes(student_info):
+def parse_notes(student_info: StudentInfoType) -> NotesType:
     notes = {}
     for student in student_info:
-        notes[student['NetID']] = student['Special Notes']
+        notes[student['NetID']] = student['Shorthand']
     return notes
 
 
-def add_in_notes(students, student_notes):
+def add_in_notes(students: StudentsType,
+                 student_notes: NotesType) -> StudentsType:
     for netid, info in students.items():
         info['Notes'] = student_notes[netid]
         students[netid] = info
     return students
 
 
-def add_in_bank_join(students, student_info):
+def add_in_bank_join(students: StudentsType,
+                     student_info: StudentInfoType) -> StudentsType:
     bank = {}
     join = {}
     for student in student_info:
@@ -201,7 +268,9 @@ def add_in_bank_join(students, student_info):
     return students
 
 
-def get_students(student_info_sheet_id, student_preferences_sheet_id):
+def get_students(student_info_sheet_id: str,
+                 student_preferences_sheet_id: str) -> tuple[
+    AssignedType, YearsType, StudentsType]:
     student_info = get_rows_with_tab_title(
         student_info_sheet_id, gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
     student_preferences_tab = get_rows_with_tab_title(
@@ -223,27 +292,27 @@ def get_students(student_info_sheet_id, student_preferences_sheet_id):
     return assigned, years, students
 
 
-def get_courses(planning_sheet_id):
+def get_courses(planning_sheet_id: str) -> CoursesType:
     tab = get_rows_with_tab_title(
         planning_sheet_id, gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE)
     courses = parse_courses(tab)
     return courses
 
 
-def get_fac_prefs(instructor_preferences_sheet_id):
+def get_fac_prefs(instructor_preferences_sheet_id: str) -> FacultyPrefsType:
     tab = get_rows_with_tab_title(
         instructor_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
-    prefs = parse_fac_prefs(tab)
+    prefs = parse_faculty_prefs(tab)
     return prefs
 
 
-def write_csv(fname, data):
-    with open(fname, "w") as file:
+def write_csv(file_name: str, data: list[list]):
+    with open(file_name, "w") as file:
         writer = csv.writer(file)
         writer.writerows(data)
 
 
-def format_pref_list(pref):
+def format_pref_list(pref: str) -> str:
     netids = []
     # if they include parens. .*? means shortest match.
     pref = re.sub(r'\(.*?\)', '', pref)
@@ -257,14 +326,14 @@ def format_pref_list(pref):
     return netids
 
 
-def format_course(course, prefs):
+def format_course(course: CourseValue, prefs) -> Optional[list[str]]:
     # cols = ['Course','Omit','TAs','Weight','Instructor','Title','Notes']
     if 'Omit' in course and course['Omit']:
-        return ''
+        return None
     num = str(course['Course'])
     slots = course['TAs']
     if int(slots) == 0:
-        return ''
+        return None
     weight = '' if 'Weight' not in course else course['Weight']
     title = course['Title']
     instructors = ';'.join(re.split(r'[;,]', course['Instructor']))
@@ -287,11 +356,10 @@ def format_course(course, prefs):
         veto = ''
 
     course_code = course_code.replace(' ', '')
-    row = [course_code, slots, weight, fav, veto, instructors, title]
-    return row
+    return [course_code, slots, weight, fav, veto, instructors, title]
 
 
-def parse_previous_list(prev):
+def parse_previous_list(prev: str) -> list[str]:
     if '(' in prev:
         parts = re.split(r"\)[,;]\s?", prev)
     else:
@@ -299,7 +367,7 @@ def parse_previous_list(prev):
     regex = re.compile(
         r"^(COS|EGR|PNI)[\s]?([1-9][0-9]{2}[A-F]?)\/?" + r"(COS|EGR|PNI)?[\s]?([1-9][0-9]{2}[A-F]?)?\/?" * 2)
 
-    coursenums = []
+    course_nums = []
     for part in parts:
         match = regex.match(part)
         if match is None:
@@ -312,14 +380,14 @@ def parse_previous_list(prev):
                 continue
             prev_dept = ''
             if prev_non_cos_dept:
-                prev_dept = coursenums.pop()
+                prev_dept = course_nums.pop()
             prev_non_cos_dept = re.search(r"^[A-Z]", matched)
             if _sanitize(matched):
-                coursenums.append(prev_dept + matched)
-    return coursenums
+                course_nums.append(prev_dept + matched)
+    return course_nums
 
 
-def format_prev(prev, courses):
+def format_prev(prev: str, courses: CoursesType):
     # people didn't follow directions
     prev = prev.replace('),', ');').replace(')\n', ');')
     course_nums = set(parse_previous_list(prev))
@@ -340,18 +408,19 @@ def format_prev(prev, courses):
     return course_nums
 
 
-def format_netid(email):
+def format_netid(email: str) -> str:
     netid = email.replace('@princeton.edu', '')
     return netid
 
 
-def format_course_list(courses):
+def format_course_list(courses: str) -> str:
     courses = courses.replace(',', ';')
     courses = courses.replace(' ', '')
     return courses
 
 
-def format_student(student, courses, years):
+def format_student(student: StudentType, courses: CoursesType,
+                   years: YearsType) -> list[str]:
     # ['Netid','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
     netid = student['NetID']
     full_name = student['Name']
@@ -370,7 +439,7 @@ def format_student(student, courses, years):
     return row
 
 
-def format_phd(student, years):
+def format_phd(student: StudentType, years: YearsType) -> list[str]:
     # phds = 'Netid,Name,Year,Advisor\n'
     netid = student['NetID']
     full_name = student['Name']
@@ -383,7 +452,7 @@ def format_phd(student, years):
     return row
 
 
-def format_assigned(netid, full_name, year, advisor, course, notes):
+def format_assigned(netid:str, full_name:str, year:str, advisor:str, course:str, notes:str):
     # ['NetID','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
     return [netid, full_name, year, "", "", "", "", advisor, course, "", "",
             notes]
@@ -395,7 +464,7 @@ def get_date():
     return date
 
 
-def make_path(dir_title=None):
+def make_path(dir_title: str = None):
     if not dir_title:
         dir_title = get_date()
     path = f'data/{dir_title}/inputs'
@@ -403,18 +472,20 @@ def make_path(dir_title=None):
     return path
 
 
-def write_courses(path, courses, prefs):
+def write_courses(path: str, courses: CoursesType,
+                  instructor_prefs: FacultyPrefsType):
     data = [['Course', 'Slots', 'Weight', 'Favorite', 'Veto', 'Instructor',
              'Title']]
     for num in courses:
         course = courses[num]
-        row = format_course(course, prefs)
+        row = format_course(course, instructor_prefs)
         if row:
             data.append(row)
     write_csv(f"{path}/course_data.csv", data)
 
 
-def write_students(path, courses, assigned, years, students):
+def write_students(path:str, courses:CoursesType, assigned:AssignedType, years:YearsType,
+                   students: StudentsType):
     data = [['Netid', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
              'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
     phds = [['Netid', 'Name', 'Year', 'Advisor']]
@@ -436,14 +507,14 @@ def write_students(path, courses, assigned, years, students):
     write_csv(f"{path}/phds.csv", phds)
 
 
-def write_assigned(path, assigned):
+def write_assigned(path:str, assigned:AssignedType):
     data = [['Netid', 'Course']]
     for netid, course in assigned.items():
         data.append([netid, course])
     write_csv(f"{path}/fixed.csv", data)
 
 
-def write_adjusted(path, adjusted):
+def write_adjusted(path: str, adjusted: AdjustedType):
     data = [['Netid', 'Course', 'Weight']]
     for netid, adjustments in adjusted.items():
         for course, weight in adjustments:
@@ -451,7 +522,7 @@ def write_adjusted(path, adjusted):
     write_csv(f"{path}/adjusted.csv", data)
 
 
-def validate_bank_join_values(students, years):
+def validate_bank_join_values(students: StudentsType, years: YearsType):
     for netid, student in students.items():
         if student['Bank'] and student['Join']:
             print(f"{netid} has both a bank and a join entry")
@@ -459,8 +530,9 @@ def validate_bank_join_values(students, years):
             print(f"{netid} is an MSE student with a bank or a join entry")
 
 
-def write_csvs(planning_sheet_id, student_prefs_sheet_id,
-               instructor_prefs_sheet_id, output_directory_title=None):
+def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
+               instructor_prefs_sheet_id: str,
+               output_directory_title: str = None):
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses = get_courses(planning_sheet_id)
     assigned, years, students = get_students(
@@ -473,7 +545,7 @@ def write_csvs(planning_sheet_id, student_prefs_sheet_id,
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
 
 
-def check_if_preprocessing_equal(name1, name2):
+def check_if_preprocessing_equal(name1: str, name2: str):
     with open(name1) as f1, open(name2) as f2:
         reader1 = list(csv.reader(f1, delimiter=',', quotechar='"'))
         reader2 = list(csv.reader(f2, delimiter=',', quotechar='"'))

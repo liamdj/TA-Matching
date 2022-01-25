@@ -3,7 +3,6 @@ import csv
 import sys
 import os
 import argparse
-from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -161,8 +160,8 @@ def check_input(student_data: pd.Series, course_data: pd.Series):
                 index))
 
 
-def matching_differences(extra_course: str, old: List[Tuple[int, int]],
-                         new: List[Tuple[int, int]], student_data: pd.DataFrame,
+def matching_differences(extra_course: str, old: list[tuple[int, int]],
+                         new: list[tuple[int, int]], student_data: pd.DataFrame,
                          course_data: pd.DataFrame,
                          student_scores: pd.DataFrame,
                          course_scores: pd.DataFrame):
@@ -366,7 +365,7 @@ def write_params(output_path):
 def run_matching(path="", student_data="inputs/student_data.csv",
                  course_data="inputs/course_data.csv", fixed="inputs/fixed.csv",
                  adjusted="inputs/adjusted.csv", output="outputs/",
-                 alternates=3) -> Tuple[float, int, List[float]]:
+                 alternates=3) -> tuple[float, int, list[float]]:
     path = validate_path_args(path, output)
     student_data, course_data = read_student_and_course_data(
         path, student_data, course_data)

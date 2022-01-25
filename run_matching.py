@@ -9,10 +9,10 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      input_dir_title='colab',
                                                      include_removal_and_additional=True,
                                                      alternates=0,
-                                                     planning_sheet_id=None,
-                                                     student_preferences_sheet_id=None,
-                                                     instructor_preferences_sheet_id=None,
-                                                     compare_matching_from_num_executed=None):
+                                                     planning_sheet_id: str = None,
+                                                     student_preferences_sheet_id: str = None,
+                                                     instructor_preferences_sheet_id: str = None,
+                                                     compare_matching_from_num_executed: str = None):
     preprocess.write_csvs(
         output_directory_title=input_dir_title,
         planning_sheet_id=planning_sheet_id,
@@ -33,11 +33,14 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         input_copy_ids)
 
 
-def run_and_write_matchings(executor, input_dir_title,
+def run_and_write_matchings(executor: str, input_dir_title: str,
                             include_removal_and_additional=True,
-                            output_num_executed=None, input_num_executed=None,
-                            compare_matching_from_num_executed=None,
-                            alternates=0, input_copy_ids=None):
+                            output_num_executed: str = None,
+                            input_num_executed: str = None,
+                            compare_matching_from_num_executed: str = None,
+                            alternates=0, input_copy_ids: tuple[
+            tuple[str, str, str, str], tuple[str, str], tuple[
+                str, str]] = None):
     """
     if `input_num_executed` is `None`, then use most recent copy
     """
@@ -53,11 +56,14 @@ def run_and_write_matchings(executor, input_dir_title,
         input_copy_ids)
 
 
-def write_matchings(executor, output_dir_title, matching_weight,
-                    include_removal_and_additional=True, slots_unfilled=0,
-                    output_num_executed=None, input_num_executed=None,
-                    compare_matching_from_num_executed=None, alt_weights=[],
-                    input_copy_ids=None):
+def write_matchings(executor: str, output_dir_title: str,
+                    matching_weight: float, include_removal_and_additional=True,
+                    slots_unfilled=0, output_num_executed: str = None,
+                    input_num_executed: str = None,
+                    compare_matching_from_num_executed: str = None,
+                    alt_weights: list[float] = [], input_copy_ids: tuple[
+            tuple[str, str, str, str], tuple[str, str], tuple[
+                str, str]] = None):
     """
     if `input_num_executed` is `None`, then use most recent copy;
     if `compare_matching_from_num_executed` is `None`, then do not compute diff
