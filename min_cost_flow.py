@@ -2,15 +2,32 @@ from ortools.graph import pywrapgraph
 from scipy import stats
 import numpy as np
 import csv
-from typing import Tuple
+from typing import Tuple, Dict
 
 DIGITS = 2
+
+
+def add_to_slots_from_fixed_matches(course_info, fixed_matches):
+    pre_filled_slots = {}  # key = course, value = num slots filled
+    for _, row in fixed_matches.iterrows():
+        course = row["Course"]
+        if course:
+            pre_filled_slots[course] = 1 + pre_filled_slots.get(course, 0)
+    for course, filled_slots in pre_filled_slots.items():
+        course_info.at[course, 'Slots'] = max(
+            course_info.loc[course, 'Slots'], filled_slots)
+
+
+def fill_value(index: int, base: float, first: float) -> int:
+    """ Value of filling slot is reciprocal with slot index """
+    return int((base + first / (index + 1)) * 10 ** DIGITS)
 
 
 class MatchingGraph:
 
     def __init__(self, match_weights, student_weights, course_info,
                  fixed_matches):
+        add_to_slots_from_fixed_matches(course_info, fixed_matches)
 
         self.num_students = len(student_weights)
         self.num_courses = len(course_info.index)
@@ -30,7 +47,7 @@ class MatchingGraph:
         for i, (_, row) in enumerate(course_info.iterrows()):
             for s in range(int(row['Slots'])):
                 self.flow.AddArcWithCapacityAndUnitCost(
-                    self.num_students + i, node, 1, -MatchingGraph.fill_value(
+                    self.num_students + i, node, 1, -fill_value(
                         s, row['Base weight'], row['First weight']))
                 self.flow.AddArcWithCapacityAndUnitCost(node, sink, 1, 0)
                 node += 1
@@ -75,11 +92,6 @@ class MatchingGraph:
             source, sink, int(
                 min(
                     self.num_students, self.slots)), 0)
-
-    # Value of filling slot is reciprocal with slot index
-
-    def fill_value(index, base, first):
-        return int((base + first / (index + 1)) * 10 ** DIGITS)
 
     def solve(self):
         return self.flow.Solve() == self.flow.OPTIMAL
