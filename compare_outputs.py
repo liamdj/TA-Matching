@@ -1,12 +1,13 @@
 import csv
+from typing import Dict, Tuple, List
 
 import g_sheet_consts
 import write_to_google_sheets as write_gs
 
 
-def compare_matchings(old_matches: dict[str, str],
-                      new_matches: dict[str, str]) -> tuple[
-    dict[str, tuple[str, str]], dict[str, tuple[list[str], list[str]]]]:
+def compare_matchings(old_matches: Dict[str, str],
+                      new_matches: Dict[str, str]) -> Tuple[
+    Dict[str, Tuple[str, str]], Dict[str, Tuple[List[str], List[str]]]]:
     """
     Take in the Name -> course matchings and output (student_changes, course_changes),
     where student_changes = Name -> (old_course, new_course),
@@ -40,13 +41,13 @@ def compare_matchings(old_matches: dict[str, str],
     return student_changes, course_changes
 
 
-def read_matching_from_csv(csv_filename: str) -> dict[str, str]:
+def read_matching_from_csv(csv_filename: str) -> Dict[str, str]:
     with open(csv_filename) as f:
         reader = csv.DictReader(f)
         return read_matching_from_matrix(reader)
 
 
-def read_matching_from_matrix(matrix) -> dict[str, str]:
+def read_matching_from_matrix(matrix) -> Dict[str, str]:
     name_to_course = {}
     for row in matrix:
         name_to_course[row['Name']] = row['Course']
@@ -54,8 +55,8 @@ def read_matching_from_matrix(matrix) -> dict[str, str]:
 
 
 def compare_matching_csvs(old_matching_csv_filename: str,
-                          new_matching_csv_filename: str) -> tuple[
-    dict[str, tuple[str, str]], dict[str, tuple[list[str], list[str]]]]:
+                          new_matching_csv_filename: str) -> Tuple[
+    Dict[str, Tuple[str, str]], Dict[str, Tuple[List[str], List[str]]]]:
     old_matching = read_matching_from_csv(old_matching_csv_filename)
     new_matching = read_matching_from_csv(new_matching_csv_filename)
     return compare_matchings(old_matching, new_matching)
@@ -63,8 +64,8 @@ def compare_matching_csvs(old_matching_csv_filename: str,
 
 def compare_matching_worksheet_with_csv(old_matching_worksheet,
                                         new_matching_csv_filename: str) -> \
-        tuple[
-            dict[str, tuple[str, str]], dict[str, tuple[list[str], list[str]]]]:
+        Tuple[
+            Dict[str, Tuple[str, str]], Dict[str, Tuple[List[str], List[str]]]]:
     old_matching = read_matching_from_matrix(
         old_matching_worksheet.get_all_records())
     new_matching = read_matching_from_csv(new_matching_csv_filename)
@@ -72,8 +73,8 @@ def compare_matching_worksheet_with_csv(old_matching_worksheet,
 
 
 def compare_matching_worksheets(old_matching_worksheet_title: str,
-                                new_matching_worksheet_title: str) -> tuple[
-    dict[str, tuple[str, str]], dict[str, tuple[list[str], list[str]]]]:
+                                new_matching_worksheet_title: str) -> Tuple[
+    Dict[str, Tuple[str, str]], Dict[str, Tuple[List[str], List[str]]]]:
     sheet = write_gs.get_sheet(g_sheet_consts.MATCHING_OUTPUT_SHEET_TITLE)
     old_matching_worksheet = write_gs.get_worksheet_from_sheet(
         sheet, old_matching_worksheet_title)
@@ -86,9 +87,9 @@ def compare_matching_worksheets(old_matching_worksheet_title: str,
     return compare_matchings(old_matching, new_matching)
 
 
-def write_comparison_to_worksheet(student_changes: dict[str, tuple[str, str]],
-                                  course_changes: dict[
-                                      str, tuple[list[str], list[str]]],
+def write_comparison_to_worksheet(student_changes: Dict[str, Tuple[str, str]],
+                                  course_changes: Dict[
+                                      str, Tuple[List[str], List[str]]],
                                   new_worksheet_title: str):
     sheet = write_gs.get_sheet(g_sheet_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE)
     worksheets = {ws.title: ws for ws in sheet.worksheets()}
@@ -112,8 +113,8 @@ def write_comparison_to_worksheet(student_changes: dict[str, tuple[str, str]],
         print(f"Student comparison: {prefix}{student_changes_ws.id}")
 
 
-def student_changes_to_matrix(student_changes: dict[str, tuple[str, str]]) -> \
-        list[list[str]]:
+def student_changes_to_matrix(student_changes: Dict[str, Tuple[str, str]]) -> \
+        List[List[str]]:
     matrix = [['Name', 'Old Course', 'New Course']]
     for name, (old_course, new_course) in student_changes.items():
         old_course = 'added' if old_course is None else old_course
@@ -123,8 +124,8 @@ def student_changes_to_matrix(student_changes: dict[str, tuple[str, str]]) -> \
 
 
 def course_changes_to_matrix(
-        course_changes: dict[str, tuple[list[str], list[str]]]) -> list[
-    list[str]]:
+        course_changes: Dict[str, Tuple[List[str], List[str]]]) -> List[
+    List[str]]:
     matrix = [['Course', 'Removed TAs', 'Added TAs']]
     for course, (old_students, new_students) in course_changes.items():
         matrix.append(
@@ -132,9 +133,9 @@ def course_changes_to_matrix(
     return matrix
 
 
-def write_matchings_changes(student_changes: dict[str, tuple[str, str]],
-                            course_changes: dict[
-                                str, tuple[list[str], list[str]]],
+def write_matchings_changes(student_changes: Dict[str, Tuple[str, str]],
+                            course_changes: Dict[
+                                str, Tuple[List[str], List[str]]],
                             output_dir='data'):
     with open(output_dir + '/outputs/matchings_students_diff.csv', 'w+') as f:
         writer = csv.writer(f)

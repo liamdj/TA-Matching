@@ -3,15 +3,15 @@ import datetime
 import gspread
 from gspread import Spreadsheet, Worksheet
 import pytz
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 
 import g_sheet_consts as gs_consts
 
-InputCopyIDs = tuple[
-    tuple[str, str, str, str], tuple[str, str], tuple[str, str]]
-OutputIDs = tuple[
-    tuple[str, str], Optional[tuple[str, str, str]], Optional[tuple[str, str]],
-    Optional[tuple[str, str]], Optional[tuple[str, list[str]]]]
+InputCopyIDs = Tuple[
+    Tuple[str, str, str, str], Tuple[str, str], Tuple[str, str]]
+OutputIDs = Tuple[
+    Tuple[str, str], Optional[Tuple[str, str, str]], Optional[Tuple[str, str]],
+    Optional[Tuple[str, str]], Optional[Tuple[str, List[str]]]]
 
 
 def get_worksheet_from_sheet(sheet: Spreadsheet, worksheet_title: str):
@@ -19,7 +19,7 @@ def get_worksheet_from_sheet(sheet: Spreadsheet, worksheet_title: str):
         sheet.worksheets(), worksheet_title, sheet.title)
 
 
-def get_worksheet_from_worksheets(worksheets: list[Worksheet],
+def get_worksheet_from_worksheets(worksheets: List[Worksheet],
                                   worksheet_title: str, sheet_title: str):
     for ws in worksheets:
         if ws.title == worksheet_title:
@@ -146,7 +146,7 @@ def get_rows_of_cells(worksheet: Worksheet, start_row: int, end_row: int,
 
 
 def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
-                             worksheet_id: str = None) -> tuple[str, str]:
+                             worksheet_id: str = None) -> Tuple[str, str]:
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
     if worksheet_id:
         url = f"{url}#gid={worksheet_id}"
@@ -161,7 +161,7 @@ def write_execution_to_ToC(toc_ws: Worksheet, executor: str, executed_num: str,
                            matching_diff_ws_title: str = None,
                            include_matching_diff=False,
                            input_copy_ids: InputCopyIDs = None,
-                           params_copy_ids: tuple[str, str] = None,
+                           params_copy_ids: Tuple[str, str] = None,
                            output_ids: OutputIDs = None):
     """
     If `include_matching_diff == False` then `matching_diff_ws_title` should be
@@ -223,7 +223,7 @@ def initialize_input_copy_ids_tuples(input_executed_num: str) -> InputCopyIDs:
     return planning_ids, student_prefs_ids, instructor_prefs_ids
 
 
-def initialize_params_copy_ids(params_executed_num: str) -> tuple[str, str]:
+def initialize_params_copy_ids(params_executed_num: str) -> Tuple[str, str]:
     params_copy_sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
     params_copy_ws = get_worksheet_from_sheet(
         params_copy_sheet, params_executed_num)
@@ -271,10 +271,10 @@ def initialize_output_ids(num_executed: str,
 
 
 def build_links_to_input(input_executed_num: str, params_executed_num: str,
-                         planning_ids: tuple[str, str, str, str],
-                         student_prefs_ids: tuple[str, str],
-                         instructor_prefs_ids: tuple[str, str],
-                         params_copy_ids: tuple[str, str]) -> list[str]:
+                         planning_ids: Tuple[str, str, str, str],
+                         student_prefs_ids: Tuple[str, str],
+                         instructor_prefs_ids: Tuple[str, str],
+                         params_copy_ids: Tuple[str, str]) -> List[str]:
     """
     for each of the last 4 inputs, the strings are the id's for sheets or ws's.
     `planning_sheet` is `(sheet_id, students, faculty, courses)`
@@ -295,15 +295,15 @@ def build_links_to_input(input_executed_num: str, params_executed_num: str,
 def build_links_to_output(executed_num: str, matching_weight: float,
                           slots_unfilled: int,
                           include_removal_and_additional: bool,
-                          alternate_matching_weights: list[float],
-                          matchings_ids: tuple[str, str],
-                          matching_diffs_ids: Optional[tuple[str, str, str]],
-                          additional_ta_ids: tuple[str, str],
-                          remove_ta_ids: tuple[str, str],
-                          alternates_ids: tuple[str, list[str]] = None,
+                          alternate_matching_weights: List[float],
+                          matchings_ids: Tuple[str, str],
+                          matching_diffs_ids: Optional[Tuple[str, str, str]],
+                          additional_ta_ids: Tuple[str, str],
+                          remove_ta_ids: Tuple[str, str],
+                          alternates_ids: Tuple[str, List[str]] = None,
                           matching_diff_ws_title: str = None,
-                          include_matching_diff=False) -> tuple[
-    list[str], list[str]]:
+                          include_matching_diff=False) -> Tuple[
+    List[str], List[str]]:
     def _build_hyperlink(sheet_id: str, worksheet_id: str, text_prefix="",
                          text_suffix="") -> str:
         link_text = f"{text_prefix}#{executed_num}{text_suffix}"
@@ -340,7 +340,7 @@ def build_links_to_output(executed_num: str, matching_weight: float,
     return links_to_output, links_to_alternate_output
 
 
-def write_matrix_to_sheet(matrix: list[list[str]], sheet_name: str,
+def write_matrix_to_sheet(matrix: List[List[str]], sheet_name: str,
                           worksheet_name: str = None, wrap=False) -> str:
     gc = gspread.service_account(filename='./credentials.json')
     sheet = gc.create(sheet_name)
@@ -356,7 +356,7 @@ def write_matrix_to_sheet(matrix: list[list[str]], sheet_name: str,
     return sheet.id
 
 
-def add_worksheet_from_matrix(matrix: list[list[str]], sheet: Spreadsheet,
+def add_worksheet_from_matrix(matrix: List[List[str]], sheet: Spreadsheet,
                               worksheet_name: str, index=0) -> Worksheet:
     rows = max(200, len(matrix) + 50)
     cols = max(26, len(matrix[0]) + 3)
@@ -364,7 +364,7 @@ def add_worksheet_from_matrix(matrix: list[list[str]], sheet: Spreadsheet,
     return worksheet
 
 
-def write_full_worksheet(matrix: list[list[str]], worksheet: Worksheet,
+def write_full_worksheet(matrix: List[List[str]], worksheet: Worksheet,
                          wrap: bool):
     worksheet.update("A1", matrix)
     worksheet.freeze(rows=1)
@@ -394,20 +394,20 @@ def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
 
 
 def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
-                         tab_index=0, center_align=False, wrap=False) -> tuple[
+                         tab_index=0, center_align=False, wrap=False) -> Tuple[
     Spreadsheet, Worksheet]:
     sheet = get_sheet(sheet_name)
     return sheet, write_csv_to_new_tab_from_sheet(
         csv_path, sheet, tab_name, tab_index, center_align, wrap)
 
 
-def write_matrix_to_new_tab(matrix: list[list[str]], sheet_name: str,
+def write_matrix_to_new_tab(matrix: List[List[str]], sheet_name: str,
                             tab_name: str, wrap=False, tab_index=0):
     sheet = get_sheet(sheet_name)
     write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap, tab_index)
 
 
-def write_matrix_to_new_tab_from_sheet(matrix: list[list[str]],
+def write_matrix_to_new_tab_from_sheet(matrix: List[List[str]],
                                        sheet: Spreadsheet, tab_name: str,
                                        wrap=False, tab_index=0) -> Worksheet:
     worksheet = add_worksheet_from_matrix(matrix, sheet, tab_name, tab_index)
@@ -460,7 +460,7 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
     return matchings_ids, matching_diffs_ids, additional_ta_ids, remove_ta_ids, alternates_ids
 
 
-def write_params_csv(num_executed: str, output_dir_title: str) -> tuple[
+def write_params_csv(num_executed: str, output_dir_title: str) -> Tuple[
     str, str]:
     sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
     ws = write_csv_to_new_tab_from_sheet(
@@ -503,16 +503,16 @@ def copy_input_worksheets(num_executed: str, planning_sheet_id: str,
 
 
 def copy_to_from_worksheets(old_worksheet_title: str,
-                            old_worksheets: list[Worksheet],
+                            old_worksheets: List[Worksheet],
                             new_sheet: Spreadsheet, old_tab_title: str,
-                            new_tab_title: str) -> tuple[str, str]:
+                            new_tab_title: str) -> Tuple[str, str]:
     worksheet = get_worksheet_from_worksheets(
         old_worksheets, old_tab_title, old_worksheet_title)
     return copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)
 
 
 def copy_to_from_worksheet(new_sheet: Spreadsheet, new_tab_title: str,
-                           worksheet: Worksheet) -> tuple[str, str]:
+                           worksheet: Worksheet) -> Tuple[str, str]:
     old_values = worksheet.get_all_values()
     new_ws = write_matrix_to_new_tab_from_sheet(
         old_values, new_sheet, new_tab_title)
@@ -520,6 +520,6 @@ def copy_to_from_worksheet(new_sheet: Spreadsheet, new_tab_title: str,
 
 
 def copy_to(old_sheet: Spreadsheet, new_sheet: Spreadsheet, old_tab_title: str,
-            new_tab_title: str) -> tuple[str, str]:
+            new_tab_title: str) -> Tuple[str, str]:
     worksheet = get_worksheet_from_sheet(old_sheet, old_tab_title)
     return copy_to_from_worksheet(new_sheet, new_tab_title, worksheet)

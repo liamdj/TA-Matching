@@ -3,6 +3,7 @@ import preprocess_sheets as preprocess
 import matching
 import write_to_google_sheets as write_gs
 import g_sheet_consts as gs_consts
+from typing import List, Tuple
 
 
 def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
@@ -38,8 +39,8 @@ def run_and_write_matchings(executor: str, input_dir_title: str,
                             output_num_executed: str = None,
                             input_num_executed: str = None,
                             compare_matching_from_num_executed: str = None,
-                            alternates=0, input_copy_ids: tuple[
-            tuple[str, str, str, str], tuple[str, str], tuple[
+                            alternates=0, input_copy_ids: Tuple[
+            Tuple[str, str, str, str], Tuple[str, str], Tuple[
                 str, str]] = None):
     """
     if `input_num_executed` is `None`, then use most recent copy
@@ -61,8 +62,8 @@ def write_matchings(executor: str, output_dir_title: str,
                     slots_unfilled=0, output_num_executed: str = None,
                     input_num_executed: str = None,
                     compare_matching_from_num_executed: str = None,
-                    alt_weights: list[float] = [], input_copy_ids: tuple[
-            tuple[str, str, str, str], tuple[str, str], tuple[
+                    alt_weights: List[float] = [], input_copy_ids: Tuple[
+            Tuple[str, str, str, str], Tuple[str, str], Tuple[
                 str, str]] = None):
     """
     if `input_num_executed` is `None`, then use most recent copy;

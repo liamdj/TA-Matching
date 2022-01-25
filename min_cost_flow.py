@@ -2,6 +2,7 @@ from ortools.graph import pywrapgraph
 from scipy import stats
 import numpy as np
 import csv
+from typing import Tuple
 
 DIGITS = 2
 
@@ -100,7 +101,7 @@ class MatchingGraph:
         return matches
 
     def write_matching(self, filename, weights, student_data, student_scores,
-                       course_data, course_scores, fixed_matches) -> tuple[
+                       course_data, course_scores, fixed_matches) -> Tuple[
         float, int]:
 
         matches = self.get_matching(fixed_matches)
