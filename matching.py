@@ -365,7 +365,7 @@ def write_params(output_path):
 def run_matching(path="", student_data="inputs/student_data.csv",
                  course_data="inputs/course_data.csv", fixed="inputs/fixed.csv",
                  adjusted="inputs/adjusted.csv", output="outputs/",
-                 alternates=3) -> tuple[float, int, list[float]]:
+                 alternates=2) -> tuple[float, int, list[float]]:
     path = validate_path_args(path, output)
     student_data, course_data = read_student_and_course_data(
         path, student_data, course_data)

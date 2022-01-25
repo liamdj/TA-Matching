@@ -450,7 +450,8 @@ def format_phd(student: StudentType, years: YearsType) -> list[str]:
     return row
 
 
-def format_assigned(netid:str, full_name:str, year:str, advisor:str, course:str, notes:str):
+def format_assigned(netid: str, full_name: str, year: str, advisor: str,
+                    course: str, notes: str):
     # ['NetID','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
     return [netid, full_name, year, "", "", "", "", advisor, course, "", "",
             notes]
@@ -482,7 +483,8 @@ def write_courses(path: str, courses: CoursesType,
     write_csv(f"{path}/course_data.csv", data)
 
 
-def write_students(path:str, courses:CoursesType, assigned:AssignedType, years:YearsType,
+def write_students(path: str, courses: CoursesType, assigned: AssignedType,
+                   years: YearsType,
                    students: StudentsType):
     data = [['Netid', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
              'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
@@ -505,7 +507,7 @@ def write_students(path:str, courses:CoursesType, assigned:AssignedType, years:Y
     write_csv(f"{path}/phds.csv", phds)
 
 
-def write_assigned(path:str, assigned:AssignedType):
+def write_assigned(path: str, assigned: AssignedType):
     data = [['Netid', 'Course']]
     for netid, course in assigned.items():
         data.append([netid, course])

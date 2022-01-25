@@ -332,12 +332,11 @@ def build_links_to_output(executed_num: str, matching_weight: float,
         _build_hyperlink(*matchings_ids, text_suffix=matching_suffix),
         *matching_diffs_hyperlinks, additional_ta_links, remove_ta_links]
     links_to_alternate_output = []
-    for i in range(1, len(alternate_matching_weights) + 1):
-        s = f'{chr(ord("A") + i - 1)} ({alternate_matching_weights[i - 1]:.2f})'
+    for i in range(len(alternate_matching_weights)):
+        suffix = f'{chr(ord("A") + i)} ({alternate_matching_weights[i]:.2f})'
         links_to_alternate_output.append(
             _build_hyperlink(
-                alternates_ids[0], alternates_ids[1][i - 1],
-                text_prefix=f'Alt{i} ', text_suffix=s))
+                alternates_ids[0], alternates_ids[1][i], text_suffix=suffix))
     return links_to_output, links_to_alternate_output
 
 
@@ -515,7 +514,8 @@ def copy_to_from_worksheets(old_worksheet_title: str,
 def copy_to_from_worksheet(new_sheet: Spreadsheet, new_tab_title: str,
                            worksheet: Worksheet) -> tuple[str, str]:
     old_values = worksheet.get_all_values()
-    new_ws = write_matrix_to_new_tab_from_sheet(old_values, new_sheet, new_tab_title)
+    new_ws = write_matrix_to_new_tab_from_sheet(
+        old_values, new_sheet, new_tab_title)
     return new_sheet.id, new_ws.id
 
 
