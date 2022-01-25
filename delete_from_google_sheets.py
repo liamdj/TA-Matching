@@ -99,6 +99,9 @@ def remove_entries_from_toc(matching_sheet, tab_nums: List[str]):
     for i, row in enumerate(cells):
         if not row:
             continue
+        if all (v == '' for v in row):
+            toc_ws.delete_row(i + 2 - tabs_deleted)
+            print(f'Deleted empty row {2 + i}')
         match = re.match(r"#([0-9]{3})", row[4])
         if match is None:
             continue
