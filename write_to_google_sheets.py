@@ -385,7 +385,7 @@ def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
         matrix = list(reader)
         worksheet = write_matrix_to_new_tab_from_sheet(
             matrix, sheet, tab_name, wrap, tab_index)
-        resize_worksheet_columns(sheet, worksheet, len(matrix))
+        resize_worksheet_columns(sheet, worksheet, len(matrix[0]))
         if center_align:
             format(
                 worksheet, 1, len(matrix), 0, len(matrix[0]),
