@@ -20,6 +20,8 @@ def remove_worksheets_from_sheets(matching_sheet, tab_nums: List[str]):
     remove_worksheets_exact_title(matching_sheet, tab_nums)
     remove_worksheets_substring_titles(
         get_sheet(gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE), tab_nums)
+    remove_worksheets_substring_titles(
+        get_sheet(gs_consts.GENERIC_DIFFS_SHEET_TITLE), tab_nums)
     remove_worksheets_exact_title(
         get_sheet(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE), tab_nums)
     remove_worksheets_exact_title(
