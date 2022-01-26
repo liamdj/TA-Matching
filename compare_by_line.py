@@ -17,7 +17,8 @@ def compare_matrices(old_matrix: List[Dict[str, Any]],
     Tuple[str, Dict[str, Any], Dict[str, Any]]]:
     """
     Compare `old_matrix` and `new_matrix` by comparing lines with the same
-    values in `key`.
+    values in `key`. `keys_to_ignore` may contain fields that are not in either
+    matrix (they will simply be ignored).
     """
     new_matrix_by_key = {}
     for entry in new_matrix:
@@ -43,6 +44,10 @@ def find_differences_between_entries(key: str, old_entry: Dict[str, Any],
                                      new_matrix_by_key: Dict[str, Any],
                                      fields_to_ignore: Set[str]) -> Tuple[
     Dict[str, Any], Dict[str, Any]]:
+    """
+    `fields_to_ignore` may contain fields that are not in either matrix
+    (they will simply be ignored).
+    """
     if key not in new_matrix_by_key:
         for field in fields_to_ignore:
             old_entry.pop(field, None)
@@ -103,16 +108,87 @@ def compare_two_worksheets(sheet: write_gs.Spreadsheet, old_ws_title: str,
                            new_ws_title: str, compare_key: str,
                            output_filename: str,
                            fields_to_ignore: Set[str] = set()) -> bool:
+    """
+    `fields_to_ignore` may contain fields that are not in either matrix
+    (they will simply be ignored).
+    """
     old_ws = write_gs.get_worksheet_from_sheet(sheet, old_ws_title)
     new_ws = write_gs.get_worksheet_from_sheet(sheet, new_ws_title)
     old_records = old_ws.get_all_records()
+    new_records = new_ws.get_all_records()
+    old_header_row = \
+        write_gs.get_rows_of_cells(old_ws, 1, 1, len(old_records[0]))[0]
+    new_header_row = \
+        write_gs.get_rows_of_cells(new_ws, 1, 1, len(new_records[0]))[0]
+    header_row = combine_header_rows(old_header_row, new_header_row)
     diffs = compare_matrices(
-        old_records, new_ws.get_all_records(), compare_key, fields_to_ignore)
+        old_records, new_records, compare_key, fields_to_ignore)
     combined_diff = combine_old_and_new(diffs, compare_key)
-    header_row = remove_unused_fields(
-        combined_diff,
-        write_gs.get_rows_of_cells(old_ws, 1, 1, len(old_records[0]))[0])
+    header_row = remove_unused_fields(combined_diff, header_row)
+
     wrote = write_csv_from_combined(combined_diff, header_row, output_filename)
     if not wrote:
         print(f"No differences between {old_ws_title} and {new_ws_title}")
     return wrote
+
+
+def combine_header_rows(old_row: List[str], new_row: List[str]):
+    new_row, old_row, suffix = find_suffix(
+        new_row, old_row)
+    old_set = set(old_row)
+    new_set = set(new_row)
+    combined_row = []
+    i = 0
+    j = 0
+    while i < len(old_row) and j < len(new_row):
+        if old_row[i] == new_row[j]:
+            combined_row.append(old_row[i])
+            i += 1
+            j += 1
+        # out of order, so pick new order
+        elif old_row[i] in new_set:
+            while new_row[j] not in old_set:
+                combined_row.append(new_row[j])
+                j += 1
+            old_set.remove(old_row[i])
+            del old_row[i]
+        else:  # fill in from old order
+            while i < len(old_row) and old_row[i] not in new_set:
+                combined_row.append(old_row[i])
+                i += 1
+
+    while i < len(old_row) and j >= len(new_row):
+        combined_row.append(old_row[i])
+        i += 1
+    while i >= len(old_row) and j < len(new_row):
+        combined_row.append(new_row[j])
+        j += 1
+    return combined_row + suffix
+
+
+def find_suffix(new_row: List[str], old_row: List[str]) -> Tuple[
+    List[str], List[str], List[str]]:
+    old_set = set(old_row)
+    new_set = set(new_row)
+    suffix = []
+    i = len(old_row) - 1
+    j = len(new_row) - 1
+    while i >= 0:
+        if old_row[i] in new_set:
+            break
+        i -= 1
+    matching_index_in_old = i
+    while i < len(old_row) - 1:
+        suffix.append(old_row[i + 1])
+        i += 1
+    while j >= 0:
+        if new_row[j] in old_set:
+            break
+        j -= 1
+    matching_index_in_new = j
+    while j < len(new_row) - 1:
+        suffix.append(new_row[j + 1])
+        j += 1
+    old_row = old_row[:matching_index_in_old + 1]
+    new_row = new_row[:matching_index_in_new + 1]
+    return new_row, old_row, suffix
