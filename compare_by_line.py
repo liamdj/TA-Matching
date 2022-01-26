@@ -3,6 +3,7 @@ import csv
 from typing import List, Any, Tuple, Dict, Optional, Set
 import math
 import write_to_google_sheets as write_gs
+import g_sheet_consts as gs_consts
 
 
 def __is_nan(num) -> bool:
@@ -192,3 +193,27 @@ def find_suffix(new_row: List[str], old_row: List[str]) -> Tuple[
     old_row = old_row[:matching_index_in_old + 1]
     new_row = new_row[:matching_index_in_new + 1]
     return new_row, old_row, suffix
+
+
+def write_comparison_of_two_worksheets(sheet_title: str,
+                                       sheet_abbreviation: str,
+                                       from_tab_title: str, to_tab_title: str,
+                                       compare_key: str, csv_path: str,
+                                       fields_to_ignore: Set[str] = None):
+    sheet = write_gs.get_sheet(sheet_title)
+    diffs_sheet = write_gs.get_sheet(gs_consts.GENERIC_DIFFS_SHEET_TITLE)
+    diffs_ws_titles = {ws.title: ws for ws in diffs_sheet.worksheets()}
+
+    new_ws_title = f"{sheet_abbreviation}_{from_tab_title}->{to_tab_title}"
+    if new_ws_title in diffs_ws_titles:
+        url = write_gs.build_url_to_sheet(
+            diffs_sheet.id, diffs_ws_titles[new_ws_title].id)
+        print(f"Existed: {url}")
+    else:
+        wrote = compare_two_worksheets(
+            sheet, from_tab_title, to_tab_title, compare_key, csv_path,
+            fields_to_ignore)
+        if wrote:
+            ws = write_gs.write_csv_to_new_tab_from_sheet(
+                csv_path, diffs_sheet, new_ws_title)
+            print(write_gs.build_url_to_sheet(diffs_sheet.id, ws.id))
