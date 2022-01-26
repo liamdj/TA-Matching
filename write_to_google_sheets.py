@@ -145,11 +145,16 @@ def get_rows_of_cells(worksheet: Worksheet, start_row: int, end_row: int,
         worksheet, start_row, end_row, 0, cols_len, formatted)
 
 
-def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
-                             worksheet_id: str = None) -> Tuple[str, str]:
+def build_url_to_sheet(sheet_id: str, worksheet_id: str = None) -> str:
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
     if worksheet_id:
         url = f"{url}#gid={worksheet_id}"
+    return url
+
+
+def build_hyperlink_to_sheet(sheet_id: str, link_text: str,
+                             worksheet_id: str = None) -> Tuple[str, str]:
+    url = build_url_to_sheet(sheet_id, worksheet_id)
     return f"=HYPERLINK(\"{url}\", \"{link_text}\")", url
 
 
@@ -350,8 +355,7 @@ def write_matrix_to_sheet(matrix: List[List[str]], sheet_name: str,
         sheet.del_worksheet(initial_worksheet)
     else:
         worksheet = sheet.get_worksheet(0)
-    print(
-        f"Created new spreadsheet at https://docs.google.com/spreadsheets/d/{sheet.id}")
+    print(f"Created new spreadsheet at {build_url_to_sheet(sheet.id)}")
     write_full_worksheet(matrix, worksheet, wrap)
     return sheet.id
 
