@@ -135,7 +135,7 @@ class MatchingGraph:
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(
-                ["Netid", "Name", "Notes", "Course", "Slots Filled",
+                ["NetID", "Name", "Notes", "Course", "Slots Filled",
                  "Total Match Weight", "Fixed", "Year", "Bank", "Join",
                  "Previous", "Advisor-Advisee", "Negative Student Weight",
                  "Student Rank", "Student Rank Score",

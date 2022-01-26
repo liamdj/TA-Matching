@@ -14,7 +14,7 @@ The matching algorithm takes the input specified below. See sample input in `tes
 
 ### Student Data
 For each student,
-- Netid
+- NetID
 - Name
 - Weight: describes how desirable it is to find a match for the student (default 10)
 - Previous: courses that the student previously TAed

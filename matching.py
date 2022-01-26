@@ -109,7 +109,7 @@ def read_student_data(filename: str) -> pd.DataFrame:
                 for course in row[rank].split(';'):
                     if course:
                         collect[course] = rank
-            rank_rows.append(pd.Series(collect, name=row['Netid']))
+            rank_rows.append(pd.Series(collect, name=row['NetID']))
 
     df = pd.concat(rank_rows, axis='columns').T
     df['Bank'] = pd.to_numeric(df['Bank'], errors='coerce', downcast='float')
@@ -420,9 +420,9 @@ def make_manual_adjustments(course_scores, path_adjusted, student_scores,
                             weights):
     if not os.path.isfile(path_adjusted): return
     adjusted_matches = pd.read_csv(
-        path_adjusted, dtype={'Netid': str, 'Course': str, 'Weight': float})
+        path_adjusted, dtype={'NetID': str, 'Course': str, 'Weight': float})
     for _, row in adjusted_matches.iterrows():
-        si = student_scores.index.get_loc(row['Netid'])
+        si = student_scores.index.get_loc(row['NetID'])
         if row['Course'] not in course_scores.index:
             continue
         ci = course_scores.index.get_loc(row['Course'])
@@ -445,12 +445,12 @@ def get_fixed_matches(course_scores, fixed, path, student_scores):
     if os.path.isfile(path + fixed):
         fixed_matches = pd.read_csv(path + fixed, dtype=str)
         fixed_matches['Student index'] = [student_scores.index.get_loc(student)
-                                          for student in fixed_matches['Netid']]
+                                          for student in fixed_matches['NetID']]
         fixed_matches['Course index'] = [course_scores.index.get_loc(course) for
                                          course in fixed_matches['Course']]
     else:
         fixed_matches = pd.DataFrame(
-            columns=['Netid', 'Course', 'Student index', 'Course index'])
+            columns=['NetID', 'Course', 'Student index', 'Course index'])
     return fixed_matches
 
 

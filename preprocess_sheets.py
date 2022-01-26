@@ -423,7 +423,7 @@ def format_course_list(courses: str) -> str:
 
 def format_student(student: StudentType, courses: CoursesType,
                    years: YearsType) -> List[str]:
-    # ['Netid','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
+    # ['NetID','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
     netid = student['NetID']
     full_name = student['Name']
     year = years[netid]
@@ -442,7 +442,7 @@ def format_student(student: StudentType, courses: CoursesType,
 
 
 def format_phd(student: StudentType, years: YearsType) -> List[str]:
-    # phds = 'Netid,Name,Year,Advisor\n'
+    # phds = 'NetID,Name,Year,Advisor\n'
     netid = student['NetID']
     full_name = student['Name']
     advisor = student['Advisor'].replace(',', ';')
@@ -490,9 +490,9 @@ def write_courses(path: str, courses: CoursesType,
 def write_students(path: str, courses: CoursesType, assigned: AssignedType,
                    years: YearsType,
                    students: StudentsType):
-    data = [['Netid', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
+    data = [['NetID', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
              'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
-    phds = [['Netid', 'Name', 'Year', 'Advisor']]
+    phds = [['NetID', 'Name', 'Year', 'Advisor']]
     for netid in students:
         if netid in assigned:
             continue
@@ -512,14 +512,14 @@ def write_students(path: str, courses: CoursesType, assigned: AssignedType,
 
 
 def write_assigned(path: str, assigned: AssignedType):
-    data = [['Netid', 'Course']]
+    data = [['NetID', 'Course']]
     for netid, course in assigned.items():
         data.append([netid, course])
     write_csv(f"{path}/fixed.csv", data)
 
 
 def write_adjusted(path: str, adjusted: AdjustedType):
-    data = [['Netid', 'Course', 'Weight']]
+    data = [['NetID', 'Course', 'Weight']]
     for netid, adjustments in adjusted.items():
         for course, weight in adjustments:
             data.append([netid, course, weight])
