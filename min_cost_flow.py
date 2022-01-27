@@ -25,7 +25,7 @@ def fill_value(index: int, base: float, first: float) -> int:
 
 class MatchingGraph:
 
-    def __init__(self, match_weights, student_weights, course_info,
+    def __init__(self, match_weights: np.array, student_weights, course_info,
                  fixed_matches):
         add_to_slots_from_fixed_matches(course_info, fixed_matches)
 
