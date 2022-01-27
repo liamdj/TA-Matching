@@ -26,6 +26,10 @@ def remove_worksheets_from_sheets(matching_sheet, tab_nums: List[str]):
         get_sheet(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE), tab_nums)
     remove_worksheets_exact_title(
         get_sheet(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE), tab_nums)
+    remove_worksheets_exact_title(
+        get_sheet(gs_consts.REMOVE_SLOT_OUTPUT_SHEET_TITLE), tab_nums)
+    remove_worksheets_exact_title(
+        get_sheet(gs_consts.ADD_SLOT_OUTPUT_SHEET_TITLE), tab_nums)
     alternates_to_delete = []
     for tab_num in tab_nums:
         for j in range(26):
@@ -101,7 +105,7 @@ def remove_entries_from_toc(matching_sheet, tab_nums: List[str]):
     for i, row in enumerate(cells):
         if not row:
             continue
-        if all (v == '' for v in row):
+        if all(v == '' for v in row):
             toc_ws.delete_row(i + 2 - tabs_deleted)
             print(f'Deleted empty row {2 + i}')
         match = re.match(r"#([0-9]{3})", row[4])

@@ -8,7 +8,8 @@ from typing import List, Tuple
 
 def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      input_dir_title='colab',
-                                                     include_removal_and_additional=True,
+                                                     include_remove_and_add_ta=True,
+                                                     include_remove_and_add_slot=True,
                                                      alternates=0,
                                                      planning_sheet_id: str = None,
                                                      student_preferences_sheet_id: str = None,
@@ -29,13 +30,14 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         compare_matching_from_num_executed = f"{(int(num_executed) - 1):03d}"
 
     run_and_write_matchings(
-        executor, input_dir_title, include_removal_and_additional, num_executed,
-        num_executed, compare_matching_from_num_executed, alternates,
-        input_copy_ids)
+        executor, input_dir_title, include_remove_and_add_ta,
+        include_remove_and_add_slot, num_executed, num_executed,
+        compare_matching_from_num_executed, alternates, input_copy_ids)
 
 
 def run_and_write_matchings(executor: str, input_dir_title: str,
-                            include_removal_and_additional=True,
+                            include_remove_and_add_ta=True,
+                            include_remove_and_add_slot=True,
                             output_num_executed: str = None,
                             input_num_executed: str = None,
                             compare_matching_from_num_executed: str = None,
@@ -51,15 +53,16 @@ def run_and_write_matchings(executor: str, input_dir_title: str,
     if slots_unfilled > 0:
         print(f"\tunfilled slots: {slots_unfilled}")
     write_matchings(
-        executor, output_dir_path, matching_weight,
-        include_removal_and_additional, slots_unfilled, output_num_executed,
+        executor, output_dir_path, matching_weight, include_remove_and_add_ta,
+        include_remove_and_add_slot, slots_unfilled, output_num_executed,
         input_num_executed, compare_matching_from_num_executed, alt_weights,
         input_copy_ids)
 
 
 def write_matchings(executor: str, output_dir_title: str,
-                    matching_weight: float, include_removal_and_additional=True,
-                    slots_unfilled=0, output_num_executed: str = None,
+                    matching_weight: float, include_remove_and_add_ta=True,
+                    include_remove_and_add_slot=True, slots_unfilled=0,
+                    output_num_executed: str = None,
                     input_num_executed: str = None,
                     compare_matching_from_num_executed: str = None,
                     alt_weights: List[float] = [], input_copy_ids: Tuple[
@@ -94,8 +97,9 @@ def write_matchings(executor: str, output_dir_title: str,
             matching_diff_ws_title = f'#{compare_matching_from_num_executed}->#{output_num_executed}'
 
     output_ids = write_gs.write_output_csvs(
-        matching_output_sheet, include_removal_and_additional, len(alt_weights),
-        output_num_executed, output_dir_title, matching_diff_ws_title)
+        matching_output_sheet, include_remove_and_add_ta, include_remove_and_add_slot,
+        len(alt_weights), output_num_executed, output_dir_title,
+        matching_diff_ws_title)
 
     if not include_matching_diff and compare_matching_from_num_executed:
         matching_diff_ws_title = f'Same as #{compare_matching_from_num_executed}'
@@ -106,6 +110,6 @@ def write_matchings(executor: str, output_dir_title: str,
         matching_output_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
     write_gs.write_execution_to_ToC(
         toc_ws, executor, output_num_executed, matching_weight, slots_unfilled,
-        include_removal_and_additional, alt_weights, input_num_executed,
-        matching_diff_ws_title, include_matching_diff, input_copy_ids,
-        param_copy_ids, output_ids)
+        include_remove_and_add_ta, include_remove_and_add_slot, alt_weights,
+        input_num_executed, matching_diff_ws_title, include_matching_diff,
+        input_copy_ids, param_copy_ids, output_ids)
