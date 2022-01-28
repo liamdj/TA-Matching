@@ -3,7 +3,7 @@ import datetime
 import gspread
 from gspread import Spreadsheet, Worksheet
 import pytz
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, List, Tuple, Dict, Any
 
 import g_sheet_consts as gs_consts
 
@@ -78,13 +78,6 @@ def get_sheet_by_id(sheet_id: str) -> Spreadsheet:
     return gc.open_by_key(sheet_id)
 
 
-def wrap_rows(worksheet: Worksheet, row_start: int, row_end: int, cells: int):
-    """ row_start and row_end are inclusive """
-    format(
-        worksheet, row_start, row_end, 0, cells, center_align=False, bold=False,
-        wrap=True)
-
-
 def format(worksheet: Worksheet, start_row: Union[int, str],
            end_row: Union[int, str], start_col: int, end_col: int,
            center_align=False, bold=False, wrap=False):
@@ -108,12 +101,10 @@ def format_row(worksheet: Worksheet, row: int, cells: int, center_align=False,
     format(worksheet, row, row, 0, cells, center_align, bold, wrap)
 
 
-def resize_worksheet_columns(sheet: Spreadsheet, worksheet: Worksheet,
-                             cols: int):
+def resize_worksheet_columns(sheet: Spreadsheet, worksheet_id: str, cols: int):
     body = {"requests": [{"autoResizeDimensions": {
-        "dimensions": {"sheetId": worksheet._properties['sheetId'],
-                       "dimension": "COLUMNS", "startIndex": 0,
-                       "endIndex": cols}, }}]}
+        "dimensions": {"sheetId": worksheet_id, "dimension": "COLUMNS",
+                       "startIndex": 0, "endIndex": cols}, }}]}
     sheet.batch_update(body)
 
 
@@ -375,7 +366,7 @@ def write_matrix_to_sheet(matrix: List[List[str]], sheet_name: str,
     else:
         worksheet = sheet.get_worksheet(0)
     print(f"Created new spreadsheet at {build_url_to_sheet(sheet.id)}")
-    write_full_worksheet(matrix, worksheet, wrap)
+    write_full_worksheet(matrix, sheet, worksheet, wrap)
     return sheet.id
 
 
@@ -387,32 +378,57 @@ def add_worksheet_from_matrix(matrix: List[List[str]], sheet: Spreadsheet,
     return worksheet
 
 
-def write_full_worksheet(matrix: List[List[str]], worksheet: Worksheet,
-                         wrap: bool):
-    worksheet.update("A1", matrix)
+def create_row_data_from_matrix(matrix: List[List]) -> List[
+    Dict[str, List[Dict[str, Any]]]]:
+    row_data = []
+    for line in matrix:
+        row = []
+        for c in line:
+            key = 'stringValue'
+            if type(c) == 'float' or type(c) == 'int':
+                key = 'numberValue'
+            row.append({'userEnteredValue': {key: c}})
+        row_data.append({'values': row})
+    return row_data
+
+
+def update_and_resize_worksheet_columns(sheet: Spreadsheet, worksheet_id: str,
+                                        matrix: List[List]):
+    body = {"requests": [{
+        "updateCells": {"rows": create_row_data_from_matrix(matrix),
+                        "fields": "*",
+                        "start": {"sheetId": worksheet_id, "rowIndex": 0,
+                                  "columnIndex": 0}}}, {
+        "autoResizeDimensions": {
+            "dimensions": {"sheetId": worksheet_id, "dimension": "COLUMNS",
+                           "startIndex": 0, "endIndex": len(
+                    matrix[0])}}}]}
+    sheet.batch_update(body)
+
+
+def write_full_worksheet(matrix: List[List], sheet: Spreadsheet,
+                         worksheet: Worksheet, wrap: bool, center_align=False):
+    update_and_resize_worksheet_columns(sheet, worksheet.id, matrix)
     worksheet.freeze(rows=1)
     format_row(
         worksheet, 1, len(matrix[0]) + 1, center_align=False, bold=True,
         wrap=wrap)
-    if wrap:
-        wrap_rows(worksheet, 1, len(matrix), len(matrix[0]))
+    if wrap or center_align:
+        format(
+            worksheet, 1, len(matrix), 0, len(matrix[0]),
+            center_align=center_align, bold=False,
+            wrap=wrap)
 
 
 def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
-                                    tab_name: str, tab_index=0,
-                                    center_align=False,
-                                    wrap=False) -> Worksheet:
+                                    tab_name: str, tab_index=0, wrap=False,
+                                    center_align=False) -> Worksheet:
     with open(csv_path, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter=',', quotechar='"')
         print(f'Writing {csv_path} to {tab_name} in sheet {sheet.title}')
         matrix = list(reader)
         worksheet = write_matrix_to_new_tab_from_sheet(
-            matrix, sheet, tab_name, wrap, tab_index)
-        resize_worksheet_columns(sheet, worksheet, len(matrix[0]))
-        if center_align:
-            format(
-                worksheet, 1, len(matrix), 0, len(matrix[0]),
-                center_align=center_align)
+            matrix, sheet, tab_name, wrap, tab_index, center_align)
     return worksheet
 
 
@@ -421,7 +437,7 @@ def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
     Spreadsheet, Worksheet]:
     sheet = get_sheet(sheet_name)
     return sheet, write_csv_to_new_tab_from_sheet(
-        csv_path, sheet, tab_name, tab_index, center_align, wrap)
+        csv_path, sheet, tab_name, tab_index, wrap, center_align)
 
 
 def write_matrix_to_new_tab(matrix: List[List[str]], sheet_name: str,
@@ -432,9 +448,10 @@ def write_matrix_to_new_tab(matrix: List[List[str]], sheet_name: str,
 
 def write_matrix_to_new_tab_from_sheet(matrix: List[List[str]],
                                        sheet: Spreadsheet, tab_name: str,
-                                       wrap=False, tab_index=0) -> Worksheet:
+                                       wrap=False, tab_index=0,
+                                       center_align=False) -> Worksheet:
     worksheet = add_worksheet_from_matrix(matrix, sheet, tab_name, tab_index)
-    write_full_worksheet(matrix, worksheet, wrap)
+    write_full_worksheet(matrix, sheet, worksheet, wrap, center_align)
     return worksheet
 
 
