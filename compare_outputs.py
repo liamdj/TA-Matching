@@ -98,7 +98,7 @@ def write_comparison_to_worksheet(student_changes: Dict[str, Tuple[str, str]],
         student_ws_id = worksheets[new_worksheet_title + '(C)'].id
         print(f"Course comparison (already existed): {prefix}{student_ws_id}")
     else:
-        course_changes_ws = write_gs.write_matrix_to_new_tab_from_sheet(
+        course_changes_ws = write_gs.create_and_write_full_worksheet(
             course_changes_to_matrix(course_changes), sheet,
             new_worksheet_title + '(C)')
         print(f"Course comparison: {prefix}{course_changes_ws.id}")
@@ -107,7 +107,7 @@ def write_comparison_to_worksheet(student_changes: Dict[str, Tuple[str, str]],
         student_ws_id = worksheets[new_worksheet_title + '(S)'].id
         print(f"Student comparison (already existed): {prefix}{student_ws_id}")
     else:
-        student_changes_ws = write_gs.write_matrix_to_new_tab_from_sheet(
+        student_changes_ws = write_gs.create_and_write_full_worksheet(
             student_changes_to_matrix(student_changes), sheet,
             new_worksheet_title + '(S)')
         print(f"Student comparison: {prefix}{student_changes_ws.id}")

@@ -16,8 +16,7 @@ OutputIDs = Tuple[
 
 
 def get_worksheet_from_sheet(sheet: Spreadsheet, worksheet_title: str):
-    return get_worksheet_from_worksheets(
-        sheet.worksheets(), worksheet_title, sheet.title)
+    return sheet.worksheet(worksheet_title)
 
 
 def get_worksheet_from_worksheets(worksheets: List[Worksheet],
@@ -78,9 +77,9 @@ def get_sheet_by_id(sheet_id: str) -> Spreadsheet:
     return gc.open_by_key(sheet_id)
 
 
-def format(worksheet: Worksheet, start_row: Union[int, str],
-           end_row: Union[int, str], start_col: int, end_col: int,
-           center_align=False, bold=False, wrap=False):
+def format_worksheet(worksheet: Worksheet, start_row: Union[int, str],
+                     end_row: Union[int, str], start_col: int, end_col: int,
+                     center_align=False, bold=False, wrap=False):
     """start_col and end_col are zero indexed numbers"""
     formatting = {}
     if bold:
@@ -94,11 +93,6 @@ def format(worksheet: Worksheet, start_row: Union[int, str],
         worksheet.format(
             f"{chr(ord('A') + start_col)}{start_row}:{chr(ord('A') + end_col)}{end_row}",
             formatting)
-
-
-def format_row(worksheet: Worksheet, row: int, cells: int, center_align=False,
-               bold=False, wrap=False):
-    format(worksheet, row, row, 0, cells, center_align, bold, wrap)
 
 
 def resize_worksheet_columns(sheet: Spreadsheet, worksheet_id: str, cols: int):
@@ -359,23 +353,13 @@ def write_matrix_to_sheet(matrix: List[List[str]], sheet_name: str,
                           worksheet_name: str = None, wrap=False) -> str:
     gc = gspread.service_account(filename='./credentials.json')
     sheet = gc.create(sheet_name)
-    if worksheet_name:
-        initial_worksheet = sheet.get_worksheet(0)
-        worksheet = add_worksheet_from_matrix(matrix, sheet, worksheet_name)
-        sheet.del_worksheet(initial_worksheet)
-    else:
-        worksheet = sheet.get_worksheet(0)
+    initial_worksheet = sheet.get_worksheet(0)
+    if not worksheet_name:
+        worksheet_name = "Sheet1"
     print(f"Created new spreadsheet at {build_url_to_sheet(sheet.id)}")
-    write_full_worksheet(matrix, sheet, worksheet, wrap)
+    create_and_write_full_worksheet(matrix, sheet, worksheet_name, wrap=wrap)
+    sheet.del_worksheet(initial_worksheet)
     return sheet.id
-
-
-def add_worksheet_from_matrix(matrix: List[List[str]], sheet: Spreadsheet,
-                              worksheet_name: str, index=0) -> Worksheet:
-    rows = max(200, len(matrix) + 50)
-    cols = max(26, len(matrix[0]) + 3)
-    worksheet = add_worksheet(sheet, worksheet_name, rows, cols, index)
-    return worksheet
 
 
 def create_row_data_from_matrix(matrix: List[List]) -> List[
@@ -392,32 +376,37 @@ def create_row_data_from_matrix(matrix: List[List]) -> List[
     return row_data
 
 
-def update_and_resize_worksheet_columns(sheet: Spreadsheet, worksheet_id: str,
-                                        matrix: List[List]):
-    body = {"requests": [{
+def create_update_and_resize_worksheet_columns(sheet: Spreadsheet,
+                                               worksheet_title: str,
+                                               matrix: List[List],
+                                               tab_index=0) -> Worksheet:
+    worksheet_id = abs(hash(worksheet_title)) % (10 ** 8)
+    body = {"requests": [{"addSheet": {
+        "properties": {"sheetId": worksheet_id, "title": worksheet_title,
+                       "index": tab_index}}}, {
         "updateCells": {"rows": create_row_data_from_matrix(matrix),
                         "fields": "*",
                         "start": {"sheetId": worksheet_id, "rowIndex": 0,
                                   "columnIndex": 0}}}, {
         "autoResizeDimensions": {
             "dimensions": {"sheetId": worksheet_id, "dimension": "COLUMNS",
-                           "startIndex": 0, "endIndex": len(
-                    matrix[0])}}}]}
+                           "startIndex": 0, "endIndex": len(matrix[0])}}}]}
     sheet.batch_update(body)
+    return sheet.worksheet(worksheet_title)
 
 
-def write_full_worksheet(matrix: List[List], sheet: Spreadsheet,
-                         worksheet: Worksheet, wrap: bool, center_align=False):
-    update_and_resize_worksheet_columns(sheet, worksheet.id, matrix)
+def create_and_write_full_worksheet(matrix: List[List], sheet: Spreadsheet,
+                                    worksheet_title: str, center_align=False,
+                                    wrap=False, tab_index=0) -> Worksheet:
+    worksheet = create_update_and_resize_worksheet_columns(
+        sheet, worksheet_title, matrix, tab_index)
     worksheet.freeze(rows=1)
-    format_row(
-        worksheet, 1, len(matrix[0]) + 1, center_align=False, bold=True,
-        wrap=wrap)
+    format_worksheet(worksheet, 1, 1, 0, len(matrix[0]) + 1, False, True, wrap)
     if wrap or center_align:
-        format(
-            worksheet, 1, len(matrix), 0, len(matrix[0]),
-            center_align=center_align, bold=False,
-            wrap=wrap)
+        format_worksheet(
+            worksheet, 1, len(matrix) + 1, 0, len(matrix[0]),
+            center_align=center_align, bold=False, wrap=wrap)
+    return worksheet
 
 
 def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
@@ -427,8 +416,8 @@ def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
         reader = csv.reader(csv_file, delimiter=',', quotechar='"')
         print(f'Writing {csv_path} to {tab_name} in sheet {sheet.title}')
         matrix = list(reader)
-        worksheet = write_matrix_to_new_tab_from_sheet(
-            matrix, sheet, tab_name, wrap, tab_index, center_align)
+        worksheet = create_and_write_full_worksheet(
+            matrix, sheet, tab_name, center_align, wrap, tab_index)
     return worksheet
 
 
@@ -443,16 +432,8 @@ def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
 def write_matrix_to_new_tab(matrix: List[List[str]], sheet_name: str,
                             tab_name: str, wrap=False, tab_index=0):
     sheet = get_sheet(sheet_name)
-    write_matrix_to_new_tab_from_sheet(matrix, sheet, tab_name, wrap, tab_index)
-
-
-def write_matrix_to_new_tab_from_sheet(matrix: List[List[str]],
-                                       sheet: Spreadsheet, tab_name: str,
-                                       wrap=False, tab_index=0,
-                                       center_align=False) -> Worksheet:
-    worksheet = add_worksheet_from_matrix(matrix, sheet, tab_name, tab_index)
-    write_full_worksheet(matrix, sheet, worksheet, wrap, center_align)
-    return worksheet
+    create_and_write_full_worksheet(
+        matrix, sheet, tab_name, wrap=wrap, tab_index=tab_index)
 
 
 def write_output_csvs(matching_output_sheet: Spreadsheet,
@@ -463,7 +444,7 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
     outputs_dir = f'{output_dir_title}/outputs'
     matchings_worksheet = write_csv_to_new_tab_from_sheet(
         f'{outputs_dir}/matchings.csv', matching_output_sheet, num_executed, 1)
-    format(matchings_worksheet, "", "", 4, 18, center_align=True)
+    format_worksheet(matchings_worksheet, "", "", 4, 18, center_align=True)
     matchings_ids = (matching_output_sheet.id, matchings_worksheet.id)
     matching_diffs_ids, alternates_ids = None, None
     if matching_diffs_ws_title is not None:
@@ -522,7 +503,7 @@ def write_params_csv(num_executed: str, output_dir_title: str) -> Tuple[
     sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
     ws = write_csv_to_new_tab_from_sheet(
         f'{output_dir_title}/outputs/params.csv', sheet, num_executed)
-    format(ws, "", "", 1, 1, center_align=True)
+    format_worksheet(ws, "", "", 1, 1, center_align=True)
     return sheet.id, ws.id
 
 
@@ -571,7 +552,7 @@ def copy_to_from_worksheets(old_worksheet_title: str,
 def copy_to_from_worksheet(new_sheet: Spreadsheet, new_tab_title: str,
                            worksheet: Worksheet) -> Tuple[str, str]:
     old_values = worksheet.get_all_values()
-    new_ws = write_matrix_to_new_tab_from_sheet(
+    new_ws = create_and_write_full_worksheet(
         old_values, new_sheet, new_tab_title)
     return new_sheet.id, new_ws.id
 
