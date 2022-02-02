@@ -62,8 +62,9 @@ def compare_matching_csvs(old_matching_csv_filename: str,
     return compare_matchings(old_matching, new_matching)
 
 
-def compare_matching_worksheet_with_csv(old_matching_worksheet,
-                                        new_matching_csv_filename: str) -> \
+def compare_matching_worksheet_with_csv(
+        old_matching_worksheet: write_gs.Worksheet,
+        new_matching_csv_filename: str) -> \
         Tuple[
             Dict[str, Tuple[str, str]], Dict[str, Tuple[List[str], List[str]]]]:
     old_matching = read_matching_from_matrix(
@@ -95,8 +96,8 @@ def write_comparison_to_worksheet(student_changes: Dict[str, Tuple[str, str]],
     worksheets = {ws.title: ws for ws in sheet.worksheets()}
     prefix = f'https://docs.google.com/spreadsheets/d/{sheet.id}#gid='
     if new_worksheet_title + '(C)' in worksheets:
-        student_ws_id = worksheets[new_worksheet_title + '(C)'].id
-        print(f"Course comparison (already existed): {prefix}{student_ws_id}")
+        course_ws_id = worksheets[new_worksheet_title + '(C)'].id
+        print(f"Course comparison (already existed): {prefix}{course_ws_id}")
     else:
         course_changes_ws = write_gs.create_and_write_full_worksheet(
             course_changes_to_matrix(course_changes), sheet,
@@ -136,13 +137,24 @@ def course_changes_to_matrix(
 def write_matchings_changes(student_changes: Dict[str, Tuple[str, str]],
                             course_changes: Dict[
                                 str, Tuple[List[str], List[str]]],
-                            output_dir='data'):
-    with open(output_dir + '/outputs/matchings_students_diff.csv', 'w+') as f:
+                            output_dir='data/'):
+    with open(output_dir + '/matchings_students_diff.csv', 'w+') as f:
         writer = csv.writer(f)
         writer.writerows(student_changes_to_matrix(student_changes))
 
-    with open(output_dir + '/outputs/matchings_courses_diff.csv', 'w+') as f:
+    with open(output_dir + '/matchings_courses_diff.csv', 'w+') as f:
         writer = csv.writer(f)
         writer.writerows(course_changes_to_matrix(course_changes))
 
     return len(student_changes)
+
+
+def compare_and_write_matching_changes(output_dir_title: str,
+                                       old_matching_csv_filename: str,
+                                       new_matching_csv_filename: str) -> int:
+    student_changes, course_changes = compare_matching_csvs(
+        f'{output_dir_title}/{old_matching_csv_filename}',
+        new_matching_csv_filename)
+    num_changes = write_matchings_changes(
+        student_changes, course_changes, output_dir_title)
+    return num_changes

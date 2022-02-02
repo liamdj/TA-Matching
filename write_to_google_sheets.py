@@ -1,9 +1,10 @@
 import csv
 import datetime
-import gspread
-from gspread import Spreadsheet, Worksheet
-import pytz
 from typing import Optional, Union, List, Tuple, Dict, Any
+
+import gspread
+import pytz
+from gspread import Spreadsheet, Worksheet
 
 import g_sheet_consts as gs_consts
 
@@ -12,6 +13,7 @@ InputCopyIDs = Tuple[
 OutputIDs = Tuple[
     Tuple[str, str], Optional[Tuple[str, str, str]], Optional[Tuple[str, str]],
     Optional[Tuple[str, str]], Optional[Tuple[str, str]], Optional[
+        Tuple[str, str]], Optional[
         Tuple[str, str]], Optional[Tuple[str, List[str]]]]
 
 
@@ -170,6 +172,7 @@ def write_execution_to_ToC(toc_ws: Worksheet, executor: str, executed_num: str,
         output_ids = initialize_output_ids(
             executed_num, matching_diff_ws_title,
             len(alternate_matching_weights))
+
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, slots_unfilled,
         include_remove_and_add_ta, include_remove_and_add_slot,
@@ -231,7 +234,7 @@ def initialize_output_ids(num_executed: str,
         matching_output_sheet, num_executed)
     matchings_ids = (matching_output_sheet.id, matchings_worksheet.id)
 
-    matching_diffs_ids = None
+    matching_diffs_ids, weighted_changes_ids = None, None
     if matching_diffs_ws_title is not None:
         matching_diff_sheet = get_sheet(
             gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE)
@@ -241,6 +244,13 @@ def initialize_output_ids(num_executed: str,
             matching_diff_sheet, matching_diffs_ws_title + '(C)').id
         matching_diffs_ids = (
             matching_diff_sheet.id, students_diff_id, courses_diff_id)
+
+        weighted_changes_sheet = get_sheet(
+            gs_consts.WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE)
+        weighted_changes_ws = get_worksheet_from_sheet(
+            matching_diff_sheet, matching_diffs_ws_title).id
+        weighted_changes_ids = (
+            weighted_changes_sheet.id, weighted_changes_ws.id)
 
     additional_ta_sheet = get_sheet(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE)
     additional_ta_ws = get_worksheet_from_sheet(
@@ -268,7 +278,7 @@ def initialize_output_ids(num_executed: str,
                 get_worksheet_from_sheet(
                     alternates_sheet, num_executed + chr(ord('A') + i)).id)
         alternates_ids = (alternates_sheet.id, alternates_worksheets_ids)
-    return matchings_ids, matching_diffs_ids, additional_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, alternates_ids
+    return matchings_ids, matching_diffs_ids, weighted_changes_ids, additional_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, alternates_ids
 
 
 def build_links_to_input(input_executed_num: str, params_executed_num: str,
@@ -299,6 +309,7 @@ def build_links_to_output(executed_num: str, matching_weight: float,
                           alternate_matching_weights: List[float],
                           matchings_ids: Tuple[str, str],
                           matching_diffs_ids: Optional[Tuple[str, str, str]],
+                          weighted_changes_ids: Optional[Tuple[str, str, str]],
                           add_ta_ids: Tuple[str, str],
                           remove_ta_ids: Tuple[str, str],
                           add_slot_ids: Tuple[str, str],
@@ -320,11 +331,15 @@ def build_links_to_output(executed_num: str, matching_weight: float,
         matching_suffix = f' ({slots_unfilled} slots unfilled)'
 
     matching_diffs_hyperlinks = [matching_diff_ws_title, ""]
+    weighted_changes_link = ""
     if include_matching_diff:
         for i, suffix in enumerate(["(S)", "(C)"]):
             matching_diffs_hyperlinks[i], _ = build_hyperlink_to_sheet(
                 matching_diffs_ids[0], matching_diff_ws_title + suffix,
                 matching_diffs_ids[1 + i])
+        weighted_changes_link, _ = build_hyperlink_to_sheet(
+            weighted_changes_ids[0], matching_diff_ws_title,
+            weighted_changes_ids[1])
 
     add_ta_links, remove_ta_links = "", ""
     if include_remove_and_add_ta:
@@ -338,8 +353,8 @@ def build_links_to_output(executed_num: str, matching_weight: float,
 
     links_to_output = [
         _build_hyperlink(*matchings_ids, text_suffix=matching_suffix),
-        *matching_diffs_hyperlinks, add_ta_links, remove_ta_links,
-        add_slot_links, remove_slot_links]
+        *matching_diffs_hyperlinks, weighted_changes_link, add_ta_links,
+        remove_ta_links, add_slot_links, remove_slot_links]
     links_to_alternate_output = []
     for i in range(len(alternate_matching_weights)):
         suffix = f'{chr(ord("A") + i)} ({alternate_matching_weights[i]:.2f})'
@@ -362,62 +377,82 @@ def write_matrix_to_sheet(matrix: List[List[str]], sheet_name: str,
     return sheet.id
 
 
-def create_row_data_from_matrix(matrix: List[List]) -> List[
-    Dict[str, List[Dict[str, Any]]]]:
+def create_row_data_from_matrix(matrix: List[List], bold=False,
+                                center_align=False, wrap=False,
+                                center_align_details: Tuple[int, int] = None) -> \
+        List[
+            Dict[str, List[Dict[str, Any]]]]:
+    def make_formatting_object(row: int, col: int) -> Dict[str, Any]:
+        formatting = {}
+        if row == 0 or bold:
+            formatting = {"textFormat": {"bold": True}}
+        if center_align or (
+                center_align_details and center_align_details[0] <= col <= \
+                center_align_details[1]):
+            formatting["horizontalAlignment"] = "CENTER"
+        if wrap:
+            formatting["wrapStrategy"] = "WRAP"
+        return formatting
+
     row_data = []
-    for line in matrix:
+    for i, line in enumerate(matrix):
         row = []
-        for c in line:
+        for j, c in enumerate(line):
             key = 'stringValue'
             if type(c) == 'float' or type(c) == 'int':
                 key = 'numberValue'
-            row.append({'userEnteredValue': {key: c}})
+            cell_details = {'userEnteredValue': {key: c}}
+            format_object = make_formatting_object(i, j)
+            if format_object:
+                cell_details['userEnteredFormat'] = format_object
+            row.append(cell_details)
         row_data.append({'values': row})
     return row_data
 
 
-def create_update_and_resize_worksheet_columns(sheet: Spreadsheet,
-                                               worksheet_title: str,
-                                               matrix: List[List],
-                                               tab_index=0) -> Worksheet:
+def create_and_write_full_worksheet(matrix: List[List], sheet: Spreadsheet,
+                                    worksheet_title: str, center_align=False,
+                                    wrap=False, tab_index=0,
+                                    center_align_details: Tuple[
+                                        int, int] = None) -> Worksheet:
     worksheet_id = abs(hash(worksheet_title)) % (10 ** 8)
     body = {"requests": [{"addSheet": {
         "properties": {"sheetId": worksheet_id, "title": worksheet_title,
                        "index": tab_index}}}, {
-        "updateCells": {"rows": create_row_data_from_matrix(matrix),
-                        "fields": "*",
-                        "start": {"sheetId": worksheet_id, "rowIndex": 0,
-                                  "columnIndex": 0}}}, {
+        "updateCells": {"rows": create_row_data_from_matrix(
+            matrix, False, center_align, wrap, center_align_details),
+            "fields": "*", "start": {"sheetId": worksheet_id, "rowIndex": 0,
+                                     "columnIndex": 0}}}, {
         "autoResizeDimensions": {
-            "dimensions": {"sheetId": worksheet_id, "dimension": "COLUMNS",
-                           "startIndex": 0, "endIndex": len(matrix[0])}}}]}
+            "dimensions": {"sheetId": worksheet_id, "dimension": "COLUMNS"}}}, {
+        "updateSheetProperties": {"properties": {
+            "sheetId": worksheet_id,
+            "title": worksheet_title,
+            "index": tab_index,
+            "gridProperties": {
+                "rowCount": max(2 * len(matrix), 200),
+                "columnCount": max(2 * len(matrix[0]), 26),
+                "frozenRowCount": 1,
+                "frozenColumnCount": 0,
+            },
+        }, "fields": "*"}}
+    ]}
     sheet.batch_update(body)
     return sheet.worksheet(worksheet_title)
 
 
-def create_and_write_full_worksheet(matrix: List[List], sheet: Spreadsheet,
-                                    worksheet_title: str, center_align=False,
-                                    wrap=False, tab_index=0) -> Worksheet:
-    worksheet = create_update_and_resize_worksheet_columns(
-        sheet, worksheet_title, matrix, tab_index)
-    worksheet.freeze(rows=1)
-    format_worksheet(worksheet, 1, 1, 0, len(matrix[0]) + 1, False, True, wrap)
-    if wrap or center_align:
-        format_worksheet(
-            worksheet, 1, len(matrix) + 1, 0, len(matrix[0]),
-            center_align=center_align, bold=False, wrap=wrap)
-    return worksheet
-
-
 def write_csv_to_new_tab_from_sheet(csv_path: str, sheet: Spreadsheet,
                                     tab_name: str, tab_index=0, wrap=False,
-                                    center_align=False) -> Worksheet:
+                                    center_align=False,
+                                    center_align_details: Tuple[
+                                        int, int] = None) -> Worksheet:
     with open(csv_path, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter=',', quotechar='"')
         print(f'Writing {csv_path} to {tab_name} in sheet {sheet.title}')
         matrix = list(reader)
         worksheet = create_and_write_full_worksheet(
-            matrix, sheet, tab_name, center_align, wrap, tab_index)
+            matrix, sheet, tab_name, center_align, wrap, tab_index,
+            center_align_details)
     return worksheet
 
 
@@ -431,42 +466,49 @@ def write_csv_to_new_tab(csv_path: str, sheet_name: str, tab_name: str,
 
 def write_matrix_to_new_tab(matrix: List[List[str]], sheet_name: str,
                             tab_name: str, wrap=False, tab_index=0):
-    sheet = get_sheet(sheet_name)
     create_and_write_full_worksheet(
-        matrix, sheet, tab_name, wrap=wrap, tab_index=tab_index)
+        matrix, get_sheet(sheet_name), tab_name, wrap=wrap, tab_index=tab_index)
 
 
 def write_output_csvs(matching_output_sheet: Spreadsheet,
                       include_remove_and_add_ta: bool,
                       include_remove_and_add_slot: bool, alternates: int,
-                      num_executed: str, output_dir_title: str,
+                      num_executed: str, outputs_dir_path: str,
                       matching_diffs_ws_title: str = None) -> OutputIDs:
-    outputs_dir = f'{output_dir_title}/outputs'
     matchings_worksheet = write_csv_to_new_tab_from_sheet(
-        f'{outputs_dir}/matchings.csv', matching_output_sheet, num_executed, 1)
-    format_worksheet(matchings_worksheet, "", "", 4, 18, center_align=True)
+        f'{outputs_dir_path}/matchings.csv', matching_output_sheet,
+        num_executed, 1, center_align_details=(3, 18))
     matchings_ids = (matching_output_sheet.id, matchings_worksheet.id)
-    matching_diffs_ids, alternates_ids = None, None
+    matching_diffs_ids, alternates_ids, weighted_changes_ids = None, None, None
     if matching_diffs_ws_title is not None:
         matching_diff_sheet = get_sheet(
             gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE)
         students_diff_id = write_csv_to_new_tab_from_sheet(
-            f'{outputs_dir}/matchings_students_diff.csv', matching_diff_sheet,
-            matching_diffs_ws_title + '(S)').id
+            f'{outputs_dir_path}/matchings_students_diff.csv',
+            matching_diff_sheet, matching_diffs_ws_title + '(S)').id
         courses_diff_id = write_csv_to_new_tab_from_sheet(
-            f'{outputs_dir}/matchings_courses_diff.csv', matching_diff_sheet,
-            matching_diffs_ws_title + '(C)').id
+            f'{outputs_dir_path}/matchings_courses_diff.csv',
+            matching_diff_sheet, matching_diffs_ws_title + '(C)').id
         matching_diffs_ids = (
             matching_diff_sheet.id, students_diff_id, courses_diff_id)
 
+        weighted_changes_sheet = get_sheet(
+            gs_consts.WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE)
+        weighted_changes_ws = write_csv_to_new_tab_from_sheet(
+            f'{outputs_dir_path}/weighted_changes.csv', weighted_changes_sheet,
+            matching_diffs_ws_title, wrap=True)
+        weighted_changes_ids = (
+            weighted_changes_sheet.id, weighted_changes_ws.id)
+
     add_ta_ids, remove_ta_ids = write_add_remove_csvs(
-        include_remove_and_add_ta, num_executed, outputs_dir,
+        include_remove_and_add_ta, num_executed, outputs_dir_path,
         'additional_TA.csv', 'remove_TA.csv',
         gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE,
         gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE)
 
     add_slot_ids, remove_slot_ids = write_add_remove_csvs(
-        include_remove_and_add_slot, num_executed, outputs_dir, 'add_slot.csv',
+        include_remove_and_add_slot, num_executed, outputs_dir_path,
+        'add_slot.csv',
         'remove_slot.csv', gs_consts.ADD_SLOT_OUTPUT_SHEET_TITLE,
         gs_consts.REMOVE_SLOT_OUTPUT_SHEET_TITLE)
 
@@ -476,10 +518,11 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
         for i in range(alternates):
             alternates_worksheets_ids.append(
                 write_csv_to_new_tab_from_sheet(
-                    f'{outputs_dir}/alternate{i + 1}.csv', alternates_sheet,
+                    f'{outputs_dir_path}/alternate{i + 1}.csv',
+                    alternates_sheet,
                     num_executed + chr(ord('A') + i), i).id)
         alternates_ids = (alternates_sheet.id, alternates_worksheets_ids)
-    return matchings_ids, matching_diffs_ids, add_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, alternates_ids
+    return matchings_ids, matching_diffs_ids, weighted_changes_ids, add_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, alternates_ids
 
 
 def write_add_remove_csvs(include_remove_and_add: bool, num_executed: str,
@@ -502,7 +545,7 @@ def write_params_csv(num_executed: str, output_dir_title: str) -> Tuple[
     str, str]:
     sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
     ws = write_csv_to_new_tab_from_sheet(
-        f'{output_dir_title}/outputs/params.csv', sheet, num_executed)
+        f'{output_dir_title}/params.csv', sheet, num_executed)
     format_worksheet(ws, "", "", 1, 1, center_align=True)
     return sheet.id, ws.id
 

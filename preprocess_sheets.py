@@ -1,16 +1,16 @@
+import csv
+import datetime
 import os
 import re
-import datetime
-import csv
 from typing import Union, Any, Optional, List, Dict, Tuple, Set
+
+import g_sheet_consts as gs_consts
+import write_to_google_sheets as write_gs
+
 try:
     from typing import TypedDict
 except ImportError:
     from typing_extensions import TypedDict
-
-import gspread
-
-import g_sheet_consts as gs_consts
 
 
 class StudentType(TypedDict, total=False):
@@ -75,9 +75,7 @@ YearsType = Dict[str, str]
 
 def get_rows_with_tab_title(sheet_id: str, tab_title: str) -> Union[
     list, List[dict]]:
-    gc = gspread.service_account(filename='./credentials.json')
-
-    sheet = gc.open_by_key(sheet_id).worksheet(tab_title)
+    sheet = write_gs.get_sheet_by_id(sheet_id).worksheet(tab_title)
     all_rows = sheet.get_all_records()
     return all_rows
 
@@ -272,11 +270,12 @@ def add_in_bank_join(students: StudentsType,
     return students
 
 
-def get_students(student_info_sheet_id: str,
+def get_students(planning_sheet_worksheets: List[write_gs.Worksheet],
                  student_preferences_sheet_id: str) -> Tuple[
     AssignedType, YearsType, StudentsType]:
-    student_info = get_rows_with_tab_title(
-        student_info_sheet_id, gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE)
+    student_info = write_gs.get_worksheet_from_worksheets(
+        planning_sheet_worksheets, gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE,
+        gs_consts.MATCHING_OUTPUT_SHEET_TITLE).get_all_records()
     student_preferences_tab = get_rows_with_tab_title(
         student_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
 
@@ -296,11 +295,15 @@ def get_students(student_info_sheet_id: str,
     return assigned, years, students
 
 
-def get_courses(planning_sheet_id: str) -> CoursesType:
-    tab = get_rows_with_tab_title(
-        planning_sheet_id, gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE)
-    courses = parse_courses(tab)
-    return courses
+def get_courses(planning_sheet_id: str) -> Tuple[
+    CoursesType, List[write_gs.Worksheet]]:
+    planning_sheet = write_gs.get_sheet_by_id(planning_sheet_id)
+    planning_worksheets = planning_sheet.worksheets()
+    ws = write_gs.get_worksheet_from_worksheets(
+        planning_worksheets, gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE,
+        gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
+    courses = parse_courses(ws.get_all_records())
+    return courses, planning_worksheets
 
 
 def get_fac_prefs(instructor_preferences_sheet_id: str) -> FacultyPrefsType:
@@ -488,8 +491,7 @@ def write_courses(path: str, courses: CoursesType,
 
 
 def write_students(path: str, courses: CoursesType, assigned: AssignedType,
-                   years: YearsType,
-                   students: StudentsType):
+                   years: YearsType, students: StudentsType):
     data = [['NetID', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
              'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
     phds = [['NetID', 'Name', 'Year', 'Advisor']]
@@ -534,27 +536,38 @@ def validate_bank_join_values(students: StudentsType, years: YearsType):
             print(f"{netid} is an MSE student with a bank or a join entry")
 
 
+def get_and_write_previous(path: str, previous_matching_ws_title: str):
+    matching_sheet = write_gs.get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
+    previous_ws = write_gs.get_worksheet_from_sheet(
+        matching_sheet, previous_matching_ws_title)
+    values = previous_ws.get_all_values()
+    with open(path + '/previous.csv', 'w+') as f:
+        writer = csv.writer(f)
+        writer.writerows(values)
+
+
 def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
                instructor_prefs_sheet_id: str,
+               previous_matching_ws_title: str = None,
                output_directory_title: str = None):
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
-    courses = get_courses(planning_sheet_id)
+    courses, planning_sheet_worksheets = get_courses(planning_sheet_id)
     assigned, years, students = get_students(
-        planning_sheet_id, student_prefs_sheet_id)
+        planning_sheet_worksheets, student_prefs_sheet_id)
     validate_bank_join_values(students, years)
     path = make_path(output_directory_title)
     write_courses(path, courses, fac_prefs)
     write_students(path, courses, assigned, years, students)
     write_assigned(path, assigned)
+    if previous_matching_ws_title:
+        get_and_write_previous(path, previous_matching_ws_title)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
 
 
 def check_if_preprocessing_equal(name1: str, name2: str):
     with open(name1) as f1, open(name2) as f2:
-        reader1 = list(csv.reader(f1, delimiter=',', quotechar='"'))
-        reader2 = list(csv.reader(f2, delimiter=',', quotechar='"'))
-        reader1 = sorted(reader1)
-        reader2 = sorted(reader2)
+        reader1 = sorted(list(csv.reader(f1, delimiter=',', quotechar='"')))
+        reader2 = sorted(list(csv.reader(f2, delimiter=',', quotechar='"')))
         if len(reader1) != len(reader2):
             print(f"big lens of {name1},{name2} not equal")
             return

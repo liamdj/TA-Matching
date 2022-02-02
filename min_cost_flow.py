@@ -1,8 +1,9 @@
+import csv
+from typing import Tuple, List
+
+import numpy as np
 from ortools.graph import pywrapgraph
 from scipy import stats
-import numpy as np
-import csv
-from typing import Tuple, Dict
 
 DIGITS = 2
 
@@ -96,7 +97,7 @@ class MatchingGraph:
     def solve(self):
         return self.flow.Solve() == self.flow.OPTIMAL
 
-    def get_matching(self, fixed_matches):
+    def get_matching(self, fixed_matches) -> List[Tuple[int, int]]:
         matches = []
         for arc in range(self.flow.NumArcs()):
             si = self.flow.Tail(arc)
@@ -114,7 +115,7 @@ class MatchingGraph:
 
     def write_matching(self, filename, weights, student_data, student_scores,
                        course_data, course_scores, fixed_matches) -> Tuple[
-        float, int]:
+        float, int, List[Tuple[int, int]]]:
 
         matches = self.get_matching(fixed_matches)
         # put fixed matches at top and unassigned at bottom
@@ -194,7 +195,7 @@ class MatchingGraph:
             writer.writerows(output)
             optimal_cost = -self.flow.OptimalCost() / (10 ** DIGITS)
             unfilled_slots = self.slots - sum(slots_filled)
-            return optimal_cost, unfilled_slots
+            return optimal_cost, unfilled_slots, matches
 
     def print(self):
         for arc in range(self.flow.NumArcs()):

@@ -1,15 +1,15 @@
-from collections import defaultdict
-import csv
-import sys
-import os
 import argparse
-from typing import List, Tuple, Optional, Dict
+import csv
+import os
+import sys
+from collections import defaultdict
+from typing import List, Tuple, Optional, Dict, Union, DefaultDict
 
 import numpy as np
 import pandas as pd
-import params
 
 import min_cost_flow
+import params
 
 student_data_cols = ['Name', 'Weight', 'Year', 'Bank', 'Join', 'Previous',
                      'Advisors', 'Notes']
@@ -17,9 +17,11 @@ student_options = ['Okay', 'Good', 'Favorite']
 course_data_cols = ['Slots', 'Weight', 'Instructor']
 course_options = ['Veto', 'Favorite']
 
+ChangeDetails = List[Tuple[str, str, str, Union[str, float]]]
 
-# generator for values for courses that student indicated is qualified for
-def student_rankings(series, cols):
+
+def student_rankings(series: pd.Series, cols: pd.Index):
+    """generator for values for courses that student marked as qualified for"""
     for c in cols:
         if c in series and pd.notna(series[c]):
             yield c, student_options.index(series[c])
@@ -160,11 +162,12 @@ def check_input(student_data: pd.Series, course_data: pd.Series):
                 index))
 
 
-def matching_differences(extra_course: str, old: List[Tuple[int, int]],
-                         new: List[Tuple[int, int]], student_data: pd.DataFrame,
-                         course_data: pd.DataFrame,
+def matching_differences(extra_course: Optional[str],
+                         old: List[Tuple[int, int]], new: List[Tuple[int, int]],
+                         student_data: pd.DataFrame, course_data: pd.DataFrame,
                          student_scores: pd.DataFrame,
-                         course_scores: pd.DataFrame):
+                         course_scores: pd.DataFrame) -> Tuple[
+    ChangeDetails, ChangeDetails]:
     df_s = pd.concat(
         [pd.Series(dict(old), dtype=int), pd.Series(dict(new), dtype=int)],
         axis=1)
@@ -173,11 +176,13 @@ def matching_differences(extra_course: str, old: List[Tuple[int, int]],
         course_data, extra_course, student_data, student_diffs, student_scores)
     course_changes = parse_course_changes(
         course_data, course_diffs, course_scores)
-
+    student_changes.sort(key=lambda x: x[0])
+    course_changes.sort(key=lambda x: x[0])
     return student_changes, course_changes
 
 
-def parse_course_changes(course_data, course_diffs, course_scores):
+def parse_course_changes(course_data: pd.DataFrame, course_diffs: pd.DataFrame,
+                         course_scores: pd.DataFrame) -> ChangeDetails:
     course_changes = []
     for _, row in course_diffs.iterrows():
         students_old = str(row[0]).split(';')
@@ -196,10 +201,35 @@ def parse_course_changes(course_data, course_diffs, course_scores):
     return course_changes
 
 
-def get_matching_changes(course_data, extra_course: Optional[str], student_data,
-                         student_diffs, student_scores):
+def get_matching_changes(course_data: pd.DataFrame, extra_course: Optional[str],
+                         student_data: pd.DataFrame,
+                         student_diffs: pd.DataFrame,
+                         student_scores: pd.DataFrame) -> Tuple[
+    pd.DataFrame, ChangeDetails]:
     course_matches_old = defaultdict(list)
     course_matches_new = defaultdict(list)
+    student_changes = parse_student_changes(
+        course_data, course_matches_new, course_matches_old, student_data,
+        student_diffs, student_scores)
+    if extra_course:
+        course_matches_new[extra_course].append('extra')
+    course_matches_old = {course: ';'.join(sorted(students)) for
+                          course, students in course_matches_old.items()}
+    course_matches_new = {course: ';'.join(sorted(students)) for
+                          course, students in course_matches_new.items()}
+    df_c = pd.concat(
+        [pd.Series(course_matches_old, dtype=str),
+         pd.Series(course_matches_new, dtype=str)], axis=1).fillna('none')
+    course_diffs = df_c.iloc[:, 0].compare(df_c.iloc[:, 1])
+    return course_diffs, student_changes
+
+
+def parse_student_changes(course_data: pd.DataFrame,
+                          course_matches_new: DefaultDict,
+                          course_matches_old: DefaultDict,
+                          student_data: pd.DataFrame,
+                          student_diffs: pd.DataFrame,
+                          student_scores: pd.DataFrame) -> ChangeDetails:
     student_changes = []
     for _, row in student_diffs.iterrows():
         student = student_data.index[row.name]
@@ -218,17 +248,7 @@ def get_matching_changes(course_data, extra_course: Optional[str], student_data,
             course_new += ' ({})'.format(student_data.loc[student, course_new])
 
         student_changes.append((student, course_old, course_new, score_change))
-    if extra_course:
-        course_matches_new[extra_course].append('extra')
-    course_matches_old = {course: ';'.join(sorted(students)) for
-                          course, students in course_matches_old.items()}
-    course_matches_new = {course: ';'.join(sorted(students)) for
-                          course, students in course_matches_new.items()}
-    df_c = pd.concat(
-        [pd.Series(course_matches_old, dtype=str),
-         pd.Series(course_matches_new, dtype=str)], axis=1).fillna('none')
-    course_diffs = df_c.iloc[:, 0].compare(df_c.iloc[:, 1])
-    return course_diffs, student_changes
+    return student_changes
 
 
 def single_line(changes):
@@ -238,10 +258,12 @@ def single_line(changes):
 
 
 def test_additional_TA(path: str, student_data: pd.DataFrame,
-                       course_data: pd.DataFrame, student_scores, course_scores,
-                       weights: np.array, fixed_matches, graph):
+                       course_data: pd.DataFrame, student_scores: pd.DataFrame,
+                       course_scores: pd.DataFrame, weights: np.array,
+                       fixed_matches: pd.DataFrame,
+                       initial_matches: List[Tuple[int, int]],
+                       initial_matching_weight: float):
     data = {}
-    initial_matches = graph.get_matching(fixed_matches)
     for ci, course in enumerate(course_data.index):
         # fill one additional course slot
         fixed_edit = pd.concat(
@@ -251,7 +273,7 @@ def test_additional_TA(path: str, student_data: pd.DataFrame,
             axis=1).T
         data[course] = calculate_changes_in_new_graph(
             student_data, course_data, initial_matches, student_scores,
-            course_scores, weights, fixed_edit, graph, course)
+            course_scores, weights, fixed_edit, initial_matching_weight, course)
     write_edited_graph_changes(
         path, data, ['Course', 'Weight change', 'Student differences',
                      'Course differences'])
@@ -269,32 +291,55 @@ def write_edited_graph_changes(path: str, change_data: Dict[str, Tuple],
 
 
 def calculate_changes_in_new_graph(student_data: pd.DataFrame,
-                                   course_data: pd.DataFrame, initial_matches,
-                                   student_scores, course_scores,
-                                   weights: np.array, fixed_matches, graph,
-                                   course: str = None) -> Tuple[
+                                   course_data: pd.DataFrame,
+                                   initial_matches: List[Tuple[int, int]],
+                                   student_scores: pd.DataFrame,
+                                   course_scores: pd.DataFrame,
+                                   weights: np.array,
+                                   fixed_matches: pd.DataFrame, old_cost: float,
+                                   extra_course: str = None) -> Tuple[
     float, str, str]:
-    graph_edit = min_cost_flow.MatchingGraph(
-        weights, student_data['Weight'],
-        course_data[['Slots', 'Base weight', 'First weight']], fixed_matches)
-    if not graph_edit.solve():
+    changes = make_changes_and_calculate_differences(
+        student_data, course_data, initial_matches, student_scores,
+        course_scores, weights, fixed_matches, extra_course)
+    if not changes:
         return -100, '', ''
 
-    new_matches = graph_edit.get_matching(fixed_matches)
-    student_changes, course_changes = matching_differences(
-        course, initial_matches, new_matches, student_data, course_data,
-        student_scores, course_scores)
-    old_cost = graph.flow.OptimalCost()
-    new_cost = graph_edit.flow.OptimalCost()
+    student_changes, course_changes, new_cost = changes
     cost_delta = (old_cost - new_cost) / 10 ** min_cost_flow.DIGITS
     return cost_delta, single_line(student_changes), single_line(course_changes)
 
 
+def make_changes_and_calculate_differences(student_data: pd.DataFrame,
+                                           course_data: pd.DataFrame,
+                                           initial_matches: List[
+                                               Tuple[int, int]],
+                                           student_scores: pd.DataFrame,
+                                           course_scores: pd.DataFrame,
+                                           weights: np.array,
+                                           fixed_matches: pd.DataFrame,
+                                           extra_course: str = None) -> \
+        Optional[Tuple[ChangeDetails, ChangeDetails, float]]:
+    graph = min_cost_flow.MatchingGraph(
+        weights, student_data['Weight'],
+        course_data[['Slots', 'Base weight', 'First weight']], fixed_matches)
+
+    if not graph.solve():
+        return None
+    new_matches = graph.get_matching(fixed_matches)
+    student_changes, course_changes = matching_differences(
+        extra_course, initial_matches, new_matches, student_data, course_data,
+        student_scores, course_scores)
+    return student_changes, course_changes, graph.flow.OptimalCost()
+
+
 def test_removing_TA(path: str, student_data: pd.DataFrame,
-                     course_data: pd.DataFrame, weights, student_scores,
-                     course_scores, fixed_matches, graph):
+                     course_data: pd.DataFrame, weights: np.array,
+                     student_scores: pd.DataFrame, course_scores: pd.DataFrame,
+                     fixed_matches: pd.DataFrame,
+                     initial_matches: List[Tuple[int, int]],
+                     initial_matching_weight: float):
     data = {}
-    initial_matches = graph.get_matching(fixed_matches)
     for si, student in enumerate(student_data.index):
         bank = str(student_data.loc[student, 'Bank']).replace('nan', '')
         join = str(student_data.loc[student, 'Join']).replace('nan', '')
@@ -307,7 +352,8 @@ def test_removing_TA(path: str, student_data: pd.DataFrame,
                            'Course index'])], axis=1).T
             cost_change, s_changes, c_changes = calculate_changes_in_new_graph(
                 student_data, course_data, initial_matches, student_scores,
-                course_scores, weights, fixed_edit, graph, None)
+                course_scores, weights, fixed_edit, initial_matching_weight,
+                None)
             data[student] = cost_change, bank, join, s_changes, c_changes
 
     write_edited_graph_changes(
@@ -319,17 +365,20 @@ def test_removing_TA(path: str, student_data: pd.DataFrame,
 def test_adding_or_subtracting_a_slot(path: str, add: bool,
                                       student_data: pd.DataFrame,
                                       course_data: pd.DataFrame,
-                                      weights: np.array, student_scores,
-                                      course_scores, fixed_matches, graph):
+                                      weights: np.array,
+                                      student_scores: pd.DataFrame,
+                                      course_scores: pd.DataFrame,
+                                      fixed_matches: pd.DataFrame,
+                                      initial_matches: List[Tuple[int, int]],
+                                      initial_match_weight: float):
     """ if `add == True`, add a slot, otherwise subtract a slot """
     data = {}
-    initial_matches = graph.get_matching(fixed_matches)
     s_d = (2 * add) - 1
     for ci, course in enumerate(course_data.index):
         course_data.at[course, 'Slots'] = course_data.loc[course, 'Slots'] + s_d
         data[course] = calculate_changes_in_new_graph(
             student_data, course_data, initial_matches, student_scores,
-            course_scores, weights, fixed_matches, graph, course)
+            course_scores, weights, fixed_matches, initial_match_weight, course)
         course_data.at[course, 'Slots'] = course_data.loc[course, 'Slots'] - s_d
     write_edited_graph_changes(
         path, data, ['Course', 'Weight change', 'Student differences',
@@ -337,9 +386,12 @@ def test_adding_or_subtracting_a_slot(path: str, add: bool,
 
 
 def find_alternate_matching(path: str, student_data: pd.DataFrame,
-                            course_data: pd.DataFrame, weights, fixed_matches,
-                            initial_matches, last_matches, cumulative,
-                            student_scores, course_scores, step=0.1):
+                            course_data: pd.DataFrame, weights: np.array,
+                            fixed_matches: pd.DataFrame,
+                            initial_matches: List[Tuple[int, int]],
+                            last_matches: List[Tuple[int, int]],
+                            cumulative: float, student_scores: pd.DataFrame,
+                            course_scores: pd.DataFrame, step=0.1):
     while True:
         for si, ci in initial_matches:
             if ci >= 0:
@@ -351,24 +403,29 @@ def find_alternate_matching(path: str, student_data: pd.DataFrame,
             fixed_matches)
         if graph_edit.solve():
             new_matches = graph_edit.get_matching(fixed_matches)
+            new_cost = graph_edit.flow.OptimalCost()
             student_changes, course_changes = matching_differences(
                 None, last_matches, new_matches, student_data, course_data,
                 student_scores, course_scores)
             if len(student_changes) > 0 or len(course_changes) > 0:
                 new_weight = write_alternate_match(
-                    path, graph_edit, student_data, course_data,
+                    path, new_cost, student_data, course_data,
                     initial_matches, new_matches, cumulative, student_scores,
                     course_scores)
                 return new_matches, cumulative, new_weight
 
 
-def write_alternate_match(path: str, graph_edit, student_data, course_data,
-                          initial_matches, new_matches, cumulative,
-                          student_scores, course_scores) -> float:
+def write_alternate_match(path: str, new_cost: float,
+                          student_data: pd.DataFrame,
+                          course_data: pd.DataFrame,
+                          initial_matches: List[Tuple[int, int]],
+                          new_matches: List[Tuple[int, int]], cumulative,
+                          student_scores: pd.DataFrame,
+                          course_scores: pd.DataFrame) -> float:
     student_changes, course_changes = matching_differences(
         None, initial_matches, new_matches, student_data, course_data,
         student_scores, course_scores)
-    new_weight = -graph_edit.flow.OptimalCost() / 100 + (
+    new_weight = new_cost / 100 + (
             len(new_matches) - len(student_changes)) * cumulative
     print(f'Solved alternate flow with total weight {new_weight:.2f}')
     with open(path, 'w', newline='') as file:
@@ -383,7 +440,7 @@ def write_alternate_match(path: str, graph_edit, student_data, course_data,
     return new_weight
 
 
-def write_params(output_path):
+def write_params(output_path: str):
     with open(output_path + 'params.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['Name', 'Weight'])
@@ -394,8 +451,9 @@ def write_params(output_path):
 
 def run_matching(path="", student_data="inputs/student_data.csv",
                  course_data="inputs/course_data.csv", fixed="inputs/fixed.csv",
-                 adjusted="inputs/adjusted.csv", output="outputs/",
-                 alternates=2) -> Tuple[float, int, List[float]]:
+                 adjusted="inputs/adjusted.csv", previous="inputs/previous.csv",
+                 output="outputs/", alternates=2) -> Tuple[
+    float, int, List[float]]:
     path = validate_path_args(path, output)
     student_data, course_data = read_student_and_course_data(
         path, student_data, course_data)
@@ -409,51 +467,147 @@ def run_matching(path="", student_data="inputs/student_data.csv",
     make_manual_adjustments(
         course_scores, path + adjusted, student_scores, weights)
 
+    previous_matches = make_adjustments_from_previous(
+        course_scores, path + previous, student_scores, weights)
+
     fixed_matches = get_fixed_matches(
-        course_scores, fixed, path, student_scores)
+        course_scores, path + fixed, student_scores)
 
     graph = min_cost_flow.MatchingGraph(
         weights, student_data['Weight'],
         course_data[['Slots', 'Base weight', 'First weight']], fixed_matches)
 
-    matching_weight = 0
-    slots_unfilled = float('inf')
-    if graph.solve():
-        matching_weight, slots_unfilled = graph.write_matching(
-            path + output + 'matchings.csv', weights, student_data,
-            student_scores, course_data, course_scores,
-            fixed_matches[['Student index', 'Course index']])
-        print(f'Solved optimal flow with total weight {matching_weight:.2f}')
-
-        write_params(path + output)
-
-    else:
+    if not graph.solve():
         print('Problem optimizing flow')
         graph.print()
+        return -1.0, course_data['Slots'].sum(), []
 
-    test_additional_TA(
-        path + output + 'additional_TA.csv', student_data, course_data,
-        student_scores, course_scores, weights, fixed_matches, graph)
-    test_removing_TA(
-        path + output + 'remove_TA.csv', student_data, course_data, weights,
-        student_scores, course_scores, fixed_matches, graph)
-    test_adding_or_subtracting_a_slot(
-        path + output + 'add_slot.csv', True, student_data, course_data, weights,
-        student_scores, course_scores, fixed_matches, graph)
-    test_adding_or_subtracting_a_slot(
-        path + output + 'remove_slot.csv', False, student_data, course_data, weights,
-        student_scores, course_scores, fixed_matches, graph)
+    matching_weight, slots_unfilled, initial_matches = graph.write_matching(
+        path + output + 'matchings.csv', weights, student_data, student_scores,
+        course_data, course_scores,
+        fixed_matches[['Student index', 'Course index']])
+    print(f'Solved optimal flow with total weight {matching_weight:.2f}')
 
-    alt_weights = run_alternate_matchings(
-        alternates, course_data, course_scores, fixed_matches, graph, output,
-        path, student_data, student_scores, weights)
+    write_params(path + output)
+
+    alt_weights = run_additional_features(
+        path + output, student_data, course_data, weights, student_scores,
+        course_scores, fixed_matches, initial_matches, matching_weight,
+        alternates, previous_matches)
 
     return matching_weight, slots_unfilled, alt_weights
 
 
-def make_manual_adjustments(course_scores, path_adjusted: str, student_scores,
-                            weights: np.array):
-    if not os.path.isfile(path_adjusted): return
+def run_additional_features(output_path: str, student_data: pd.DataFrame,
+                            course_data: pd.DataFrame, weights: np.array,
+                            student_scores: pd.DataFrame,
+                            course_scores: pd.DataFrame,
+                            fixed_matches: pd.DataFrame,
+                            initial_matches: List[Tuple[int, int]],
+                            matching_weight: float, alternates: int,
+                            previous_matches: pd.DataFrame) -> List[float]:
+    test_additional_TA(
+        output_path + 'additional_TA.csv', student_data, course_data,
+        student_scores, course_scores, weights, fixed_matches, initial_matches,
+        matching_weight)
+    test_removing_TA(
+        output_path + 'remove_TA.csv', student_data, course_data, weights,
+        student_scores, course_scores, fixed_matches, initial_matches,
+        matching_weight)
+    test_adding_or_subtracting_a_slot(
+        output_path + 'add_slot.csv', True, student_data, course_data,
+        weights, student_scores, course_scores, fixed_matches, initial_matches,
+        matching_weight)
+    test_adding_or_subtracting_a_slot(
+        output_path + 'remove_slot.csv', False, student_data, course_data,
+        weights, student_scores, course_scores, fixed_matches, initial_matches,
+        matching_weight)
+    alt_weights = run_alternate_matchings(
+        alternates, course_data, course_scores, fixed_matches, initial_matches,
+        output_path,
+        student_data, student_scores, weights)
+    test_changes_from_previous(
+        output_path, previous_matches, student_data, course_data, weights,
+        student_scores, course_scores, fixed_matches)
+    return alt_weights
+
+
+def test_changes_from_previous(output_path: str, previous_matches: pd.DataFrame,
+                               student_data: pd.DataFrame,
+                               course_data: pd.DataFrame, weights: np.array,
+                               student_scores: pd.DataFrame,
+                               course_scores: pd.DataFrame,
+                               fixed_matches: pd.DataFrame,
+                               max_changes=6):
+    def get_student_and_course_indices(student: pd.Series) -> Tuple[int, int]:
+        netid = student["NetID"]
+        course = student["Course"]
+        si, ci = -1, -1
+        if netid in student_scores.index:
+            si = student_scores.index.get_loc(netid)
+        if course in course_scores.index:
+            ci = course_scores.index.get_loc(course)
+        return si, ci
+
+    def repopulate_weights(value: float):
+        for _, entry in previous_matches.iterrows():
+            si, ci = get_student_and_course_indices(entry)
+            if si != -1 and ci != -1:
+                weights[si, ci] += value
+
+    def binary_search(desired_matches: int,
+                      initial_matches: List[Tuple[int, int]]) -> Optional[Tuple[
+        int, ChangeDetails, ChangeDetails]]:
+        lo = 0.0
+        hi = 50.01
+        prev_desired = None
+        while hi > lo + 0.01:
+            mid = lo + (hi - lo) / 2
+            repopulate_weights(mid)
+            changes = make_changes_and_calculate_differences(
+                student_data, course_data, initial_matches, student_scores,
+                course_scores, weights, fixed_matches)
+            repopulate_weights(-mid)
+            if not changes or len(changes[0]) > desired_matches:
+                lo = mid
+            else:
+                hi = mid
+                if len(changes[0]) == desired_matches:
+                    prev_desired = (mid, *changes)
+        return None if not prev_desired else prev_desired[:3]
+
+    previous_indices = []
+    for _, match in previous_matches.iterrows():
+        si, ci = get_student_and_course_indices(match)
+        if si != -1:
+            previous_indices.append((si, ci))
+
+    found_changes = []
+    for i in range(2, max_changes + 1):
+        change = binary_search(i, previous_indices)
+        if change:
+            weight_added_per_prev_match, student_diffs, course_diffs = change
+            if len(student_diffs) == i:
+                found_changes.append(
+                    (i, weight_added_per_prev_match, single_line(student_diffs),
+                     single_line(course_diffs)))
+            else:
+                print(f"Problem in trying to get exactly {i} student changes")
+        else:
+            found_changes.append((i, 'Impossible', '', ''))
+
+    with open(output_path + 'weighted_changes.csv', 'w+') as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            ['Desired Changes', 'Weight Added to Previous Match',
+             'Student Changes', 'Course Changes'])
+        writer.writerows(found_changes)
+
+
+def make_manual_adjustments(course_scores: pd.DataFrame, path_adjusted: str,
+                            student_scores: pd.DataFrame, weights: np.array):
+    if not os.path.isfile(path_adjusted):
+        return
     adjusted_matches = pd.read_csv(
         path_adjusted, dtype={'NetID': str, 'Course': str, 'Weight': float})
     for _, row in adjusted_matches.iterrows():
@@ -478,9 +632,10 @@ def read_student_and_course_data(path: str, student_data: str,
     return student_data, course_data
 
 
-def get_fixed_matches(course_scores, fixed: str, path: str, student_scores):
-    if os.path.isfile(path + fixed):
-        fixed_matches = pd.read_csv(path + fixed, dtype=str)
+def get_fixed_matches(course_scores: pd.DataFrame, path: str,
+                      student_scores: pd.DataFrame) -> pd.DataFrame:
+    if os.path.isfile(path):
+        fixed_matches = pd.read_csv(path, dtype=str)
         fixed_matches['Student index'] = [student_scores.index.get_loc(student)
                                           for student in fixed_matches['NetID']]
         fixed_matches['Course index'] = [course_scores.index.get_loc(course) for
@@ -491,23 +646,43 @@ def get_fixed_matches(course_scores, fixed: str, path: str, student_scores):
     return fixed_matches
 
 
-def run_alternate_matchings(alternates, course_data, course_scores,
-                            fixed_matches, graph, output, path, student_data,
-                            student_scores, weights):
-    best_matches = graph.get_matching(fixed_matches)
+def make_adjustments_from_previous(course_scores: pd.DataFrame,
+                                   path_to_previous: str,
+                                   student_scores: pd.DataFrame,
+                                   weights: np.array) -> pd.DataFrame:
+    if not os.path.isfile(path_to_previous):
+        return pd.DataFrame(columns=['NetID', 'Course'])
+    previous_matches = pd.read_csv(
+        path_to_previous, dtype={'NetID': str, 'Course': str})
+    for _, row in previous_matches.iterrows():
+        if row['NetID'] not in student_scores.index or row[
+            'Course'] not in course_scores.index:
+            continue
+        si = student_scores.index.get_loc(row['NetID'])
+        ci = course_scores.index.get_loc(row['Course'])
+        weights[si, ci] += params.PREVIOUS_MATCHING
+    return previous_matches
+
+
+def run_alternate_matchings(alternates, course_data: pd.DataFrame,
+                            course_scores: pd.DataFrame,
+                            fixed_matches: pd.DataFrame,
+                            best_matches: List[Tuple[int, int]],
+                            path: str, student_data: pd.DataFrame,
+                            student_scores: pd.DataFrame, weights: np.array):
     last_matches = best_matches
-    cumulative = 0
+    cumulative = 0.0
     alt_weights = []
     for i in range(alternates):
         last_matches, cumulative, alt_weight = find_alternate_matching(
-            path + output + 'alternate{}.csv'.format(i + 1), student_data,
-            course_data, weights, fixed_matches, best_matches, last_matches,
-            cumulative, student_scores, course_scores)
+            f'{path}alternate{i + 1}.csv', student_data, course_data,
+            weights, fixed_matches, best_matches, last_matches, cumulative,
+            student_scores, course_scores)
         alt_weights.append(alt_weight)
     return alt_weights
 
 
-def validate_path_args(path, output):
+def validate_path_args(path: str, output: str) -> str:
     # ensure trailing slash on path directory
     if path[-1] != '/':
         path += '/'
@@ -535,6 +710,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--adjusted', metavar='ADJUSTED INPUT', default='inputs/adjusted.csv',
         help='csv file with adjustment weights for student-course matchings')
+    parser.add_argument(
+        '--previous', metavar='PREVIOUS MATCHING',
+        default='inputs/previous.csv',
+        help='csv file with previous matching algorithm execution output')
     parser.add_argument(
         '--output', metavar='MATCHING OUTPUT', default='outputs/',
         help='location to write matching output')

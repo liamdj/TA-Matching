@@ -26,3 +26,5 @@ BANK_MULTIPLIER = -10.0
 MSE_BOOST = 20.0
 # weight added to (student, course) pairs for all courses in a student's OK list
 OKAY_COURSE_PENALTY = -5.0
+# weight added to (student, course) pairs that were in the specified previous matching execution
+PREVIOUS_MATCHING = 0.05
