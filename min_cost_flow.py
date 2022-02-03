@@ -2,6 +2,7 @@ import csv
 from typing import Tuple, List
 
 import numpy as np
+import pandas as pd
 from ortools.graph import pywrapgraph
 from scipy import stats
 
@@ -113,8 +114,9 @@ class MatchingGraph:
                     matches.append((self.flow.Head(arc), -1))
         return matches
 
-    def write_matching(self, filename, weights, student_data, student_scores,
-                       course_data, course_scores, fixed_matches) -> Tuple[
+    def write_matching(self, filename: str, weights: np.array,
+                       student_data: pd.DataFrame, course_data: pd.DataFrame,
+                       fixed_matches: pd.DataFrame) -> Tuple[
         float, int, List[Tuple[int, int]]]:
 
         matches = self.get_matching(fixed_matches)
@@ -139,13 +141,12 @@ class MatchingGraph:
                 ["NetID", "Name", "Notes", "Course", "Slots Filled",
                  "Total Match Weight", "Fixed", "Year", "Bank", "Join",
                  "Previous", "Advisor-Advisee", "Negative Student Weight",
-                 "Student Rank", "Student Rank Score",
-                 "Matches Score (Student)", "Professor Rank",
-                 "Professor Rank Score", "Match Score (Course)"])
+                 "Student Rank", "Matches Score (Student)", "Professor Rank",
+                 "Match Score (Course)"])
 
             output = []
             for i, (si, ci) in enumerate(matches):
-                student = student_scores.index[si]
+                student = student_data.index[si]
                 name = student_data.loc[student, "Name"]
                 year = student_data.loc[student, "Year"]
                 bank = student_data.loc[student, "Bank"]
@@ -160,13 +161,11 @@ class MatchingGraph:
                 notes = student_data.loc[student, "Notes"]
 
                 if ci >= 0:
-                    course = course_scores.index[ci]
+                    course = course_data.index[ci]
                     slots = course_data.loc[course, "Slots"]
                     s_rank = student_data.loc[student, course]
-                    s_rank_score = student_scores.loc[student, course]
                     s_match_score = student_perspective[si, ci]
                     c_rank = course_data.loc[course, student]
-                    c_rank_score = course_scores.loc[course, student]
                     c_match_score = course_perspective[si, ci]
                     is_previous = course in student_data.loc[
                         student, "Previous"].split(';')
@@ -181,16 +180,14 @@ class MatchingGraph:
                          "{:.2f}".format(weights[si, ci]), is_fixed, year, bank,
                          join, is_previous, is_advisor_advisee,
                          is_negative_student_weight, s_rank,
-                         "{:.2f}".format(s_rank_score),
                          "{:.2f}".format(s_match_score), c_rank,
-                         "{:.2f}".format(c_rank_score),
                          "{:.2f}".format(c_match_score)])
 
                 else:
                     output.append(
                         [student, name, notes, "unassigned", "", "", is_fixed,
                          year, bank, join, is_previous, is_advisor_advisee,
-                         is_negative_student_weight, "", "", "", "", "", ""])
+                         is_negative_student_weight, "", "", "", ""])
             output = sorted(output, key=lambda x: x[3])
             writer.writerows(output)
             optimal_cost = -self.flow.OptimalCost() / (10 ** DIGITS)

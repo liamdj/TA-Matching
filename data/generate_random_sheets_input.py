@@ -1,9 +1,11 @@
+import copy
 import datetime
 import random
 import string
-import copy
-import write_to_google_sheets as write_gs
+from typing import List, Tuple
+
 import g_sheet_consts as gs_const
+import write_to_google_sheets as write_gs
 
 COURSES = ['COS 126', 'COS 217', 'COS 226', 'COS 240', 'COS 302', 'COS 316',
            'COS 320', 'COS 324', 'COS 333', 'COS 418', 'COS 426', 'COS 432',
@@ -209,7 +211,8 @@ def generate_student_preferences(student_info_sheet, advisors_matrix):
     return matrix
 
 
-def generate_fac_preferences(student_preferences, advisors_matrix):
+def generate_fac_preferences(student_preferences, advisors_matrix) -> List[
+    List[str]]:
     def __gen_matches_list(possible_students, is_best=True):
         if is_best:
             n = min(
@@ -283,15 +286,17 @@ def generate_courses_matrix(faculty_matrix):
     return titles + matrix
 
 
-def gen_full_input_sheets(student_entries=5, faculty_entries=50):
-    faculty_sheet = generate_faculty_sheet(faculty_entries)
-    courses_sheet = generate_courses_matrix(faculty_sheet)
+def gen_full_input_matrices(student_entries=5, faculty_entries=50) -> Tuple[
+    List[List[str]], List[List[str]], List[List[str]], List[List[str]], List[
+        List[str]]]:
+    faculty = generate_faculty_sheet(faculty_entries)
+    courses = generate_courses_matrix(faculty)
     student_matrix = generate_universal_student_matrix(
-        student_entries, faculty_sheet)
-    student_info_sheet = generate_student_info_sheet_from_matrix(student_matrix)
+        student_entries, faculty)
+    student_info = generate_student_info_sheet_from_matrix(student_matrix)
     student_prefs, fac_prefs = gen_preferences_from_student_info_and_advisors(
-        student_info_sheet, faculty_sheet)
-    return student_info_sheet, faculty_sheet, courses_sheet, student_prefs, fac_prefs
+        student_info, faculty)
+    return student_info, faculty, courses, student_prefs, fac_prefs
 
 
 def gen_preferences_from_student_info_and_advisors(student_info, advisors):
@@ -300,28 +305,30 @@ def gen_preferences_from_student_info_and_advisors(student_info, advisors):
     return student_preferences, fac_preferences
 
 
-def generate_and_write_all_input_sheets(student_entries=5, faculty_entries=50):
-    student_info_sheet, faculty_sheet, courses_sheet, student_prefs, fac_prefs = gen_full_input_sheets(
+def generate_and_write_all_input_sheets(student_entries=5,
+                                        faculty_entries=50) -> Tuple[
+    str, str, str]:
+    student_info, faculty, courses, student_prefs, fac_prefs = gen_full_input_matrices(
         student_entries, faculty_entries)
     student_info_sheet_name = "TA Matching 22: TA Planning (Generated Randomly)"
-    planning = write_gs.write_matrix_to_sheet(
-        student_info_sheet, student_info_sheet_name, "Students")
-    write_gs.write_matrix_to_new_tab(
-        faculty_sheet, student_info_sheet_name, "Faculty")
-    write_gs.write_matrix_to_new_tab(
-        courses_sheet, student_info_sheet_name, "Courses")
-    s_pref, i_pref = write_student_and_fac_preferences(student_prefs, fac_prefs)
-    return planning, s_pref, i_pref
+    planning_sheet = write_gs.write_matrix_to_sheet(
+        student_info, student_info_sheet_name, "Students")
+    write_gs.write_matrix_to_new_tab(faculty, planning_sheet, "Faculty")
+    write_gs.write_matrix_to_new_tab(courses, planning_sheet, "Courses")
+    s_pref_sheet_id, i_pref_sheet_id = write_student_and_fac_preferences(
+        student_prefs, fac_prefs)
+    return planning_sheet.id, s_pref_sheet_id, i_pref_sheet_id
 
 
-def write_student_and_fac_preferences(student_preferences, fac_preferences):
-    student_prefs_sheet_id = write_gs.write_matrix_to_sheet(
+def write_student_and_fac_preferences(student_preferences, fac_preferences) -> \
+        Tuple[str, str]:
+    student_prefs_sheet = write_gs.write_matrix_to_sheet(
         student_preferences, gs_const.GENERATED_TA_PREFS_SHEET_TITLE,
         gs_const.PREFERENCES_INPUT_TAB_TITLE)
-    fac_prefs_sheet_id = write_gs.write_matrix_to_sheet(
+    fac_prefs_sheet = write_gs.write_matrix_to_sheet(
         fac_preferences, gs_const.GENERATED_INSTRUCTORS_PREFS_SHEET_TITLE,
         gs_const.PREFERENCES_INPUT_TAB_TITLE, wrap=True)
-    return student_prefs_sheet_id, fac_prefs_sheet_id
+    return student_prefs_sheet.id, fac_prefs_sheet.id
 
 
 def generate_and_write_preferences_from_student_info_and_advisors(

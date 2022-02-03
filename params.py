@@ -1,13 +1,13 @@
 # weight added to favorite-favorite matches
-FAVORITE = 1
+FAVORITE_FAVORITE = 8
 # weight added to matches where student has previously TAed course
 PREVIOUS = 2
 # weight added to matches where professor is the student's advisor
 ADVISORS = 2
-# weight per standard deviation in student's preferences
-STUDENT_PREF = 1
-# weight per standard deviation in professor's preferences
-PROF_PREF = 5.0
+# weight added to good (student) - favorite (instructor) matches
+STUDENT_GOOD_INSTRUCTOR_FAVORITE = 7
+# weight added to favorite (student) - neutral (instructor) matches
+STUDENT_FAVORITE_INSTRUCTOR_NEUTRAL = 2
 # weight to fill first course slot
 DEFAULT_FIRST_FILL = 20
 # weight to fill any course slot
@@ -25,6 +25,6 @@ BANK_MULTIPLIER = -10.0
 # value by which to increase all MSE students
 MSE_BOOST = 20.0
 # weight added to (student, course) pairs for all courses in a student's OK list
-OKAY_COURSE_PENALTY = -5.0
+OKAY_COURSE_PENALTY = -6.0
 # weight added to (student, course) pairs that were in the specified previous matching execution
-PREVIOUS_MATCHING = 0.05
+PREVIOUS_MATCHING_BOOST = 0.05
