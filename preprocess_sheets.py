@@ -319,7 +319,7 @@ def write_csv(file_name: str, data: List[list]):
         writer.writerows(data)
 
 
-def format_pref_list(pref: str) -> str:
+def format_pref_list(pref: str) -> List[str]:
     netids = []
     # if they include parens. .*? means shortest match.
     pref = re.sub(r'\(.*?\)', '', pref)
@@ -329,11 +329,11 @@ def format_pref_list(pref: str) -> str:
         part = re.sub(r'@.*', '', part)  # netid ends at @ sign
         if part:
             netids.append(part)
-    netids = ';'.join(netids)
     return netids
 
 
-def format_course(course: CourseValue, prefs) -> Optional[List[str]]:
+def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
+    List[str]]:
     # cols = ['Course','TAs','Weight','Instructor','Title','Notes']
     num = str(course['Course'])
     slots = course['TAs']
@@ -352,10 +352,8 @@ def format_course(course: CourseValue, prefs) -> Optional[List[str]]:
 
     if course_code in prefs:
         pref = prefs[course_code]
-        fav = pref['Favorite']
-        veto = pref['Veto']
-        fav = format_pref_list(fav)
-        veto = format_pref_list(veto)
+        fav = ';'.join(format_pref_list(pref['Favorite']))
+        veto = ';'.join(format_pref_list(pref['Veto']))
     else:
         fav = ''
         veto = ''
@@ -426,7 +424,6 @@ def format_course_list(courses: str) -> str:
 
 def format_student(student: StudentType, courses: CoursesType,
                    years: YearsType) -> List[str]:
-    # ['NetID','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
     netid = student['NetID']
     full_name = student['Name']
     year = years[netid]
@@ -445,7 +442,6 @@ def format_student(student: StudentType, courses: CoursesType,
 
 
 def format_phd(student: StudentType, years: YearsType) -> List[str]:
-    # phds = 'NetID,Name,Year,Advisor\n'
     netid = student['NetID']
     full_name = student['Name']
     advisor = student['Advisor'].replace(',', ';')
@@ -458,19 +454,18 @@ def format_phd(student: StudentType, years: YearsType) -> List[str]:
 
 
 def format_assigned(netid: str, full_name: str, year: str, advisor: str,
-                    course: str, notes: str):
-    # ['NetID','Name','Year','Bank','Join','Weight','Previous','Advisor','Favorite','Good','OK','Notes']
+                    course: str, notes: str) -> List[str]:
     return [netid, full_name, year, "", "", "", "", advisor, course, "", "",
             notes]
 
 
-def get_date():
+def get_date() -> str:
     now = datetime.datetime.now()
     date = now.strftime("%Y-%m-%d.%H.%M.%S")
     return date
 
 
-def make_path(dir_title: str = None):
+def make_path(dir_title: str = None) -> str:
     if not dir_title:
         dir_title = get_date()
     path = f'data/{dir_title}/inputs'
@@ -549,7 +544,7 @@ def get_and_write_previous(path: str, previous_matching_ws_title: str):
 def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
                instructor_prefs_sheet_id: str,
                previous_matching_ws_title: str = None,
-               output_directory_title: str = None):
+               output_directory_title: str = None) -> Tuple[str, str, str]:
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses, planning_sheet_worksheets = get_courses(planning_sheet_id)
     assigned, years, students = get_students(

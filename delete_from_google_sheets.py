@@ -32,10 +32,14 @@ def remove_worksheets_from_sheets(matching_sheet, tab_nums: List[str]):
         get_sheet(gs_consts.REMOVE_SLOT_OUTPUT_SHEET_TITLE), tab_nums)
     remove_worksheets_exact_title(
         get_sheet(gs_consts.ADD_SLOT_OUTPUT_SHEET_TITLE), tab_nums)
+    remove_worksheets_exact_title(
+        get_sheet(gs_consts.COURSE_INTERVIEW_SHEET_TITLE), tab_nums)
+
     alternates_to_delete = []
     for tab_num in tab_nums:
         for j in range(26):
             alternates_to_delete.append(f"{tab_num}{chr(ord('A') + j)}")
+
     remove_worksheets_exact_title(
         get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE),
         alternates_to_delete)
@@ -64,7 +68,7 @@ def remove_worksheets_from_sheets(matching_sheet, tab_nums: List[str]):
 
 
 def remove_worksheets_exact_title(sheet, titles_to_remove: List[str]):
-    worksheets = {ws.title: ws for ws in (sheet.worksheets())}
+    worksheets = {ws.title: ws for ws in sheet.worksheets()}
     for title in titles_to_remove:
         if title in worksheets:
             sheet.del_worksheet(worksheets[title])

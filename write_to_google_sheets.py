@@ -13,8 +13,8 @@ InputCopyIDs = Tuple[
 OutputIDs = Tuple[
     Tuple[str, str], Optional[Tuple[str, str, str]], Optional[Tuple[str, str]],
     Optional[Tuple[str, str]], Optional[Tuple[str, str]], Optional[
-        Tuple[str, str]], Optional[
-        Tuple[str, str]], Optional[Tuple[str, List[str]]]]
+        Tuple[str, str]], Optional[Tuple[str, str]], Optional[Tuple[str, str]],
+    Optional[Tuple[str, List[str]]]]
 
 
 def get_worksheet_from_sheet(sheet: Spreadsheet, worksheet_title: str):
@@ -150,6 +150,7 @@ def write_execution_to_ToC(toc_ws: Worksheet, executor: str, executed_num: str,
                            matching_weight: float, slots_unfilled: int,
                            include_remove_and_add_ta=True,
                            include_remove_and_add_slot=True,
+                           include_interviews=True,
                            alternate_matching_weights=[],
                            input_num_executed: str = None,
                            matching_diff_ws_title: str = None,
@@ -176,8 +177,8 @@ def write_execution_to_ToC(toc_ws: Worksheet, executor: str, executed_num: str,
     links_to_output, links_to_alternate_output = build_links_to_output(
         executed_num, matching_weight, slots_unfilled,
         include_remove_and_add_ta, include_remove_and_add_slot,
-        alternate_matching_weights, *output_ids, matching_diff_ws_title,
-        include_matching_diff)
+        include_interviews, alternate_matching_weights, *output_ids,
+        matching_diff_ws_title, include_matching_diff)
 
     if input_copy_ids is None:
         input_copy_ids = initialize_input_copy_ids_tuples(input_num_executed)
@@ -269,6 +270,10 @@ def initialize_output_ids(num_executed: str,
     remove_slot_ws = get_worksheet_from_sheet(remove_slot_sheet, num_executed)
     remove_slot_ids = (remove_slot_sheet.id, remove_slot_ws.id)
 
+    interviews_sheet = get_sheet(gs_consts.COURSE_INTERVIEW_SHEET_TITLE)
+    interviews_ws = get_worksheet_from_sheet(interviews_sheet, num_executed)
+    interviews_ids = (interviews_sheet.id, interviews_ws.id)
+
     alternates_ids = None
     if alternates > 0:
         alternates_sheet = get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE)
@@ -278,7 +283,7 @@ def initialize_output_ids(num_executed: str,
                 get_worksheet_from_sheet(
                     alternates_sheet, num_executed + chr(ord('A') + i)).id)
         alternates_ids = (alternates_sheet.id, alternates_worksheets_ids)
-    return matchings_ids, matching_diffs_ids, weighted_changes_ids, additional_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, alternates_ids
+    return matchings_ids, matching_diffs_ids, weighted_changes_ids, additional_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, interviews_ids, alternates_ids
 
 
 def build_links_to_input(input_executed_num: str, params_executed_num: str,
@@ -306,6 +311,7 @@ def build_links_to_input(input_executed_num: str, params_executed_num: str,
 def build_links_to_output(executed_num: str, matching_weight: float,
                           slots_unfilled: int, include_remove_and_add_ta: bool,
                           include_remove_and_add_slot: bool,
+                          include_interviews: bool,
                           alternate_matching_weights: List[float],
                           matchings_ids: Tuple[str, str],
                           matching_diffs_ids: Optional[Tuple[str, str, str]],
@@ -314,6 +320,7 @@ def build_links_to_output(executed_num: str, matching_weight: float,
                           remove_ta_ids: Tuple[str, str],
                           add_slot_ids: Tuple[str, str],
                           remove_slot_ids: Tuple[str, str],
+                          interview_ids: Tuple[str, str],
                           alternates_ids: Tuple[str, List[str]] = None,
                           matching_diff_ws_title: str = None,
                           include_matching_diff=False) -> Tuple[
@@ -351,10 +358,13 @@ def build_links_to_output(executed_num: str, matching_weight: float,
         add_slot_links = _build_hyperlink(*add_slot_ids)
         remove_slot_links = _build_hyperlink(*remove_slot_ids)
 
+    interview_links = "" if not include_interviews else _build_hyperlink(
+        *interview_ids)
+
     links_to_output = [
         _build_hyperlink(*matchings_ids, text_suffix=matching_suffix),
         *matching_diffs_hyperlinks, weighted_changes_link, add_ta_links,
-        remove_ta_links, add_slot_links, remove_slot_links]
+        remove_ta_links, add_slot_links, remove_slot_links, interview_links]
     links_to_alternate_output = []
     for i in range(len(alternate_matching_weights)):
         suffix = f'{chr(ord("A") + i)} ({alternate_matching_weights[i]:.2f})'
@@ -387,7 +397,7 @@ def create_row_data_from_matrix(matrix: List[List], bold=False,
         if row == 0 or bold:
             formatting = {"textFormat": {"bold": True}}
         if center_align or (
-                center_align_details and center_align_details[0] <= col <= \
+                center_align_details and center_align_details[0] <= col <=
                 center_align_details[1]):
             formatting["horizontalAlignment"] = "CENTER"
         if wrap:
@@ -418,8 +428,8 @@ def write_matrix_to_new_tab(matrix: List[List], sheet: Spreadsheet,
     worksheet_id = abs(hash(worksheet_title)) % (10 ** 8)
     body = {"requests": [{"addSheet": {
         "properties": {"sheetId": worksheet_id, "title": worksheet_title,
-                       "index": tab_index}}}, {
-        "updateCells": {"rows": create_row_data_from_matrix(
+                       "index": tab_index}}},
+        {"updateCells": {"rows": create_row_data_from_matrix(
             matrix, False, center_align, wrap, center_align_details),
             "fields": "*", "start": {"sheetId": worksheet_id, "rowIndex": 0,
                                      "columnIndex": 0}}}, {
@@ -502,9 +512,15 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
 
     add_slot_ids, remove_slot_ids = write_add_remove_csvs(
         include_remove_and_add_slot, num_executed, outputs_dir_path,
-        'add_slot.csv',
-        'remove_slot.csv', gs_consts.ADD_SLOT_OUTPUT_SHEET_TITLE,
+        'add_slot.csv', 'remove_slot.csv',
+        gs_consts.ADD_SLOT_OUTPUT_SHEET_TITLE,
         gs_consts.REMOVE_SLOT_OUTPUT_SHEET_TITLE)
+
+    interview_sheet = get_sheet(gs_consts.COURSE_INTERVIEW_SHEET_TITLE)
+    interview_ws = write_csv_to_new_tab_from_sheet(
+        f'{outputs_dir_path}/interview_simulations.csv', interview_sheet,
+        num_executed, center_align_details=(3, 3))
+    interview_ids = (interview_sheet.id, interview_ws.id)
 
     if alternates > 0:
         alternates_sheet = get_sheet(gs_consts.ALTERNATES_OUTPUT_SHEET_TITLE)
@@ -513,10 +529,9 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
             alternates_worksheets_ids.append(
                 write_csv_to_new_tab_from_sheet(
                     f'{outputs_dir_path}/alternate{i + 1}.csv',
-                    alternates_sheet,
-                    num_executed + chr(ord('A') + i), i).id)
+                    alternates_sheet, num_executed + chr(ord('A') + i), i).id)
         alternates_ids = (alternates_sheet.id, alternates_worksheets_ids)
-    return matchings_ids, matching_diffs_ids, weighted_changes_ids, add_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, alternates_ids
+    return matchings_ids, matching_diffs_ids, weighted_changes_ids, add_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, interview_ids, alternates_ids
 
 
 def write_add_remove_csvs(include_remove_and_add: bool, num_executed: str,

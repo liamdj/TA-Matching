@@ -27,7 +27,7 @@ def fill_value(index: int, base: float, first: float) -> int:
 
 class MatchingGraph:
 
-    def __init__(self, match_weights: np.array, student_weights, course_info,
+    def __init__(self, match_weights: np.ndarray, student_weights, course_info,
                  fixed_matches):
         add_to_slots_from_fixed_matches(course_info, fixed_matches)
 
@@ -98,8 +98,10 @@ class MatchingGraph:
     def solve(self):
         return self.flow.Solve() == self.flow.OPTIMAL
 
-    def get_matching(self, fixed_matches) -> List[Tuple[int, int]]:
+    def get_matching(self, fixed_matches: pd.DataFrame, weights: np.ndarray) -> \
+            List[Tuple[int, int]]:
         matches = []
+        fixed_matches = fixed_matches[['Student index', 'Course index']]
         for arc in range(self.flow.NumArcs()):
             si = self.flow.Tail(arc)
             ci = self.flow.Head(arc) - self.num_students
@@ -112,19 +114,20 @@ class MatchingGraph:
                     fixed_matches['Student index'] == self.flow.Head(arc)]
                 if len(rows.index) == 0 or rows.iloc[0]['Course index'] == -1:
                     matches.append((self.flow.Head(arc), -1))
-        return matches
 
-    def write_matching(self, filename: str, weights: np.array,
-                       student_data: pd.DataFrame, course_data: pd.DataFrame,
-                       fixed_matches: pd.DataFrame) -> Tuple[
-        float, int, List[Tuple[int, int]]]:
-
-        matches = self.get_matching(fixed_matches)
         # put fixed matches at top and unassigned at bottom
         matches.sort(
             key=lambda tup: 100 if tup[1] == -1 else (
                 -100 if (fixed_matches == tup).all(1).any() else -weights[
                     tup[0], tup[1]]))
+        return matches
+
+    def write_matching(self, filename: str, weights: np.ndarray,
+                       student_data: pd.DataFrame, course_data: pd.DataFrame,
+                       fixed_matches: pd.DataFrame) -> Tuple[
+        float, int, List[Tuple[int, int]]]:
+
+        matches = self.get_matching(fixed_matches, weights)
 
         student_perspective = stats.zscore(weights, axis=1, nan_policy='omit')
         course_perspective = stats.zscore(weights, axis=0, nan_policy='omit')

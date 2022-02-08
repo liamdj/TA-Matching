@@ -11,6 +11,7 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      input_dir_title='colab',
                                                      include_remove_and_add_ta=True,
                                                      include_remove_and_add_slot=True,
+                                                     include_interviews=True,
                                                      alternates=0,
                                                      planning_sheet_id: str = None,
                                                      student_preferences_sheet_id: str = None,
@@ -33,13 +34,14 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
 
     run_and_write_matchings(
         executor, input_dir_title, include_remove_and_add_ta,
-        include_remove_and_add_slot, num_executed, num_executed,
+        include_remove_and_add_slot, include_interviews, num_executed, num_executed,
         compare_matching_from_num_executed, alternates, input_copy_ids)
 
 
 def run_and_write_matchings(executor: str, input_dir_title: str,
                             include_remove_and_add_ta=True,
                             include_remove_and_add_slot=True,
+                            include_interviews=True,
                             output_num_executed: str = None,
                             input_num_executed: str = None,
                             compare_matching_from_num_executed: str = None,
@@ -53,7 +55,7 @@ def run_and_write_matchings(executor: str, input_dir_title: str,
         input_dir_title, alternates)
     write_matchings(
         executor, output_dir_path, matching_weight, include_remove_and_add_ta,
-        include_remove_and_add_slot, slots_unfilled, output_num_executed,
+        include_remove_and_add_slot, include_interviews, slots_unfilled, output_num_executed,
         input_num_executed, compare_matching_from_num_executed, alt_weights,
         input_copy_ids)
 
@@ -70,7 +72,7 @@ def run_matching(input_dir_title: str, alternates=0) -> Tuple[
 
 def write_matchings(executor: str, dir_path: str,
                     matching_weight: float, include_remove_and_add_ta=True,
-                    include_remove_and_add_slot=True, slots_unfilled=0,
+                    include_remove_and_add_slot=True, include_interviews=True, slots_unfilled=0,
                     output_num_executed: str = None,
                     input_num_executed: str = None,
                     compare_matching_from_num_executed: str = None,
@@ -117,6 +119,6 @@ def write_matchings(executor: str, dir_path: str,
         matching_output_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
     write_gs.write_execution_to_ToC(
         toc_ws, executor, output_num_executed, matching_weight, slots_unfilled,
-        include_remove_and_add_ta, include_remove_and_add_slot, alt_weights,
+        include_remove_and_add_ta, include_remove_and_add_slot, include_interviews, alt_weights,
         input_num_executed, matching_diff_ws_title, include_matching_diff,
         input_copy_ids, param_copy_ids, output_ids)
