@@ -1,6 +1,6 @@
 import copy
 import csv
-from typing import List, Any, Tuple, Dict, Optional, Set
+from typing import List, Any, Tuple, Dict, Set
 import math
 import write_to_google_sheets as write_gs
 import g_sheet_consts as gs_consts
@@ -12,24 +12,29 @@ def __is_nan(num) -> bool:
     return math.isnan(num)
 
 
-def compare_matrices(old_matrix: List[Dict[str, Any]],
-                     new_matrix: List[Dict[str, Any]], key: str,
-                     keys_to_ignore: Set[str] = set(),
-                     keys_to_include: Set[str] = set()) -> List[
-    Tuple[str, Dict[str, Any], Dict[str, Any]]]:
+def compare_matrices_multiple_keys(old_matrix: List[Dict[str, Any]],
+                                   new_matrix: List[Dict[str, Any]],
+                                   keys: List[str],
+                                   keys_to_ignore: Set[str] = None,
+                                   keys_to_include: Set[str] = None) -> List[
+    Tuple[Tuple[str, ...], Dict[str, Any], Dict[str, Any]]]:
     """
     Compare `old_matrix` and `new_matrix` by comparing lines with the same
-    values in `key`. `keys_to_ignore` may contain fields that are not in either
+    values in `keys`. `keys_to_ignore` may contain fields that are not in either
     matrix (they will simply be ignored). `keys_to_include` may contain fields
     that are not in either matrix (they will simply be ignored).
     """
+    keys_to_include = set() if keys_to_include is None else keys_to_include
+    keys_to_ignore = set() if keys_to_ignore is None else keys_to_ignore
+
     new_matrix_by_key = {}
     for entry in new_matrix:
-        new_matrix_by_key[entry[key]] = entry
+        entry_key = tuple(entry[key] for key in keys)
+        new_matrix_by_key[entry_key] = entry
 
     diffs = []
     for old_entry in old_matrix:
-        old_key = old_entry[key]
+        old_key = tuple(old_entry[key] for key in keys)
         old_diffs, new_diffs = find_differences_between_entries(
             old_key, old_entry, new_matrix_by_key, keys_to_ignore,
             keys_to_include)
@@ -44,8 +49,30 @@ def compare_matrices(old_matrix: List[Dict[str, Any]],
     return diffs
 
 
-def find_differences_between_entries(key: str, old_entry: Dict[str, Any],
-                                     new_matrix_by_key: Dict[str, Any],
+def compare_matrices(old_matrix: List[Dict[str, Any]],
+                     new_matrix: List[Dict[str, Any]], key: str,
+                     keys_to_ignore: Set[str] = None,
+                     keys_to_include: Set[str] = None) -> List[
+    Tuple[str, Dict[str, Any], Dict[str, Any]]]:
+    """
+    Compare `old_matrix` and `new_matrix` by comparing lines with the same
+    values in `key`. `keys_to_ignore` may contain fields that are not in either
+    matrix (they will simply be ignored). `keys_to_include` may contain fields
+    that are not in either matrix (they will simply be ignored).
+    """
+    diffs = compare_matrices_multiple_keys(
+        old_matrix, new_matrix, [key], keys_to_ignore, keys_to_include)
+    new_diffs = []
+    for tup, old_diff, new_diff in diffs:
+        new_diffs.append((tup[0], old_diff, new_diff))
+
+    return sorted(new_diffs, key=lambda x: x[0])
+
+
+def find_differences_between_entries(key: Tuple[str, ...],
+                                     old_entry: Dict[str, Any],
+                                     new_matrix_by_key: Dict[
+                                         Tuple[str, ...], Any],
                                      fields_to_ignore: Set[str],
                                      fields_to_include: Set[str]) -> Tuple[
     Dict[str, Any], Dict[str, Any]]:
@@ -72,12 +99,12 @@ def find_differences_between_entries(key: str, old_entry: Dict[str, Any],
     return old_diffs, new_entry
 
 
-def combine_old_and_new(
-        differences: List[Tuple[str, Dict[str, Any], Dict[str, Any]]], key: str,
-        fields_to_include: Set[str]) -> List[Dict[str, Any]]:
+def combine_old_and_new(differences: List[
+    Tuple[Tuple[str, ...], Dict[str, Any], Dict[str, Any]]], keys: List[str],
+                        fields_to_include: Set[str]) -> List[Dict[str, Any]]:
     combined = []
     for key_val, old_entry, new_entry in differences:
-        combined_entry = {key: key_val}
+        combined_entry = {key: key_val[i] for i, key in enumerate(keys)}
         for field, old_val in old_entry.items():
             new_val = new_entry.get(field, "(_removed_)")
             if field in fields_to_include and new_val == old_val:
@@ -88,7 +115,7 @@ def combine_old_and_new(
         for field, new_val in new_entry.items():
             combined_entry[field] = f'(_added_) -> {new_val}'
         combined.append(combined_entry)
-    return sorted(combined, key=lambda x: x[key])
+    return combined
 
 
 def write_csv_from_combined(combined_diffs: List[Dict[str, Any]],
@@ -113,15 +140,19 @@ def remove_unused_fields(combined_diff: List[Dict[str, Any]],
     return fields_order
 
 
-def compare_two_worksheets(sheet: write_gs.Spreadsheet, old_ws_title: str,
-                           new_ws_title: str, compare_key: str,
-                           output_filename: str,
-                           fields_to_ignore: Set[str] = set(),
-                           fields_to_include: Set[str] = set()) -> bool:
+def compare_two_worksheets_multiple_keys(sheet: write_gs.Spreadsheet,
+                                         old_ws_title: str, new_ws_title: str,
+                                         compare_keys: List[str],
+                                         output_filename: str,
+                                         fields_to_ignore: Set[str] = None,
+                                         fields_to_include: Set[
+                                             str] = None) -> bool:
     """
     `fields_to_ignore` may contain fields that are not in either matrix
     (they will simply be ignored).
     """
+    fields_to_ignore = set() if fields_to_ignore is None else fields_to_ignore
+    fields_to_include = set() if fields_to_include is None else fields_to_include
     old_ws = write_gs.get_worksheet_from_sheet(sheet, old_ws_title)
     new_ws = write_gs.get_worksheet_from_sheet(sheet, new_ws_title)
     old_records = old_ws.get_all_records()
@@ -131,10 +162,11 @@ def compare_two_worksheets(sheet: write_gs.Spreadsheet, old_ws_title: str,
     new_header_row = \
         write_gs.get_rows_of_cells(new_ws, 1, 1, len(new_records[0]))[0]
     header_row = combine_header_rows(old_header_row, new_header_row)
-    diffs = compare_matrices(
-        old_records, new_records, compare_key, fields_to_ignore,
+    diffs = compare_matrices_multiple_keys(
+        old_records, new_records, compare_keys, fields_to_ignore,
         fields_to_include)
-    combined_diff = combine_old_and_new(diffs, compare_key, fields_to_include)
+    combined_diff = combine_old_and_new(
+        diffs, compare_keys, fields_to_include)
     header_row = remove_unused_fields(combined_diff, header_row)
 
     wrote = write_csv_from_combined(combined_diff, header_row, output_filename)
@@ -143,9 +175,22 @@ def compare_two_worksheets(sheet: write_gs.Spreadsheet, old_ws_title: str,
     return wrote
 
 
+def compare_two_worksheets(sheet: write_gs.Spreadsheet, old_ws_title: str,
+                           new_ws_title: str, compare_key: str,
+                           output_filename: str,
+                           fields_to_ignore: Set[str] = None,
+                           fields_to_include: Set[str] = None) -> bool:
+    """
+    `fields_to_ignore` may contain fields that are not in either matrix
+    (they will simply be ignored).
+    """
+    return compare_two_worksheets_multiple_keys(
+        sheet, old_ws_title, new_ws_title, [compare_key], output_filename,
+        fields_to_ignore, fields_to_include)
+
+
 def combine_header_rows(old_row: List[str], new_row: List[str]):
-    new_row, old_row, suffix = find_suffix(
-        new_row, old_row)
+    new_row, old_row, suffix = find_suffix(new_row, old_row)
     old_set = set(old_row)
     new_set = set(new_row)
     combined_row = []
@@ -205,12 +250,19 @@ def find_suffix(new_row: List[str], old_row: List[str]) -> Tuple[
     return new_row, old_row, suffix
 
 
-def write_comparison_of_two_worksheets(sheet_title: str,
-                                       sheet_abbreviation: str,
-                                       from_tab_title: str, to_tab_title: str,
-                                       compare_key: str, csv_path: str,
-                                       fields_to_ignore: Set[str] = set(),
-                                       fields_to_include: Set[str] = set()):
+def write_comparison_of_two_worksheets_multiple_keys(sheet_title: str,
+                                                     sheet_abbreviation: str,
+                                                     from_tab_title: str,
+                                                     to_tab_title: str,
+                                                     compare_keys: List[str],
+                                                     csv_path: str,
+                                                     fields_to_ignore: Set[
+                                                         str] = None,
+                                                     fields_to_include: Set[
+                                                         str] = None):
+    fields_to_include = set() if fields_to_include is None else fields_to_include
+    fields_to_ignore = set() if fields_to_ignore is None else fields_to_ignore
+
     sheet = write_gs.get_sheet(sheet_title)
     diffs_sheet = write_gs.get_sheet(gs_consts.GENERIC_DIFFS_SHEET_TITLE)
     diffs_ws_titles = {ws.title: ws for ws in diffs_sheet.worksheets()}
@@ -221,10 +273,21 @@ def write_comparison_of_two_worksheets(sheet_title: str,
             diffs_sheet.id, diffs_ws_titles[new_ws_title].id)
         print(f"Existed: {url}")
     else:
-        wrote = compare_two_worksheets(
-            sheet, from_tab_title, to_tab_title, compare_key, csv_path,
-            fields_to_ignore,fields_to_include)
+        wrote = compare_two_worksheets_multiple_keys(
+            sheet, from_tab_title, to_tab_title, compare_keys, csv_path,
+            fields_to_ignore, fields_to_include)
         if wrote:
             ws = write_gs.write_csv_to_new_tab_from_sheet(
                 csv_path, diffs_sheet, new_ws_title)
             print(write_gs.build_url_to_sheet(diffs_sheet.id, ws.id))
+
+
+def write_comparison_of_two_worksheets(sheet_title: str,
+                                       sheet_abbreviation: str,
+                                       from_tab_title: str, to_tab_title: str,
+                                       compare_key: str, csv_path: str,
+                                       fields_to_ignore: Set[str] = None,
+                                       fields_to_include: Set[str] = None):
+    write_comparison_of_two_worksheets_multiple_keys(
+        sheet_title, sheet_abbreviation, from_tab_title, to_tab_title,
+        [compare_key], csv_path, fields_to_ignore, fields_to_include)
