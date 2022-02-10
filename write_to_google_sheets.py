@@ -1,6 +1,6 @@
 import csv
 import datetime
-from typing import Optional, Union, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple, Dict, Any
 
 import gspread
 import pytz
@@ -79,58 +79,21 @@ def get_sheet_by_id(sheet_id: str) -> Spreadsheet:
     return gc.open_by_key(sheet_id)
 
 
-def format_worksheet(worksheet: Worksheet, start_row: Union[int, str],
-                     end_row: Union[int, str], start_col: int, end_col: int,
-                     center_align=False, bold=False, wrap=False):
-    """start_col and end_col are zero indexed numbers"""
-    formatting = {}
-    if bold:
-        formatting = {"textFormat": {"bold": bold}}
-    if center_align:
-        formatting["horizontalAlignment"] = "CENTER"
-    if wrap:
-        formatting["wrapStrategy"] = "WRAP"
-
-    if formatting:
-        worksheet.format(
-            f"{chr(ord('A') + start_col)}{start_row}:{chr(ord('A') + end_col)}{end_row}",
-            formatting)
-
-
-def resize_worksheet_columns(sheet: Spreadsheet, worksheet_id: str, cols: int):
-    body = {"requests": [{"autoResizeDimensions": {
-        "dimensions": {"sheetId": worksheet_id, "dimension": "COLUMNS",
-                       "startIndex": 0, "endIndex": cols}, }}]}
-    sheet.batch_update(body)
-
-
-def get_rows_of_cells_full(worksheet: Worksheet, start_row: int, end_row: int,
-                           col_start: int, cols_len: int,
-                           formatted=False) -> list:
+def get_columns_of_cells_formatted(worksheet: Worksheet, col_start: int,
+                                   cols: int) -> list:
     """
-    `start_row` is 1 indexed; `col_start` is 0 indexed; `cols_len` is 0 indexed
+    `col_start` is 1 indexed; `cols` is 1 indexed. Any empty columns and
+    rows will be truncated
     """
-    if formatted:
-        values = worksheet.get_values(
-            f"{chr(ord('A') + col_start)}{start_row}:{chr(ord('A') + col_start + cols_len)}{end_row}",
-            value_render_option='FORMULA')
-        if len(values) == 0:
-            return values
-        width_diff = cols_len + 1 - len(values[0])
-        if width_diff > 0:
-            for i, row in enumerate(values):
-                values[i] = row + ([""] * width_diff)
-        while len(values) < end_row - start_row + 1:
-            values.append([""] * (cols_len + 1))
-        return values
-    return worksheet.get_values(
-        f"{chr(ord('A') + col_start)}{start_row}:{chr(ord('A') + col_start + cols_len)}{end_row}")
+    val_range = f"{chr(ord('A') + col_start - 1)}:{chr(ord('A') + col_start + cols - 2)}"
+    return worksheet.get_values(val_range, value_render_option='FORMULA')
 
 
 def get_rows_of_cells(worksheet: Worksheet, start_row: int, end_row: int,
-                      cols_len: int, formatted=False) -> list:
-    return get_rows_of_cells_full(
-        worksheet, start_row, end_row, 0, cols_len, formatted)
+                      cols_len: int) -> list:
+    """ `start_row` is 1 indexed; `cols_len` is 0 indexed """
+    return worksheet.get_values(
+        f"A{start_row}:{chr(ord('A') + cols_len)}{end_row}")
 
 
 def build_url_to_sheet(sheet_id: str, worksheet_id: str = None) -> str:
@@ -178,14 +141,16 @@ def write_execution_to_ToC(toc_ws: Worksheet, executor: str, executed_num: str,
         executed_num, matching_weight, slots_unfilled,
         include_remove_and_add_ta, include_remove_and_add_slot,
         include_interviews, alternate_matching_weights, *output_ids,
-        matching_diff_ws_title, include_matching_diff)
+        matching_diff_ws_title=matching_diff_ws_title,
+        include_matching_diff=include_matching_diff)
 
     if input_copy_ids is None:
         input_copy_ids = initialize_input_copy_ids_tuples(input_num_executed)
     if params_copy_ids is None:
         params_copy_ids = initialize_params_copy_ids(executed_num)
     links_to_input = build_links_to_input(
-        input_num_executed, executed_num, *input_copy_ids, params_copy_ids)
+        input_num_executed, executed_num, *input_copy_ids,
+        params_copy_ids=params_copy_ids)
 
     toc_vals = [date, time, executor, "", *links_to_output, *links_to_input,
                 *links_to_alternate_output]
@@ -433,20 +398,21 @@ def write_matrix_to_new_tab(matrix: List[List], sheet: Spreadsheet,
             matrix, False, center_align, wrap, center_align_details),
             "fields": "*", "start": {"sheetId": worksheet_id, "rowIndex": 0,
                                      "columnIndex": 0}}}, {
-        "autoResizeDimensions": {
-            "dimensions": {"sheetId": worksheet_id, "dimension": "COLUMNS"}}}, {
-        "updateSheetProperties": {"properties": {
-            "sheetId": worksheet_id,
-            "title": worksheet_title,
-            "index": tab_index,
-            "gridProperties": {
-                "rowCount": max(2 * len(matrix), 200),
-                "columnCount": max(2 * len(matrix[0]), 26),
-                "frozenRowCount": 1,
-                "frozenColumnCount": 0,
-            },
-        }, "fields": "*"}}
-    ]}
+            "autoResizeDimensions": {"dimensions": {"sheetId": worksheet_id,
+                                                    "dimension": "COLUMNS"}}}, {
+            "updateSheetProperties": {"properties": {"sheetId": worksheet_id,
+                                                     "title": worksheet_title,
+                                                     "index": tab_index,
+                                                     "gridProperties": {
+                                                         "rowCount": max(
+                                                             2 * len(matrix),
+                                                             200),
+                                                         "columnCount": max(
+                                                             2 * len(matrix[0]),
+                                                             26),
+                                                         "frozenRowCount": 1,
+                                                         "frozenColumnCount": 0, }, },
+                                      "fields": "*"}}]}
     sheet.batch_update(body)
     return sheet.worksheet(worksheet_title)
 
@@ -554,8 +520,8 @@ def write_params_csv(num_executed: str, output_dir_title: str) -> Tuple[
     str, str]:
     sheet = get_sheet(gs_consts.PARAMS_INPUT_COPY_SHEET_TITLE)
     ws = write_csv_to_new_tab_from_sheet(
-        f'{output_dir_title}/params.csv', sheet, num_executed)
-    format_worksheet(ws, "", "", 1, 1, center_align=True)
+        f'{output_dir_title}/params.csv', sheet, num_executed,
+        center_align_details=(1, 1))
     return sheet.id, ws.id
 
 
@@ -603,9 +569,8 @@ def copy_to_from_worksheets(old_worksheet_title: str,
 
 def copy_to_from_worksheet(new_sheet: Spreadsheet, new_tab_title: str,
                            worksheet: Worksheet) -> Tuple[str, str]:
-    old_values = worksheet.get_all_values()
     new_ws = write_matrix_to_new_tab(
-        old_values, new_sheet, new_tab_title)
+        worksheet.get_all_values(), new_sheet, new_tab_title)
     return new_sheet.id, new_ws.id
 
 

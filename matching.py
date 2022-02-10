@@ -111,8 +111,7 @@ def read_course_data(filename: str) -> pd.DataFrame:
                 for student in row[rank].split(';'):
                     if student:
                         collect[student] = rank
-            rank_rows.append(
-                rank_rows.append(pd.Series(collect, name=row['Course'])))
+            rank_rows.append(pd.Series(collect, name=row['Course']))
 
     df = pd.concat(rank_rows, axis='columns').T
     df['Slots'] = pd.to_numeric(
@@ -480,7 +479,7 @@ def test_changes_from_previous(output_path: str, previous_matches: pd.DataFrame,
 
     def binary_search(desired_matches: int,
                       initial_matches: List[Tuple[int, int]]) -> Optional[
-        Tuple[int, ChangeDetails, ChangeDetails]]:
+            Tuple[int, ChangeDetails, ChangeDetails]]:
         lo = 0.0
         hi = 50.0
         prev_desired = None
@@ -507,19 +506,23 @@ def test_changes_from_previous(output_path: str, previous_matches: pd.DataFrame,
                 indices.append((si, ci))
         return indices
 
+    def get_initial_changes() -> Tuple[int, str, str]:
+        changes = make_changes_and_calculate_differences(
+            student_data, course_data, previous_indices, weights, fixed_matches)
+        if not changes:
+            print(f"Graph could not be solved with no added weight")
+            return -1, "", ""
+        return len(changes[0]), single_line(changes[0]), single_line(
+            changes[1])
+
     # remove the weight that was added earlier to boost previous matches
     repopulate_weights(-params.PREVIOUS_MATCHING_BOOST)
     previous_indices = get_previous_indices()
 
-    changes = make_changes_and_calculate_differences(
-        student_data, course_data, previous_indices, weights, fixed_matches)
-    if not changes:
-        print(f"Graph could not be solved with no added weight")
+    max_changes, orig_student_diffs, orig_course_diffs = get_initial_changes()
+    if max_changes == -1:
         return
-    student_diffs, course_diffs, _ = changes
-    max_changes = len(student_diffs)
-    found_changes = [(max_changes, 0.0, single_line(student_diffs),
-                      single_line(course_diffs))]
+    found_changes = [(max_changes, 0.0, orig_student_diffs, orig_course_diffs)]
 
     for i in range(1, max_changes):
         change = binary_search(i, previous_indices)
