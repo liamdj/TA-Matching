@@ -35,15 +35,17 @@ def match_weights(student_data: pd.DataFrame, course_data: pd.DataFrame,
                     s_data[course]):
                 weights[si, ci] = calculate_weight_per_pairing(
                     course, s_data[course], c_ranking, instructors, advisors,
-                    previous)
+                    previous, s_data['Ranked'], c_data['Favorites'])
     make_manual_adjustments(student_data, course_data, weights, adjusted_path)
     return weights
 
 
 def calculate_weight_per_pairing(course: str, s_ranking: str, c_ranking: str,
                                  instructors: List[str], advisors: List[str],
-                                 previous: List[str]) -> float:
-    weight = 0.0
+                                 previous: List[str], s_ranked: int,
+                                 c_favorites: int) -> float:
+    weight = (params.BOOST_PER_COURSE_STUDENT_RANKED * s_ranked) + (
+                params.BOOST_PER_FAVORITE_STUDENT * c_favorites)
     if s_ranking == 'Favorite':
         if c_ranking == 'Favorite':
             weight += params.FAVORITE_FAVORITE
@@ -53,7 +55,7 @@ def calculate_weight_per_pairing(course: str, s_ranking: str, c_ranking: str,
         weight += params.STUDENT_GOOD_INSTRUCTOR_FAVORITE
     elif s_ranking == 'Okay':
         weight += params.OKAY_COURSE_PENALTY
-    # multiply by number of favorites from faculty and by students
+
     if course in previous:
         weight += params.PREVIOUS
     for advisor in advisors:
@@ -66,7 +68,9 @@ def read_student_data(filename: str) -> pd.DataFrame:
     """
     Returns a dataframe with rows indexed by NetIDs and columns specified by
     `student_data_cols` _and_ every course (with the corresponding values being
-    `Okay`, `Good`, `Favorite`, or `NaN` (if no value was specified).
+    `Okay`, `Good`, `Favorite`, or `NaN` (if no value was specified). Also,
+    there is the field 'Ranked' that is the # of `Favorite` and `Good` courses
+    enumerated by each student.
     """
     rank_rows = []
     with open(filename, newline='') as file:
@@ -74,8 +78,14 @@ def read_student_data(filename: str) -> pd.DataFrame:
         for row in reader:
             collect = {col: row[col] for col in student_data_cols}
             # expand list of courses into ranking for each course
+            collect['Ranked'] = 0
             for rank in student_options:
-                for course in row[rank].split(';'):
+                courses_in_rank = list(
+                    filter(
+                        lambda x: True if x else False, row[rank].split(';')))
+                if rank == 'Favorite' or rank == 'Good':
+                    collect['Ranked'] += len(courses_in_rank)
+                for course in courses_in_rank:
                     if course:
                         collect[course] = rank
             rank_rows.append(pd.Series(collect, name=row['NetID']))
@@ -108,7 +118,12 @@ def read_course_data(filename: str) -> pd.DataFrame:
             collect = {col: row[col] for col in course_data_cols}
             # expand list of students into ranking for each student
             for rank in course_options:
-                for student in row[rank].split(';'):
+                courses_in_rank = list(
+                    filter(
+                        lambda x: True if x else False, row[rank].split(';')))
+                if rank == 'Favorite':
+                    collect['Favorites'] = len(courses_in_rank)
+                for student in courses_in_rank:
                     if student:
                         collect[student] = rank
             rank_rows.append(pd.Series(collect, name=row['Course']))
@@ -479,7 +494,7 @@ def test_changes_from_previous(output_path: str, previous_matches: pd.DataFrame,
 
     def binary_search(desired_matches: int,
                       initial_matches: List[Tuple[int, int]]) -> Optional[
-            Tuple[int, ChangeDetails, ChangeDetails]]:
+        Tuple[int, ChangeDetails, ChangeDetails]]:
         lo = 0.0
         hi = 50.0
         prev_desired = None

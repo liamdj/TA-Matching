@@ -28,3 +28,7 @@ MSE_BOOST = 20.0
 OKAY_COURSE_PENALTY = -6.0
 # weight added to (student, course) pairs that were in the specified previous matching execution
 PREVIOUS_MATCHING_BOOST = 0.05
+# weight added to a student per course they ranked as 'Favorite' or 'Good'
+BOOST_PER_COURSE_STUDENT_RANKED = 0.05
+# weight added to a course per student they ranked as 'Favorite'
+BOOST_PER_FAVORITE_STUDENT = 0.15
