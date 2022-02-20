@@ -122,21 +122,26 @@ class MatchingGraph:
                     tup[0], tup[1]]))
         return matches
 
+    def get_slots_filled(self, matches: List[Tuple[int, int]]) -> List[int]:
+        slots_filled = [0] * self.num_courses
+        for _, ci in matches:
+            if ci >= 0:
+                slots_filled[ci] += 1
+        return slots_filled
+
+    def get_slots_unfilled(self, slots_filled: List[int]) -> int:
+        return self.slots - sum(slots_filled)
+
     def write_matching(self, filename: str, weights: np.ndarray,
                        student_data: pd.DataFrame, course_data: pd.DataFrame,
                        fixed_matches: pd.DataFrame) -> Tuple[
         float, int, List[Tuple[int, int]]]:
 
         matches = self.get_matching(fixed_matches, weights)
+        slots_filled = self.get_slots_filled(matches)
 
         student_perspective = stats.zscore(weights, axis=1, nan_policy='omit')
         course_perspective = stats.zscore(weights, axis=0, nan_policy='omit')
-
-        # Note number of slots that were filled
-        slots_filled = [0] * self.num_courses
-        for _, ci in matches:
-            if ci >= 0:
-                slots_filled[ci] += 1
 
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
@@ -194,8 +199,7 @@ class MatchingGraph:
             output = sorted(output, key=lambda x: x[3])
             writer.writerows(output)
             optimal_cost = -self.flow.OptimalCost() / (10 ** DIGITS)
-            unfilled_slots = self.slots - sum(slots_filled)
-            return optimal_cost, unfilled_slots, matches
+            return optimal_cost, self.get_slots_unfilled(slots_filled), matches
 
     def print(self):
         for arc in range(self.flow.NumArcs()):

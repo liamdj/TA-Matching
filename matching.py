@@ -45,7 +45,7 @@ def calculate_weight_per_pairing(course: str, s_ranking: str, c_ranking: str,
                                  previous: List[str], s_ranked: int,
                                  c_favorites: int) -> float:
     weight = (params.BOOST_PER_COURSE_STUDENT_RANKED * s_ranked) + (
-                params.BOOST_PER_FAVORITE_STUDENT * c_favorites)
+            params.BOOST_PER_FAVORITE_STUDENT * c_favorites)
     if s_ranking == 'Favorite':
         if c_ranking == 'Favorite':
             weight += params.FAVORITE_FAVORITE
@@ -564,7 +564,7 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
                    fixed_matches: pd.DataFrame, adjusted_path: str,
                    output_path: str):
     def add_noise_and_get_matching(base_weights: np.ndarray, stddev: float) -> \
-            List[Tuple[int, int]]:
+            Tuple[List[Tuple[int, int]], int]:
         new_weights = base_weights + np.random.normal(0, stddev, weights.shape)
         graph = min_cost_flow.MatchingGraph(
             new_weights, student_data['Weight'],
@@ -573,32 +573,63 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
         if not graph.solve():
             print('Problem optimizing flow')
             graph.print()
-            return []
-        return graph.get_matching(fixed_matches, base_weights)
+            return [], -1
+        match = graph.get_matching(fixed_matches, base_weights)
+        unfilled_slots = graph.get_slots_unfilled(graph.get_slots_filled(match))
+        return match, unfilled_slots
 
-    aggregate = {}
+    def run_trials(sigma: float, trials_to_run: int, base_weights: np.ndarray,
+                   students: int, courses: int) -> np.ndarray:
+        trial = np.zeros((students, courses), dtype=np.float64)
+        for _ in range(trials_to_run):
+            matching, unfilled = add_noise_and_get_matching(base_weights, sigma)
+            if unfilled == 0:
+                for si, ci in matching:
+                    trial[si, ci] += 1.0
+        return trial
+
+    courses = len(course_data.index)
+    students = len(student_data.index)
+    percentages = np.zeros((students, courses), dtype=np.float64)
     weights = match_weights(student_data, course_data, adjusted_path, 0.0, True)
-    trials, max_stddev, step = 10, 5.0, 0.1
-    total_simulations = (1 / step) * trials * max_stddev
-    for i in np.arange(0.0, max_stddev, step):
-        for _ in range(trials):
-            for si, ci in add_noise_and_get_matching(weights, i):
-                if ci in aggregate:
-                    aggregate[ci][si] = aggregate[ci].get(si, 0) + 1
-                else:
-                    aggregate[ci] = {si: 1}
+    max_stddev, step = 5.5, 0.5
+    total_simulations = 0
+    for sigma in np.arange(0.0, max_stddev, step):
+        trials = 50
+        total_trials = trials
+        total_matches = run_trials(sigma, trials, weights, students, courses)
+        print(f"Starting simulation {total_simulations} with sigma {sigma}")
+        percent_decimals = None
+        for i in range(9):
+            trial_matches = run_trials(
+                sigma, trials, weights, students, courses)
+            total_matches += trial_matches
+            total_trials += trials
+            percent_decimals = trial_matches / trials
+            comp = np.absolute(
+                (total_matches / total_trials) - percent_decimals)
+            length = (comp >= 0.02).sum()
+            if not length:
+                break
+            print(
+                f"After batch {i} with {trials} trials, not yet stabilized, still {length} differences above 0.02")
+            trials *= 2
+        print(percent_decimals)
+        percentages += (total_matches / total_trials)
+        total_simulations += 1
 
+    percentages *= 100 / total_simulations
     readable_matches = {}
-    for ci, matches in aggregate.items():
-        if ci == -1:
-            continue
+    for ci in range(courses):
         sorted_matches = []
-        for si, n in sorted(matches.items(), key=lambda x: x[1], reverse=True):
-            sorted_matches.append(
-                (student_data.index[si], student_data.iloc[si]['Name'],
-                 n * 100 / total_simulations))
-        readable_matches[course_data.index[ci]] = sorted_matches[
-                                                  :min(20, len(sorted_matches))]
+        for si in range(students):
+            if percentages[si, ci] > 0.0:
+                netid = student_data.index[si]
+                name = student_data.iloc[si]['Name']
+                percent = percentages[si, ci]
+                sorted_matches.append((netid, name, percent))
+        sorted_matches.sort(key=lambda x: x[2], reverse=True)
+        readable_matches[course_data.index[ci]] = sorted_matches
 
     with open(output_path + 'interview_simulations.csv', 'w+') as f:
         writer = csv.writer(f)
