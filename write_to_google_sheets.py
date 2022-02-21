@@ -393,26 +393,18 @@ def write_matrix_to_new_tab(matrix: List[List], sheet: Spreadsheet,
     worksheet_id = abs(hash(worksheet_title)) % (10 ** 8)
     body = {"requests": [{"addSheet": {
         "properties": {"sheetId": worksheet_id, "title": worksheet_title,
-                       "index": tab_index}}},
+                       "index": tab_index,
+                       "gridProperties": {"rowCount": max(2 * len(matrix), 200),
+                                          "columnCount": max(
+                                              2 * len(matrix[0]), 26),
+                                          "frozenRowCount": 1,
+                                          "frozenColumnCount": 0, }, }}},
         {"updateCells": {"rows": create_row_data_from_matrix(
             matrix, False, center_align, wrap, center_align_details),
             "fields": "*", "start": {"sheetId": worksheet_id, "rowIndex": 0,
                                      "columnIndex": 0}}}, {
             "autoResizeDimensions": {"dimensions": {"sheetId": worksheet_id,
-                                                    "dimension": "COLUMNS"}}}, {
-            "updateSheetProperties": {"properties": {"sheetId": worksheet_id,
-                                                     "title": worksheet_title,
-                                                     "index": tab_index,
-                                                     "gridProperties": {
-                                                         "rowCount": max(
-                                                             2 * len(matrix),
-                                                             200),
-                                                         "columnCount": max(
-                                                             2 * len(matrix[0]),
-                                                             26),
-                                                         "frozenRowCount": 1,
-                                                         "frozenColumnCount": 0, }, },
-                                      "fields": "*"}}]}
+                                                    "dimension": "COLUMNS"}}}]}
     sheet.batch_update(body)
     return sheet.worksheet(worksheet_title)
 
