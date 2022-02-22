@@ -9,8 +9,7 @@ import write_to_google_sheets as write_gs
 
 def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      input_dir_title='colab',
-                                                     include_remove_and_add_ta=True,
-                                                     include_remove_and_add_slot=True,
+                                                     include_remove_and_add_features=True,
                                                      include_interviews=True,
                                                      alternates=0,
                                                      planning_sheet_id: str = None,
@@ -33,16 +32,14 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         instructor_preferences_sheet_id)
 
     run_and_write_matchings(
-        executor, input_dir_title, include_remove_and_add_ta,
-        include_remove_and_add_slot, include_interviews, num_executed,
-        num_executed, compare_matching_from_num_executed, alternates,
-        input_copy_ids)
+        executor, input_dir_title, include_remove_and_add_features,
+        include_interviews, num_executed, num_executed,
+        compare_matching_from_num_executed, alternates, input_copy_ids)
 
 
 def run_and_write_matchings(executor: str, input_dir_title: str,
-                            include_remove_and_add_ta=True,
-                            include_remove_and_add_slot=True,
-                            include_interviews=True,
+                            include_remove_and_add_features=True,
+                            include_interviews=False,
                             output_num_executed: str = None,
                             input_num_executed: str = None,
                             compare_matching_from_num_executed: str = None,
@@ -53,28 +50,29 @@ def run_and_write_matchings(executor: str, input_dir_title: str,
     if `input_num_executed` is `None`, then use most recent copy
     """
     matching_weight, slots_unfilled, alt_weights, output_dir_path = run_matching(
-        input_dir_title, alternates)
+        input_dir_title, alternates, include_interviews)
     write_matchings(
-        executor, output_dir_path, matching_weight, include_remove_and_add_ta,
-        include_remove_and_add_slot, include_interviews, slots_unfilled,
+        executor, output_dir_path, matching_weight,
+        include_remove_and_add_features, include_interviews, slots_unfilled,
         output_num_executed, input_num_executed,
         compare_matching_from_num_executed, alt_weights, input_copy_ids)
 
 
-def run_matching(input_dir_title: str, alternates=0) -> Tuple[
-    float, int, List[float], str]:
+def run_matching(input_dir_title: str, alternates=0, run_interviews=False) -> \
+        Tuple[float, int, List[float], str]:
     output_dir_path = f"data/{input_dir_title}"
     matching_weight, slots_unfilled, alt_weights = matching.run_matching(
-        path=output_dir_path, alternates=alternates)
+        path=output_dir_path, alternates=alternates,
+        run_interviews=run_interviews)
     if slots_unfilled > 0:
         print(f"\tunfilled slots: {slots_unfilled}")
     return matching_weight, slots_unfilled, alt_weights, output_dir_path
 
 
 def write_matchings(executor: str, dir_path: str, matching_weight: float,
-                    include_remove_and_add_ta=True,
-                    include_remove_and_add_slot=True, include_interviews=True,
-                    slots_unfilled=0, output_num_executed: str = None,
+                    include_remove_and_add_features=True,
+                    include_interviews=False, slots_unfilled=0,
+                    output_num_executed: str = None,
                     input_num_executed: str = None,
                     compare_matching_from_num_executed: str = None,
                     alt_weights: List[float] = [], input_copy_ids: Tuple[
@@ -107,8 +105,8 @@ def write_matchings(executor: str, dir_path: str, matching_weight: float,
             matching_diff_ws_title = f'#{compare_matching_from_num_executed}->#{output_num_executed}'
 
     output_ids = write_gs.write_output_csvs(
-        matching_output_sheet, include_remove_and_add_ta,
-        include_remove_and_add_slot, len(alt_weights), output_num_executed,
+        matching_output_sheet, include_remove_and_add_features,
+        include_interviews, len(alt_weights), output_num_executed,
         outputs_dir_path, matching_diff_ws_title)
 
     if not include_matching_diff and compare_matching_from_num_executed:
@@ -120,7 +118,6 @@ def write_matchings(executor: str, dir_path: str, matching_weight: float,
         matching_output_sheet, gs_consts.OUTPUT_TOC_TAB_TITLE)
     write_gs.write_execution_to_ToC(
         toc_ws, executor, output_num_executed, matching_weight, slots_unfilled,
-        include_remove_and_add_ta, include_remove_and_add_slot,
-        include_interviews, alt_weights, input_num_executed,
-        matching_diff_ws_title, include_matching_diff, input_copy_ids,
-        param_copy_ids, output_ids)
+        include_remove_and_add_features, include_interviews, alt_weights,
+        input_num_executed, matching_diff_ws_title, include_matching_diff,
+        input_copy_ids, param_copy_ids, output_ids)

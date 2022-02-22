@@ -198,8 +198,12 @@ class MatchingGraph:
                          is_negative_student_weight, "", "", "", ""])
             output = sorted(output, key=lambda x: x[3])
             writer.writerows(output)
-            optimal_cost = -self.flow.OptimalCost() / (10 ** DIGITS)
+            optimal_cost = self.graph_weight()
             return optimal_cost, self.get_slots_unfilled(slots_filled), matches
+
+    def graph_weight(self):
+        """ Requires that the graph has been solved before """
+        return -self.flow.OptimalCost() / (10 ** DIGITS)
 
     def print(self):
         for arc in range(self.flow.NumArcs()):

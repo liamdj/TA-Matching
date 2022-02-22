@@ -262,7 +262,8 @@ def calculate_changes_in_new_graph(student_data: pd.DataFrame,
                                    course_data: pd.DataFrame,
                                    initial_matches: List[Tuple[int, int]],
                                    weights: np.ndarray,
-                                   fixed_matches: pd.DataFrame, old_cost: float,
+                                   fixed_matches: pd.DataFrame,
+                                   old_weight: float,
                                    extra_course: str = None) -> Tuple[
     float, str, str]:
     changes = make_changes_and_calculate_differences(
@@ -271,9 +272,9 @@ def calculate_changes_in_new_graph(student_data: pd.DataFrame,
     if not changes:
         return -100, '', ''
 
-    student_changes, course_changes, new_cost = changes
-    cost_delta = (old_cost - new_cost) / 10 ** min_cost_flow.DIGITS
-    return cost_delta, single_line(student_changes), single_line(course_changes)
+    student_changes, course_changes, new_weight = changes
+    w_change = new_weight - old_weight
+    return w_change, single_line(student_changes), single_line(course_changes)
 
 
 def make_changes_and_calculate_differences(student_data: pd.DataFrame,
@@ -294,7 +295,7 @@ def make_changes_and_calculate_differences(student_data: pd.DataFrame,
     new_matches = graph.get_matching(fixed_matches, weights)
     student_changes, course_changes = matching_differences(
         extra_course, initial_matches, new_matches, student_data, course_data)
-    return student_changes, course_changes, graph.flow.OptimalCost()
+    return student_changes, course_changes, graph.graph_weight()
 
 
 def test_removing_TA(path: str, student_data: pd.DataFrame,
@@ -313,10 +314,10 @@ def test_removing_TA(path: str, student_data: pd.DataFrame,
                     [student, '', si, -1],
                     index=['Student', 'Course', 'Student index',
                            'Course index'])], axis=1).T
-            cost_change, s_changes, c_changes = calculate_changes_in_new_graph(
+            weight_change, s_changes, c_changes = calculate_changes_in_new_graph(
                 student_data, course_data, initial_matches, weights, fixed_edit,
                 initial_matching_weight, None)
-            data[student] = cost_change, bank, join, s_changes, c_changes
+            data[student] = weight_change, bank, join, s_changes, c_changes
 
     write_edited_graph_changes(
         path, data,
@@ -363,31 +364,29 @@ def find_alternate_matching(path: str, student_data: pd.DataFrame,
             fixed_matches)
         if graph_edit.solve():
             new_matches = graph_edit.get_matching(fixed_matches, weights)
-            new_cost = graph_edit.flow.OptimalCost()
             student_changes, course_changes = matching_differences(
                 None, last_matches, new_matches, student_data, course_data)
             if len(student_changes) > 0 or len(course_changes) > 0:
                 new_weight = write_alternate_match(
-                    path, new_cost, student_data, course_data, initial_matches,
-                    new_matches, cumulative)
+                    path, graph_edit.graph_weight(), student_data, course_data,
+                    initial_matches, new_matches, cumulative)
                 return new_matches, cumulative, new_weight
 
 
-def write_alternate_match(path: str, new_cost: float,
+def write_alternate_match(path: str, graph_weight: float,
                           student_data: pd.DataFrame, course_data: pd.DataFrame,
                           initial_matches: List[Tuple[int, int]],
                           new_matches: List[Tuple[int, int]],
                           cumulative: float) -> float:
     student_changes, course_changes = matching_differences(
         None, initial_matches, new_matches, student_data, course_data)
-    new_weight = -new_cost / 100 + (
+    new_weight = graph_weight + (
             len(new_matches) - len(student_changes)) * cumulative
     print(f'Solved alternate flow with total weight {new_weight:.2f}')
     with open(path, 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(
-            ['Student/Course', 'Previous match', 'New match',
-             'Preference change'])
+            ['Student/Course', 'Previous match', 'New match'])
         for student, old, new in student_changes:
             writer.writerow([student, old, new])
         for course, old, new in course_changes:
@@ -408,8 +407,8 @@ def write_params(output_path: str):
 def run_matching(path="", student_data="inputs/student_data.csv",
                  course_data="inputs/course_data.csv", fixed="inputs/fixed.csv",
                  adjusted="inputs/adjusted.csv", previous="inputs/previous.csv",
-                 output="outputs/", alternates=2) -> Tuple[
-    float, int, List[float]]:
+                 output="outputs/", alternates=2, run_interviews=False) -> \
+        Tuple[float, int, List[float]]:
     path = validate_path_args(path, output)
     student_data, course_data = read_student_and_course_data(
         path, student_data, course_data)
@@ -437,7 +436,7 @@ def run_matching(path="", student_data="inputs/student_data.csv",
     alt_weights = run_additional_features(
         output_path, student_data, course_data, weights, fixed_matches,
         initial_matches, matching_weight, alternates, previous_matches,
-        path + adjusted)
+        path + adjusted, run_interviews)
 
     return matching_weight, slots_unfilled, alt_weights
 
@@ -447,8 +446,13 @@ def run_additional_features(output_path: str, student_data: pd.DataFrame,
                             fixed_matches: pd.DataFrame,
                             initial_matches: List[Tuple[int, int]],
                             matching_weight: float, alternates: int,
-                            previous_matches: pd.DataFrame,
-                            adjusted_path: str) -> List[float]:
+                            previous_matches: pd.DataFrame, adjusted_path: str,
+                            run_interviews=False) -> List[float]:
+    def repopulate_weights(value: float):
+        for si, ci in initial_matches:
+            weights[si, ci] += value
+
+    repopulate_weights(params.PREVIOUS_MATCHING_BOOST)
     test_additional_TA(
         output_path + 'additional_TA.csv', student_data, course_data, weights,
         fixed_matches, initial_matches, matching_weight)
@@ -461,14 +465,17 @@ def run_additional_features(output_path: str, student_data: pd.DataFrame,
     test_adding_or_subtracting_a_slot(
         output_path + 'remove_slot.csv', False, student_data, course_data,
         weights, fixed_matches, initial_matches, matching_weight)
+    repopulate_weights(-params.PREVIOUS_MATCHING_BOOST)
     alt_weights = run_alternate_matchings(
         alternates, course_data, fixed_matches, initial_matches, output_path,
         student_data, weights)
     test_changes_from_previous(
         output_path, previous_matches, student_data, course_data, weights,
         fixed_matches)
-    interview_list(
-        course_data, student_data, fixed_matches, adjusted_path, output_path)
+    if run_interviews:
+        interview_list(
+            course_data, student_data, fixed_matches, adjusted_path,
+            output_path, initial_matches)
     return alt_weights
 
 
@@ -562,7 +569,7 @@ def test_changes_from_previous(output_path: str, previous_matches: pd.DataFrame,
 
 def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
                    fixed_matches: pd.DataFrame, adjusted_path: str,
-                   output_path: str):
+                   output_path: str, initial_matches: List[Tuple[int, int]]):
     def add_noise_and_get_matching(base_weights: np.ndarray, stddev: float) -> \
             Tuple[List[Tuple[int, int]], int]:
         new_weights = base_weights + np.random.normal(0, stddev, weights.shape)
@@ -585,16 +592,19 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
             matching, unfilled = add_noise_and_get_matching(base_weights, sigma)
             if unfilled == 0:
                 for si, ci in matching:
-                    trial[si, ci] += 1.0
+                    if si != -1 and ci != -1:
+                        trial[si, ci] += 1.0
         return trial
 
     courses = len(course_data.index)
     students = len(student_data.index)
     percentages = np.zeros((students, courses), dtype=np.float64)
+    for si, ci in initial_matches:
+        percentages[si, ci] += 1.0
     weights = match_weights(student_data, course_data, adjusted_path, 0.0, True)
-    max_stddev, step = 5.5, 0.5
-    total_simulations = 0
-    for sigma in np.arange(0.0, max_stddev, step):
+    max_stddev, step = 10.0, 0.5
+    total_simulations = 1
+    for sigma in np.arange(step, max_stddev + step, step):
         trials = 50
         total_trials = trials
         total_matches = run_trials(sigma, trials, weights, students, courses)
@@ -615,15 +625,15 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
                 f"After batch {i} with {trials} trials, not yet stabilized, still {length} differences above 0.02")
             trials *= 2
         print(percent_decimals)
-        percentages += (total_matches / total_trials)
+        percentages += total_matches / total_trials
         total_simulations += 1
 
-    percentages *= 100 / total_simulations
+    percentages *= 100.0 / total_simulations
     readable_matches = {}
     for ci in range(courses):
         sorted_matches = []
         for si in range(students):
-            if percentages[si, ci] > 0.0:
+            if percentages[si, ci] > 2.0:
                 netid = student_data.index[si]
                 name = student_data.iloc[si]['Name']
                 percent = percentages[si, ci]
@@ -756,6 +766,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--alternates', metavar='ALTERNATE MATCHES', type=int, default=3,
         help='number of alternate matches to solve for')
+    parser.add_argument(
+        '--run_interviews', default=False, action='store_true',
+        help='run the interviews simulation')
     args = parser.parse_args()
     args.path = validate_path_args(args.path, args.output)
 
