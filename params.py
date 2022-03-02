@@ -32,3 +32,7 @@ PREVIOUS_MATCHING_BOOST = 0.05
 BOOST_PER_COURSE_STUDENT_RANKED = 0.05
 # weight added to a course per student they ranked as 'Favorite'
 BOOST_PER_FAVORITE_STUDENT = 0.15
+# weight added per student behind this student in the course's sorted favorites list
+BOOST_PER_PLACE_IN_SORTED_COURSE_LIST = 0.03
+# weight added per course behind this course in the student's sorted favorites list
+BOOST_PER_PLACE_IN_SORTED_STUDENT_LIST = 0.01

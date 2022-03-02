@@ -1,15 +1,25 @@
 import argparse
 import csv
+import math
 import os
 import sys
 from collections import defaultdict
-from typing import List, Tuple, Optional, DefaultDict, Dict
+from typing import Any, List, Tuple, Optional, DefaultDict, Dict
 
 import numpy as np
 import pandas as pd
 
 import min_cost_flow
 import params
+
+
+def __is_nan(num: Any) -> bool:
+    if type(num) == tuple:
+        return False
+    if type(num) == str:
+        return num == 'nan'
+    return math.isnan(num)
+
 
 student_data_cols = ['Name', 'Weight', 'Year', 'Bank', 'Join', 'Previous',
                      'Advisors', 'Notes']
@@ -23,6 +33,11 @@ ChangeDetails = List[Tuple[str, str, str]]
 def match_weights(student_data: pd.DataFrame, course_data: pd.DataFrame,
                   adjusted_path: str, default_value: float = np.nan,
                   ignore_instructor_prefs=False) -> np.ndarray:
+    def get_rank(rank) -> Tuple[str, int]:
+        if ignore_instructor_prefs or __is_nan(rank):
+            return np.nan, 0
+        return rank
+
     weights = np.full(
         (len(student_data.index), len(student_data.index)), default_value)
     for si, (student, s_data) in enumerate(student_data.iterrows()):
@@ -30,30 +45,33 @@ def match_weights(student_data: pd.DataFrame, course_data: pd.DataFrame,
         advisors = s_data['Advisors'].split(';')
         for ci, (course, c_data) in enumerate(course_data.iterrows()):
             instructors = c_data['Instructor'].split(';')
-            c_ranking = np.nan if ignore_instructor_prefs else c_data[student]
-            if c_ranking != 'Veto' and course in s_data and not pd.isna(
-                    s_data[course]):
+            c_rank = get_rank(c_data[student])
+            s_rank = get_rank(s_data[course])
+            if c_rank != 'Veto' and course in s_data and not pd.isna(s_rank):
                 weights[si, ci] = calculate_weight_per_pairing(
-                    course, s_data[course], c_ranking, instructors, advisors,
+                    course, s_rank, c_rank, instructors, advisors,
                     previous, s_data['Ranked'], c_data['Favorites'])
     make_manual_adjustments(student_data, course_data, weights, adjusted_path)
     return weights
 
 
-def calculate_weight_per_pairing(course: str, s_ranking: str, c_ranking: str,
+def calculate_weight_per_pairing(course: str, s_rank: Tuple[str, int],
+                                 c_rank: Tuple[str, int],
                                  instructors: List[str], advisors: List[str],
                                  previous: List[str], s_ranked: int,
                                  c_favorites: int) -> float:
     weight = (params.BOOST_PER_COURSE_STUDENT_RANKED * s_ranked) + (
             params.BOOST_PER_FAVORITE_STUDENT * c_favorites)
-    if s_ranking == 'Favorite':
-        if c_ranking == 'Favorite':
-            weight += params.FAVORITE_FAVORITE
+    c_sorted_boost = c_rank[1] * params.BOOST_PER_PLACE_IN_SORTED_COURSE_LIST
+    s_sorted_boost = s_rank[1] * params.BOOST_PER_PLACE_IN_SORTED_STUDENT_LIST
+    if s_rank[0] == 'Favorite':
+        if c_rank[0] == 'Favorite':
+            weight += params.FAVORITE_FAVORITE + c_sorted_boost + s_sorted_boost
         else:
-            weight += params.STUDENT_FAVORITE_INSTRUCTOR_NEUTRAL
-    elif s_ranking == 'Good' and c_ranking == 'Favorite':
-        weight += params.STUDENT_GOOD_INSTRUCTOR_FAVORITE
-    elif s_ranking == 'Okay':
+            weight += params.STUDENT_FAVORITE_INSTRUCTOR_NEUTRAL + s_sorted_boost
+    elif s_rank[0] == 'Good' and c_rank[0] == 'Favorite':
+        weight += params.STUDENT_GOOD_INSTRUCTOR_FAVORITE + c_sorted_boost
+    elif s_rank[0] == 'Okay':
         weight += params.OKAY_COURSE_PENALTY
 
     if course in previous:
@@ -79,15 +97,25 @@ def read_student_data(filename: str) -> pd.DataFrame:
             collect = {col: row[col] for col in student_data_cols}
             # expand list of courses into ranking for each course
             collect['Ranked'] = 0
+
+            sorted_favs = row.get('Sorted Favorites', '').split('>')
+            leveled_favs = {}
+            for i, fav_level in enumerate(sorted_favs):
+                for fav in fav_level.split('='):
+                    if fav:
+                        leveled_favs[fav] = len(sorted_favs) - i
+
             for rank in student_options:
                 courses_in_rank = list(
                     filter(
                         lambda x: True if x else False, row[rank].split(';')))
                 if rank == 'Favorite' or rank == 'Good':
                     collect['Ranked'] += len(courses_in_rank)
-                for course in courses_in_rank:
-                    if course:
-                        collect[course] = rank
+                for i, course in enumerate(courses_in_rank):
+                    sorted_score = 0  # implies in no order
+                    if rank == 'Favorite':
+                        sorted_score = leveled_favs.get(course, 0)
+                    collect[course] = (rank, sorted_score)
             rank_rows.append(pd.Series(collect, name=row['NetID']))
 
     df = pd.concat(rank_rows, axis='columns').T
@@ -120,12 +148,15 @@ def read_course_data(filename: str) -> pd.DataFrame:
             for rank in course_options:
                 courses_in_rank = list(
                     filter(
-                        lambda x: True if x else False, row[rank].split(';')))
+                        lambda x: True if x and not x.isspace() else False,
+                        row[rank].split(';')))
                 if rank == 'Favorite':
                     collect['Favorites'] = len(courses_in_rank)
-                for student in courses_in_rank:
-                    if student:
-                        collect[student] = rank
+                for i, student in enumerate(courses_in_rank):
+                    sorted_score = 0  # implies in no order
+                    if rank == 'Favorite' and row.get('Favorites Sorted'):
+                        sorted_score = len(courses_in_rank) - i  # positive
+                    collect[student] = (rank, sorted_score)
             rank_rows.append(pd.Series(collect, name=row['Course']))
 
     df = pd.concat(rank_rows, axis='columns').T
@@ -466,6 +497,7 @@ def run_additional_features(output_path: str, student_data: pd.DataFrame,
         output_path + 'remove_slot.csv', False, student_data, course_data,
         weights, fixed_matches, initial_matches, matching_weight)
     repopulate_weights(-params.PREVIOUS_MATCHING_BOOST)
+
     alt_weights = run_alternate_matchings(
         alternates, course_data, fixed_matches, initial_matches, output_path,
         student_data, weights)

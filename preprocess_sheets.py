@@ -21,6 +21,7 @@ class StudentType(TypedDict, total=False):
     Favorite: str
     Good: str
     OK: str
+    Sorted: str
     Bank: Union[str, float]
     Join: Union[str, float]
     Notes: str
@@ -60,6 +61,7 @@ class FacultyPref(TypedDict):
     Course: str
     Favorite: str
     Veto: str
+    Sorted: str
 
 
 StudentsType = Dict[str, StudentType]
@@ -120,16 +122,19 @@ def parse_student_preferences(
     students = {}
     cols = {'Email': 'NetID', 'Name': 'Name', 'Advisor': 'Advisor',
             'What courses at Princeton': 'Previous', 'Favorite': 'Favorite',
-            'Good': 'Good', 'OK Match': 'OK'}
+            'Good': 'Good', 'OK Match': 'OK', 'Sorted': 'Sorted'}
 
     student_prefs = switch_keys_from_rows(student_prefs, cols, True)
     for row in student_prefs:
         fav = format_course_list(row['Favorite'])
-        good = format_course_list(row['Good'])
-        okay = format_course_list(row['OK'])
-        fav = fav.split(';')
-        good = set(good.split(';'))
-        okay = set(okay.split(';'))
+        fav_copy = []
+        for fav_c in fav:
+            if fav_c not in fav_copy:
+                fav_copy.append(fav_c)
+        fav = fav_copy
+        good = set(format_course_list(row['Good']))
+        okay = set(format_course_list(row['OK']))
+
         for fav_c in fav:
             if fav_c in good:
                 good.remove(fav_c)
@@ -139,12 +144,29 @@ def parse_student_preferences(
             if good_c in okay:
                 okay.remove(good_c)
 
+        row['Sorted'] = parse_sorted_favorite_list(row.get('Sorted', ''), fav)
         row['Favorite'] = ';'.join(fav)
         row['Good'] = ';'.join(good)
         row['OK'] = ';'.join(okay)
         row['NetID'] = format_netid(row['NetID'])
         students[row['NetID']] = row
     return students
+
+
+def parse_sorted_favorite_list(sorted_favorites: str,
+                               favorite_courses: List[str]) -> str:
+    sorted_favorites = sorted_favorites.replace(',', '>')
+    sorted_favorites = sorted_favorites.replace(';', '>')
+    sorted_favorites = sorted_favorites.replace(' ', '')
+    sorted_favorites = sorted_favorites.split('>')
+    all_courses_in_sorted_favs = []
+    for courses in sorted_favorites:
+        courses_set = set()
+        for fav_c in courses.split('='):
+            if fav_c in favorite_courses:
+                courses_set.add(fav_c)
+        all_courses_in_sorted_favs.append('='.join(courses_set))
+    return '>'.join(all_courses_in_sorted_favs)
 
 
 def parse_courses(course_info: List[dict]) -> CoursesType:
@@ -186,17 +208,6 @@ def switch_keys_from_rows(rows: List[dict], keys_to_switch_dict: Dict[str, str],
     return new_rows
 
 
-def parse_faculty_prefs(
-        faculty_prefs: List[Dict[str, str]]) -> FacultyPrefsType:
-    cols = {'Email': 'Email', 'Which course?': 'Course', 'Best': 'Favorite',
-            'Avoid': 'Veto'}
-    courses = {}
-    faculty_prefs = switch_keys_from_rows(faculty_prefs, cols, True)
-    for row in faculty_prefs:
-        courses[row['Course']] = row
-    return courses
-
-
 def fix_advisors(students: StudentsType,
                  student_info: StudentInfoType) -> StudentsType:
     email_prefix_to_advisor = {}
@@ -219,7 +230,7 @@ def add_in_assigned(students: StudentsType, assigned: AssignedType,
         student = {'Name': names[netid], 'Advisor': '', 'NetID': netid,
                    'Favorite': f"{course[:3]} {course[3:]}", 'Good': '',
                    'OK': '', 'Previous': '', 'Bank': '', 'Join': '',
-                   'Time': get_date()}
+                   'Time': get_date(), 'Sorted': ''}
         students[netid] = student
     return students
 
@@ -309,8 +320,13 @@ def get_courses(planning_sheet_id: str) -> Tuple[
 def get_fac_prefs(instructor_preferences_sheet_id: str) -> FacultyPrefsType:
     tab = get_rows_with_tab_title(
         instructor_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
-    prefs = parse_faculty_prefs(tab)
-    return prefs
+    cols = {'Email': 'Email', 'Which course?': 'Course', 'Best': 'Favorite',
+            'Avoid': 'Veto', 'Sorted': 'Sorted'}
+    fac_prefs = {}
+    switched_keys = switch_keys_from_rows(tab, cols, True)
+    for row in switched_keys:
+        fac_prefs[row['Course']] = row
+    return fac_prefs
 
 
 def write_csv(file_name: str, data: List[list]):
@@ -334,7 +350,6 @@ def format_pref_list(pref: str) -> List[str]:
 
 def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
     List[str]]:
-    # cols = ['Course','TAs','Weight','Instructor','Title','Notes']
     num = str(course['Course'])
     slots = course['TAs']
     if int(slots) == 0:
@@ -350,16 +365,19 @@ def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
         else:  # if course num is from another department
             course_code = num.replace(' ', '')
 
+    sort_fav = False
     if course_code in prefs:
         pref = prefs[course_code]
         fav = ';'.join(format_pref_list(pref['Favorite']))
         veto = ';'.join(format_pref_list(pref['Veto']))
+        if pref.get('Sorted') and pref['Sorted'].title() != 'False':
+            sort_fav = True
     else:
         fav = ''
         veto = ''
 
     course_code = course_code.replace(' ', '')
-    return [course_code, slots, weight, fav, veto, instructors, title]
+    return [course_code, slots, weight, fav, sort_fav, veto, instructors, title]
 
 
 def parse_previous_list(prev: str) -> List[str]:
@@ -416,10 +434,10 @@ def format_netid(email: str) -> str:
     return netid
 
 
-def format_course_list(courses: str) -> str:
+def format_course_list(courses: str) -> List[str]:
     courses = courses.replace(',', ';')
     courses = courses.replace(' ', '')
-    return courses
+    return courses.split(';')
 
 
 def format_student(student: StudentType, courses: CoursesType,
@@ -434,10 +452,11 @@ def format_student(student: StudentType, courses: CoursesType,
     fav = student['Favorite']
     good = student['Good']
     okay = student['OK']
+    sorted_favs = student['Sorted']
     notes = student['Notes'].replace('"', '\'')
     prev = format_prev(prev, courses)
     row = [netid, full_name, year, bank, join, "", prev, adv, fav, good, okay,
-           notes]
+           sorted_favs, notes]
     return row
 
 
@@ -455,7 +474,7 @@ def format_phd(student: StudentType, years: YearsType) -> List[str]:
 
 def format_assigned(netid: str, full_name: str, year: str, advisor: str,
                     course: str, notes: str) -> List[str]:
-    return [netid, full_name, year, "", "", "", "", advisor, course, "", "",
+    return [netid, full_name, year, "", "", "", "", advisor, course, "", "", "",
             notes]
 
 
@@ -475,8 +494,15 @@ def make_path(dir_title: str = None) -> str:
 
 def write_courses(path: str, courses: CoursesType,
                   instructor_prefs: FacultyPrefsType):
-    data = [['Course', 'Slots', 'Weight', 'Favorite', 'Veto', 'Instructor',
-             'Title']]
+    """
+    `FacultyPrefsType` includes a field `Sorted` which will be written under
+    the column `Favorites Sorted`. If the value in the `Sorted` field is present
+    (unless it is `str(False)` or `str(false)`) then it will be interpreted as
+    `True`.
+    """
+    data = [
+        ['Course', 'Slots', 'Weight', 'Favorite', 'Favorites Sorted', 'Veto',
+         'Instructor', 'Title']]
     for num in courses:
         course = courses[num]
         row = format_course(course, instructor_prefs)
@@ -488,7 +514,8 @@ def write_courses(path: str, courses: CoursesType,
 def write_students(path: str, courses: CoursesType, assigned: AssignedType,
                    years: YearsType, students: StudentsType):
     data = [['NetID', 'Name', 'Year', 'Bank', 'Join', 'Weight', 'Previous',
-             'Advisors', 'Favorite', 'Good', 'Okay', 'Notes']]
+             'Advisors', 'Favorite', 'Good', 'Okay', 'Sorted Favorites',
+             'Notes']]
     phds = [['NetID', 'Name', 'Year', 'Advisor']]
     for netid in students:
         if netid in assigned:
