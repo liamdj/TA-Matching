@@ -158,6 +158,7 @@ def parse_sorted_favorite_list(sorted_favorites: str,
     sorted_favorites = sorted_favorites.replace(',', '>')
     sorted_favorites = sorted_favorites.replace(';', '>')
     sorted_favorites = sorted_favorites.replace(' ', '')
+    sorted_favorites = sorted_favorites.replace('\n', '')
     sorted_favorites = sorted_favorites.split('>')
     all_courses_in_sorted_favs = []
     for courses in sorted_favorites:
@@ -165,7 +166,8 @@ def parse_sorted_favorite_list(sorted_favorites: str,
         for fav_c in courses.split('='):
             if fav_c in favorite_courses:
                 courses_set.add(fav_c)
-        all_courses_in_sorted_favs.append('='.join(courses_set))
+        if len(courses_set):
+            all_courses_in_sorted_favs.append('='.join(courses_set))
     return '>'.join(all_courses_in_sorted_favs)
 
 
@@ -365,13 +367,13 @@ def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
         else:  # if course num is from another department
             course_code = num.replace(' ', '')
 
-    sort_fav = False
+    sort_fav = ''
     if course_code in prefs:
         pref = prefs[course_code]
         fav = ';'.join(format_pref_list(pref['Favorite']))
         veto = ';'.join(format_pref_list(pref['Veto']))
         if pref.get('Sorted') and pref['Sorted'].title() != 'False':
-            sort_fav = True
+            sort_fav = 'Yes'
     else:
         fav = ''
         veto = ''

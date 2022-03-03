@@ -18,7 +18,7 @@ def __is_nan(num: Any) -> bool:
         return False
     if type(num) == str:
         return num == 'nan'
-    return math.isnan(num)
+    return math.isnan(num) or pd.isna(num)
 
 
 student_data_cols = ['Name', 'Weight', 'Year', 'Bank', 'Join', 'Previous',
@@ -47,7 +47,8 @@ def match_weights(student_data: pd.DataFrame, course_data: pd.DataFrame,
             instructors = c_data['Instructor'].split(';')
             c_rank = get_rank(c_data[student])
             s_rank = get_rank(s_data[course])
-            if c_rank != 'Veto' and course in s_data and not pd.isna(s_rank):
+            if c_rank[0] != 'Veto' and course in s_data and not __is_nan(
+                    s_rank[0]):
                 weights[si, ci] = calculate_weight_per_pairing(
                     course, s_rank, c_rank, instructors, advisors,
                     previous, s_data['Ranked'], c_data['Favorites'])
@@ -628,6 +629,17 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
                         trial[si, ci] += 1.0
         return trial
 
+    def check_soft_cap(comparisons: np.ndarray, num_courses: int) -> List[
+        Tuple[str, int, int]]:
+        soft_cap = (comparisons >= 0.02).sum(axis=0)
+        out = []
+        for ci in range(num_courses):
+            if soft_cap[ci] > int(course_data.iloc[ci]['Slots'] * 0.45):
+                out.append(
+                    (course_data.index[ci], soft_cap[ci],
+                     course_data.iloc[ci]['Slots']))
+        return out
+
     courses = len(course_data.index)
     students = len(student_data.index)
     percentages = np.zeros((students, courses), dtype=np.float64)
@@ -642,7 +654,7 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
         total_matches = run_trials(sigma, trials, weights, students, courses)
         print(f"Starting simulation {total_simulations} with sigma {sigma}")
         percent_decimals = None
-        for i in range(9):
+        for i in range(1, 10):
             trial_matches = run_trials(
                 sigma, trials, weights, students, courses)
             total_matches += trial_matches
@@ -650,13 +662,21 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
             percent_decimals = trial_matches / trials
             comp = np.absolute(
                 (total_matches / total_trials) - percent_decimals)
-            length = (comp >= 0.02).sum()
-            if not length:
-                break
-            print(
-                f"After batch {i} with {trials} trials, not yet stabilized, still {length} differences above 0.02")
+            hard_cap = (comp >= 0.05).sum()
+            if hard_cap == 0:
+                courses_above_soft_cap = check_soft_cap(comp, courses)
+                if len(courses_above_soft_cap) == 0:
+                    print(
+                        f"Stopping after batch {i} with {trials} trials due to being under the soft cap")
+                    break
+                else:
+                    print(
+                        f"After batch {i} with {trials} trials, above soft cap ('Course', 'TAs > 2%', 'Slots'): {courses_above_soft_cap}")
+            else:
+                print(
+                    f"After batch {i} with {trials} trials, still {hard_cap} differences above 0.05")
             trials *= 2
-        print(percent_decimals)
+        print(np.linalg.norm(percent_decimals), percent_decimals)
         percentages += total_matches / total_trials
         total_simulations += 1
 
