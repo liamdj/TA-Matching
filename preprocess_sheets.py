@@ -144,6 +144,7 @@ def parse_student_preferences(
             if good_c in okay:
                 okay.remove(good_c)
 
+        row['Name'] = row['Name'].strip()
         row['Sorted'] = parse_sorted_favorite_list(row.get('Sorted', ''), fav)
         row['Favorite'] = ';'.join(fav)
         row['Good'] = ';'.join(good)
@@ -240,7 +241,8 @@ def add_in_assigned(students: StudentsType, assigned: AssignedType,
 def parse_names(student_info: StudentInfoType) -> NamesType:
     names = {}
     for student in student_info:
-        names[student['NetID']] = f"{student['First']} {student['Last']}"
+        names[student[
+            'NetID']] = f"{student['First'].strip()} {student['Last'].strip()}"
     return names
 
 
@@ -286,9 +288,7 @@ def add_in_bank_join(students: StudentsType,
 def get_students(planning_sheet_worksheets: List[write_gs.Worksheet],
                  student_preferences_sheet_id: str) -> Tuple[
     AssignedType, YearsType, StudentsType]:
-    student_info = write_gs.get_worksheet_from_worksheets(
-        planning_sheet_worksheets, gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE,
-        gs_consts.MATCHING_OUTPUT_SHEET_TITLE).get_all_records()
+    student_info = get_student_info(planning_sheet_worksheets)
     student_preferences_tab = get_rows_with_tab_title(
         student_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
 
@@ -306,6 +306,17 @@ def get_students(planning_sheet_worksheets: List[write_gs.Worksheet],
     students = add_in_notes(students, student_notes)
     students = fix_advisors(students, student_info)
     return assigned, years, students
+
+
+def get_student_info(
+        planning_sheet_worksheets: List[write_gs.Worksheet]) -> StudentInfoType:
+    student_info = write_gs.get_worksheet_from_worksheets(
+        planning_sheet_worksheets, gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE,
+        gs_consts.MATCHING_OUTPUT_SHEET_TITLE).get_all_records()
+
+    for student in student_info:
+        student['NetID'] = student['NetID'].strip()
+    return student_info
 
 
 def get_courses(planning_sheet_id: str) -> Tuple[
@@ -433,7 +444,7 @@ def format_prev(prev: str, courses: CoursesType):
 
 def format_netid(email: str) -> str:
     netid = email.replace('@princeton.edu', '')
-    return netid
+    return netid.strip()
 
 
 def format_course_list(courses: str) -> List[str]:

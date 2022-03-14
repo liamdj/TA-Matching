@@ -145,8 +145,7 @@ class MatchingGraph:
                 ["NetID", "Name", "Notes", "Course", "Slots Filled",
                  "Total Match Weight", "Fixed", "Year", "Bank", "Join",
                  "Previous", "Advisor-Advisee", "Student Weight",
-                 "Student Rank", "Matches Score (Student)", "Professor Rank",
-                 "Match Score (Course)"])
+                 "Student Rank", "Professor Rank"])
 
             output = []
             for i, (si, ci) in enumerate(matches):
