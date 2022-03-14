@@ -600,88 +600,133 @@ def test_changes_from_previous(output_path: str, previous_matches: pd.DataFrame,
         writer.writerows(sorted(found_changes, key=lambda x: x[0]))
 
 
+def calculate_l2norm_for_uniform_entries(matched_students: int,
+                                         denominator: int) -> float:
+    """
+    Returns the L2 (Frobenius) norm for a matrix that would have `denominator`
+    entries of `1/denominator` in each row, with `matched_students` number of
+    non-zero rows.
+    """
+    return math.sqrt(matched_students * 1 / denominator)
+
+
+def add_noise_and_get_matching_interviews(stddev: float,
+                                          base_weights: np.ndarray,
+                                          student_weight_data: pd.DataFrame,
+                                          course_graph_data: pd.DataFrame,
+                                          fixed_matches: pd.DataFrame) -> Tuple[
+    List[Tuple[int, int]], int]:
+    noise = np.random.normal(0, stddev, base_weights.shape)
+    new_weights = base_weights + noise
+    graph = min_cost_flow.MatchingGraph(
+        new_weights, student_weight_data, course_graph_data, fixed_matches)
+    if not graph.solve():
+        print('Problem optimizing flow')
+        graph.print()
+        return [], -1
+    match = graph.get_matching(fixed_matches, base_weights)
+    unfilled_slots = graph.get_slots_unfilled(graph.get_slots_filled(match))
+    return match, unfilled_slots
+
+
+def run_interview_trials(sigma: float, trials_to_run: int,
+                         base_weights: np.ndarray,
+                         student_weight_data: pd.DataFrame,
+                         course_graph_data: pd.DataFrame,
+                         fixed_matches: pd.DataFrame) -> np.ndarray:
+    courses = len(course_graph_data.index)
+    students = len(student_weight_data.index)
+    trial = np.zeros((students, courses), dtype=np.float64)
+    for _ in range(trials_to_run):
+        matching, unfilled = add_noise_and_get_matching_interviews(
+            sigma, base_weights, student_weight_data, course_graph_data,
+            fixed_matches)
+        if unfilled == 0:
+            for si, ci in matching:
+                if si != -1 and ci != -1:
+                    trial[si, ci] += 1.0
+    return trial
+
+
+def check_caps_interview_simulations(course_data: pd.DataFrame,
+                                     recent_simulation: np.ndarray,
+                                     batch_num: int,
+                                     num_trials: int,
+                                     previous_simulations_percentages: np.ndarray) -> bool:
+    courses = len(course_data.index)
+    comparisons = np.absolute(
+        (recent_simulation / num_trials) - previous_simulations_percentages)
+    hard_cap = (comparisons >= 0.05).sum()
+    if hard_cap == 0:
+        soft_cap = (comparisons >= 0.02).sum(axis=0)
+        courses_above_soft_cap = []
+        for ci in range(courses):
+            ci_slots = course_data.iloc[ci]['Slots']
+            if soft_cap[ci] > int(ci_slots * 0.45):
+                courses_above_soft_cap.append(
+                    (course_data.index[ci], soft_cap[ci], ci_slots))
+
+        if len(courses_above_soft_cap) == 0:
+            print(
+                f"Stopping after batch {batch_num} with {num_trials} trials due to being under the soft cap")
+            return True
+        else:
+            print(
+                f"After batch {batch_num} with {num_trials} trials, above soft cap ('Course', 'TAs > 2%', 'Slots'): {courses_above_soft_cap}")
+    else:
+        print(
+            f"After batch {batch_num} with {num_trials} trials, still {hard_cap} differences above 0.05")
+    return False
+
+
 def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
                    fixed_matches: pd.DataFrame, adjusted_path: str,
                    output_path: str, initial_matches: List[Tuple[int, int]]):
-    def add_noise_and_get_matching(base_weights: np.ndarray, stddev: float) -> \
-            Tuple[List[Tuple[int, int]], int]:
-        new_weights = base_weights + np.random.normal(0, stddev, weights.shape)
-        graph = min_cost_flow.MatchingGraph(
-            new_weights, student_data['Weight'],
-            course_data[['Slots', 'Base weight', 'First weight']],
-            fixed_matches)
-        if not graph.solve():
-            print('Problem optimizing flow')
-            graph.print()
-            return [], -1
-        match = graph.get_matching(fixed_matches, base_weights)
-        unfilled_slots = graph.get_slots_unfilled(graph.get_slots_filled(match))
-        return match, unfilled_slots
-
-    def run_trials(sigma: float, trials_to_run: int, base_weights: np.ndarray,
-                   students: int, courses: int) -> np.ndarray:
-        trial = np.zeros((students, courses), dtype=np.float64)
-        for _ in range(trials_to_run):
-            matching, unfilled = add_noise_and_get_matching(base_weights, sigma)
-            if unfilled == 0:
-                for si, ci in matching:
-                    if si != -1 and ci != -1:
-                        trial[si, ci] += 1.0
-        return trial
-
-    def check_soft_cap(comparisons: np.ndarray, num_courses: int) -> List[
-        Tuple[str, int, int]]:
-        soft_cap = (comparisons >= 0.02).sum(axis=0)
-        out = []
-        for ci in range(num_courses):
-            if soft_cap[ci] > int(course_data.iloc[ci]['Slots'] * 0.45):
-                out.append(
-                    (course_data.index[ci], soft_cap[ci],
-                     course_data.iloc[ci]['Slots']))
-        return out
-
     courses = len(course_data.index)
     students = len(student_data.index)
-    percentages = np.zeros((students, courses), dtype=np.float64)
+    student_weight_data = student_data['Weight']
+    course_graph_data = course_data[['Slots', 'Base weight', 'First weight']]
+    cumulative_percentages = np.zeros((students, courses), dtype=np.float64)
     for si, ci in initial_matches:
-        percentages[si, ci] += 1.0
+        cumulative_percentages[si, ci] += 1.0
     weights = match_weights(student_data, course_data, adjusted_path, 0.0, True)
-    max_stddev, step = 10.0, 0.5
-    total_simulations = 1
+    max_stddev, step = 3.5, 0.5
+    simulations = 1
     for sigma in np.arange(step, max_stddev + step, step):
         trials = 50
-        total_trials = trials
-        total_matches = run_trials(sigma, trials, weights, students, courses)
-        print(f"Starting simulation {total_simulations} with sigma {sigma}")
-        percent_decimals = None
+        sim_trials = trials
+        sim_matches = run_interview_trials(
+            sigma, trials, weights, student_weight_data, course_graph_data,
+            fixed_matches)
+        print(f"Starting simulation {simulations} with sigma {sigma}")
         for i in range(1, 10):
-            trial_matches = run_trials(
-                sigma, trials, weights, students, courses)
-            total_matches += trial_matches
-            total_trials += trials
+            trial_matches = run_interview_trials(
+                sigma, trials, weights, student_weight_data, course_graph_data,
+                fixed_matches)
+            sim_matches += trial_matches
+            sim_trials += trials
             percent_decimals = trial_matches / trials
-            comp = np.absolute(
-                (total_matches / total_trials) - percent_decimals)
-            hard_cap = (comp >= 0.05).sum()
-            if hard_cap == 0:
-                courses_above_soft_cap = check_soft_cap(comp, courses)
-                if len(courses_above_soft_cap) == 0:
-                    print(
-                        f"Stopping after batch {i} with {trials} trials due to being under the soft cap")
-                    break
-                else:
-                    print(
-                        f"After batch {i} with {trials} trials, above soft cap ('Course', 'TAs > 2%', 'Slots'): {courses_above_soft_cap}")
-            else:
-                print(
-                    f"After batch {i} with {trials} trials, still {hard_cap} differences above 0.05")
+            if check_caps_interview_simulations(
+                    course_data, sim_matches, i, sim_trials, percent_decimals):
+                break
             trials *= 2
-        print(np.linalg.norm(percent_decimals), percent_decimals)
-        percentages += total_matches / total_trials
-        total_simulations += 1
+        simulation_percentages = sim_matches / sim_trials
+        print(simulation_percentages.sum(axis=1))
+        cumulative_percentages += simulation_percentages
+        simulations += 1
 
-    percentages *= 100.0 / total_simulations
+    weighted_percentages = parse_interview_simulations(
+        course_data, student_data, cumulative_percentages * 100.0 / simulations)
+    write_interview_simulation(output_path, weighted_percentages)
+
+
+def parse_interview_simulations(course_data: pd.DataFrame,
+                                student_data: pd.DataFrame,
+                                percentages: np.ndarray) -> Dict[
+    str, List[Tuple[str, str, float]]]:
     readable_matches = {}
+    courses = len(course_data.index)
+    students = len(student_data.index)
     for ci in range(courses):
         sorted_matches = []
         for si in range(students):
@@ -692,7 +737,11 @@ def interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
                 sorted_matches.append((netid, name, percent))
         sorted_matches.sort(key=lambda x: x[2], reverse=True)
         readable_matches[course_data.index[ci]] = sorted_matches
+    return readable_matches
 
+
+def write_interview_simulation(output_path: str, readable_matches: Dict[
+    str, List[Tuple[str, str, float]]]):
     with open(output_path + 'interview_simulations.csv', 'w+') as f:
         writer = csv.writer(f)
         writer.writerow(['Course', 'NetID', 'Name', 'Percent Chance'])

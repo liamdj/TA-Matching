@@ -4,7 +4,6 @@ from typing import Tuple, List
 import numpy as np
 import pandas as pd
 from ortools.graph import pywrapgraph
-from scipy import stats
 
 DIGITS = 2
 
@@ -140,15 +139,12 @@ class MatchingGraph:
         matches = self.get_matching(fixed_matches, weights)
         slots_filled = self.get_slots_filled(matches)
 
-        student_perspective = stats.zscore(weights, axis=1, nan_policy='omit')
-        course_perspective = stats.zscore(weights, axis=0, nan_policy='omit')
-
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(
                 ["NetID", "Name", "Notes", "Course", "Slots Filled",
                  "Total Match Weight", "Fixed", "Year", "Bank", "Join",
-                 "Previous", "Advisor-Advisee", "Negative Student Weight",
+                 "Previous", "Advisor-Advisee", "Student Weight",
                  "Student Rank", "Matches Score (Student)", "Professor Rank",
                  "Match Score (Course)"])
 
@@ -164,17 +160,14 @@ class MatchingGraph:
                 is_fixed = i < len(fixed_matches.index)
                 is_previous = False
                 is_advisor_advisee = False
-                is_negative_student_weight = student_data.loc[
-                                                 student, "Weight"] < 0
+                s_weight = student_data.loc[student, "Weight"]
                 notes = student_data.loc[student, "Notes"]
 
                 if ci >= 0:
                     course = course_data.index[ci]
                     slots = course_data.loc[course, "Slots"]
                     s_rank = student_data.loc[student, course]
-                    s_match_score = student_perspective[si, ci]
                     c_rank = course_data.loc[course, student]
-                    c_match_score = course_perspective[si, ci]
                     is_previous = course in student_data.loc[
                         student, "Previous"].split(';')
                     for instructor in course_data.loc[
@@ -187,15 +180,13 @@ class MatchingGraph:
                          "{} / {}".format(slots_filled[ci], slots),
                          "{:.2f}".format(weights[si, ci]), is_fixed, year, bank,
                          join, is_previous, is_advisor_advisee,
-                         is_negative_student_weight, s_rank,
-                         "{:.2f}".format(s_match_score), c_rank,
-                         "{:.2f}".format(c_match_score)])
+                         s_weight, s_rank, c_rank])
 
                 else:
                     output.append(
                         [student, name, notes, "unassigned", "", "", is_fixed,
                          year, bank, join, is_previous, is_advisor_advisee,
-                         is_negative_student_weight, "", "", "", ""])
+                         s_weight, "", ""])
             output = sorted(output, key=lambda x: x[3])
             writer.writerows(output)
             optimal_cost = self.graph_weight()
