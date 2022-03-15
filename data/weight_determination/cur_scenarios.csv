@@ -1,0 +1,37 @@
+Weight,Student Pref,Instructor Pref,Previous?,Advisor?
+14,Favorite,Favorite,Previous,2 Advisors
+13,Good,Favorite,Previous,2 Advisors
+12,Favorite,Favorite,Previous,1 Advisor
+12,Favorite,Favorite,,2 Advisors
+11,Good,Favorite,Previous,1 Advisor
+11,Good,Favorite,,2 Advisors
+10,Favorite,Favorite,Previous,
+10,Favorite,Favorite,,1 Advisor
+9,Good,Favorite,Previous,
+9,Good,Favorite,,1 Advisor
+8,Favorite,Favorite,,
+8,Favorite,,Previous,2 Advisors
+7,Good,Favorite,,
+6,Favorite,,Previous,1 Advisor
+6,Favorite,,,2 Advisors
+6,Good,,Previous,2 Advisors
+4,Favorite,,Previous,
+4,Favorite,,,1 Advisor
+4,Good,,Previous,1 Advisor
+4,Good,,,2 Advisors
+2,Favorite,,,
+2,Good,,Previous,
+2,Good,,,1 Advisor
+0.0,Okay,Favorite,Previous,2 Advisors
+0,Good,,,
+0.0,Okay,,Previous,2 Advisors
+-2.0,Okay,Favorite,Previous,1 Advisor
+-2.0,Okay,Favorite,,2 Advisors
+-2.0,Okay,,Previous,1 Advisor
+-2.0,Okay,,,2 Advisors
+-4.0,Okay,Favorite,Previous,
+-4.0,Okay,Favorite,,1 Advisor
+-4.0,Okay,,Previous,
+-4.0,Okay,,,1 Advisor
+-6.0,Okay,Favorite,,
+-6.0,Okay,,,

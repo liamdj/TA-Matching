@@ -1,0 +1,55 @@
+Priority,Student Pref,Instructor Pref,Previous?,Advisor?
+1,Favorite,Favorite,Previous,2 Advisors
+2,Favorite,Favorite,Previous,1 Advisor
+3,Favorite,Favorite,,2 Advisors
+4,Good,Favorite,Previous,2 Advisors
+5,Favorite,Favorite,Previous,
+6,Good,Favorite,Previous,1 Advisor
+7,Favorite,Favorite,,1 Advisor
+8,Favorite,Favorite,,
+9,Good,Favorite,,2 Advisors
+10,Good,Favorite,Previous,
+11,Good,Favorite,,1 Advisor
+12,Good,Favorite,,
+13,Favorite,,Previous,2 Advisors
+14,Favorite,,Previous,1 Advisor
+15,Favorite,,,2 Advisors
+16,Favorite,,Previous,
+17,Favorite,,,1 Advisor
+18,Favorite,,,
+19,Good,,Previous,2 Advisors
+20,Good,,Previous,1 Advisor
+21,Good,,,2 Advisors
+22,Good,,Previous,
+23,Good,,,1 Advisor
+24,Good,,,
+26,Okay,Favorite,Previous,2 Advisors
+27,Okay,Favorite,Previous,1 Advisor
+28,Okay,Favorite,,2 Advisors
+29,Okay,Favorite,Previous,
+30,Okay,Favorite,,1 Advisor
+31,Okay,Favorite,,
+32,Okay,,Previous,2 Advisors
+33,Okay,,Previous,1 Advisor
+34,Okay,,,2 Advisors
+35,Okay,,Previous,
+36,Okay,,,1 Advisor
+37,Okay,,,
+38,Favorite,Veto,Previous,2 Advisors
+38,Favorite,Veto,Previous,1 Advisor
+38,Favorite,Veto,,2 Advisors
+38,Favorite,Veto,Previous,
+38,Favorite,Veto,,1 Advisor
+38,Favorite,Veto,,
+38,Good,Veto,Previous,2 Advisors
+38,Good,Veto,Previous,1 Advisor
+38,Good,Veto,Previous,
+38,Good,Veto,,2 Advisors
+38,Good,Veto,,1 Advisor
+38,Good,Veto,,
+38,Okay,Veto,Previous,2 Advisors
+38,Okay,Veto,Previous,1 Advisor
+38,Okay,Veto,Previous,
+38,Okay,Veto,,2 Advisors
+38,Okay,Veto,,1 Advisor
+38,Okay,Veto,,
