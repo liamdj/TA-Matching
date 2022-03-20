@@ -370,7 +370,7 @@ def create_row_data_from_matrix(matrix: List[List], bold=False,
         row = []
         for j, c in enumerate(line):
             key = 'stringValue'
-            if type(c) == 'float' or type(c) == 'int':
+            if type(c) == float or type(c) == int:
                 key = 'numberValue'
             cell_details = {'userEnteredValue': {key: c}}
             format_object = make_formatting_object(i, j)
