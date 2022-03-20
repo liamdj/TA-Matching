@@ -320,14 +320,14 @@ def get_student_info(
 
 
 def get_courses(planning_sheet_id: str) -> Tuple[
-    CoursesType, List[write_gs.Worksheet]]:
+    CoursesType, str, List[write_gs.Worksheet]]:
     planning_sheet = write_gs.get_sheet_by_id(planning_sheet_id)
     planning_worksheets = planning_sheet.worksheets()
     ws = write_gs.get_worksheet_from_worksheets(
         planning_worksheets, gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE,
         gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
     courses = parse_courses(ws.get_all_records())
-    return courses, planning_worksheets
+    return courses, planning_sheet.title, planning_worksheets
 
 
 def get_fac_prefs(instructor_preferences_sheet_id: str) -> FacultyPrefsType:
@@ -584,9 +584,11 @@ def get_and_write_previous(path: str, previous_matching_ws_title: str):
 def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
                instructor_prefs_sheet_id: str,
                previous_matching_ws_title: str = None,
-               output_directory_title: str = None) -> Tuple[str, str, str]:
+               output_directory_title: str = None) -> Tuple[
+    str, str, str, str, List[write_gs.Worksheet]]:
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
-    courses, planning_sheet_worksheets = get_courses(planning_sheet_id)
+    courses, planning_sheet_title, planning_sheet_worksheets = get_courses(
+        planning_sheet_id)
     assigned, years, students = get_students(
         planning_sheet_worksheets, student_prefs_sheet_id)
     validate_bank_join_values(students, years)
@@ -596,7 +598,7 @@ def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
     write_assigned(path, assigned)
     if previous_matching_ws_title:
         get_and_write_previous(path, previous_matching_ws_title)
-    return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id
+    return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id, planning_sheet_title, planning_sheet_worksheets
 
 
 def check_if_preprocessing_equal(name1: str, name2: str):

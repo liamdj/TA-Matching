@@ -30,32 +30,45 @@ def get_worksheet_from_worksheets(worksheets: List[Worksheet],
 
 
 def get_num_execution_from_matchings_sheet(
-        input_num_executed: str = None) -> str:
-    matchings_sheet = get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
-    matchings_worksheets = [e.title for e in matchings_sheet.worksheets()]
+        input_num_executed: str = None,
+        matchings_sheet_worksheets: List[Worksheet] = None,
+        planning_input_worksheets: List[Worksheet] = None) -> Tuple[
+    str, Optional[Spreadsheet], List[Worksheet], Optional[List[Worksheet]]]:
+    matchings_sheet = None
+    if matchings_sheet_worksheets is None:
+        matchings_sheet = get_sheet(gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
+        matchings_sheet_worksheets = matchings_sheet.worksheets()
+    matchings_worksheets = [e.title for e in matchings_sheet_worksheets]
     matchings_worksheets.remove('ToC')
     matchings_worksheets.sort(key=int, reverse=True)
     max_matchings_tab = int(matchings_worksheets[0])
 
+    planning_worksheets = None
     if input_num_executed:
         max_planning_tab = int(input_num_executed)
     else:
-        max_planning_tab = get_input_num_execution()
+        max_planning_tab, planning_worksheets = get_input_num_execution(
+            planning_input_worksheets)
 
     worksheet_title = "001"
     if len(matchings_worksheets) > 0:
         worksheet_title = str(
             f"{(max(max_matchings_tab, max_planning_tab) + 1):03d}")
-    return worksheet_title
+    return worksheet_title, matchings_sheet, matchings_sheet_worksheets, planning_worksheets
 
 
-def get_input_num_execution() -> int:
-    planning_inputs_sheet = get_sheet(gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
+def get_input_num_execution(
+        planning_input_copy_worksheets: List[Worksheet] = None) -> Tuple[
+    int, List[Worksheet]]:
+    if planning_input_copy_worksheets is None:
+        planning_inputs_copy_sheet = get_sheet(
+            gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
+        planning_input_copy_worksheets = planning_inputs_copy_sheet.worksheets()
     planning_inputs_worksheets = [e.title for e in
-                                  planning_inputs_sheet.worksheets()]
+                                  planning_input_copy_worksheets]
     planning_inputs_worksheets.sort(key=str, reverse=True)
     max_planning_tab = int(planning_inputs_worksheets[0].split("(")[0])
-    return max_planning_tab
+    return max_planning_tab, planning_input_copy_worksheets
 
 
 def add_worksheet(sheet: Spreadsheet, worksheet_title: str, rows=100, cols=26,
@@ -515,22 +528,21 @@ def write_params_csv(num_executed: str, output_dir_title: str) -> Tuple[
     return sheet.id, ws.id
 
 
-def copy_input_worksheets(num_executed: str, planning_sheet_id: str,
+def copy_input_worksheets(num_executed: str, planning_sheet_title: str,
+                          planning_worksheets: List[Worksheet],
                           student_prefs_sheet_id: str,
                           instructor_prefs_sheet_id: str) -> InputCopyIDs:
     print(f"Copying input for execution #{num_executed}")
-    planning_sheet = get_sheet_by_id(planning_sheet_id)
-    planning_worksheets = planning_sheet.worksheets()
     planning_input_copy_sheet = get_sheet(
         gs_consts.PLANNING_INPUT_COPY_SHEET_TITLE)
     _, planning_courses_copy_ws_id = copy_to_from_worksheets(
-        planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
+        planning_sheet_title, planning_worksheets, planning_input_copy_sheet,
         gs_consts.PLANNING_INPUT_COURSES_TAB_TITLE, f"{num_executed}(C)")
     _, planning_faculty_copy_ws_id = copy_to_from_worksheets(
-        planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
+        planning_sheet_title, planning_worksheets, planning_input_copy_sheet,
         gs_consts.PLANNING_INPUT_FACULTY_TAB_TITLE, f"{num_executed}(F)")
     _, planning_students_copy_ws_id = copy_to_from_worksheets(
-        planning_sheet.title, planning_worksheets, planning_input_copy_sheet,
+        planning_sheet_title, planning_worksheets, planning_input_copy_sheet,
         gs_consts.PLANNING_INPUT_STUDENTS_TAB_TITLE, f"{num_executed}(S)")
     planning_input_copy_ids = (
         planning_input_copy_sheet.id, planning_students_copy_ws_id,

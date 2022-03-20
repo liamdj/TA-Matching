@@ -16,11 +16,11 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      student_preferences_sheet_id: str = None,
                                                      instructor_preferences_sheet_id: str = None,
                                                      compare_matching_from_num_executed: str = None):
-    num_executed = write_gs.get_num_execution_from_matchings_sheet()
+    num_executed, matchings_sheet, matchings_worksheets, planning_input_copy_worksheets = write_gs.get_num_execution_from_matchings_sheet()
     if compare_matching_from_num_executed is None:
         compare_matching_from_num_executed = f"{(int(num_executed) - 1):03d}"
 
-    preprocess.write_csvs(
+    _, _, _, planning_sheet_title, planning_sheet_worksheets = preprocess.write_csvs(
         previous_matching_ws_title=compare_matching_from_num_executed,
         output_directory_title=input_dir_title,
         planning_sheet_id=planning_sheet_id,
@@ -28,34 +28,40 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
         instructor_prefs_sheet_id=instructor_preferences_sheet_id)
 
     input_copy_ids = write_gs.copy_input_worksheets(
-        num_executed, planning_sheet_id, student_preferences_sheet_id,
-        instructor_preferences_sheet_id)
+        num_executed, planning_sheet_title, planning_sheet_worksheets,
+        student_preferences_sheet_id, instructor_preferences_sheet_id)
 
     run_and_write_matchings(
-        executor, input_dir_title, include_remove_and_add_features,
-        include_interviews, num_executed, num_executed,
+        executor, input_dir_title, matchings_worksheets,
+        include_remove_and_add_features, include_interviews, num_executed,
+        num_executed, matchings_sheet, planning_input_copy_worksheets,
         compare_matching_from_num_executed, alternates, input_copy_ids)
 
 
 def run_and_write_matchings(executor: str, input_dir_title: str,
+                            matchings_worksheets: List[
+                                write_gs.Worksheet] = None,
                             include_remove_and_add_features=True,
                             include_interviews=False,
                             output_num_executed: str = None,
                             input_num_executed: str = None,
+                            matchings_sheet: write_gs.Spreadsheet = None,
+                            planning_worksheets: List[
+                                write_gs.Worksheet] = None,
                             compare_matching_from_num_executed: str = None,
-                            alternates=0, input_copy_ids: Tuple[
-            Tuple[str, str, str, str], Tuple[str, str], Tuple[
-                str, str]] = None):
+                            alternates=0,
+                            input_copy_ids: write_gs.InputCopyIDs = None):
     """
     if `input_num_executed` is `None`, then use most recent copy
     """
     matching_weight, slots_unfilled, alt_weights, output_dir_path = run_matching(
         input_dir_title, alternates, include_interviews)
     write_matchings(
-        executor, output_dir_path, matching_weight,
-        include_remove_and_add_features, include_interviews, slots_unfilled,
-        output_num_executed, input_num_executed,
-        compare_matching_from_num_executed, alt_weights, input_copy_ids)
+        executor, output_dir_path, matching_weight, matchings_worksheets,
+        matchings_sheet, planning_worksheets, include_remove_and_add_features,
+        include_interviews, slots_unfilled, output_num_executed,
+        input_num_executed, compare_matching_from_num_executed, alt_weights,
+        input_copy_ids)
 
 
 def run_matching(input_dir_title: str, alternates=0, run_interviews=False) -> \
@@ -70,26 +76,34 @@ def run_matching(input_dir_title: str, alternates=0, run_interviews=False) -> \
 
 
 def write_matchings(executor: str, dir_path: str, matching_weight: float,
+                    matchings_worksheets: List[write_gs.Worksheet],
+                    matching_output_sheet: write_gs.Spreadsheet = None,
+                    planning_copy_input_worksheets: List[
+                        write_gs.Worksheet] = None,
                     include_remove_and_add_features=True,
                     include_interviews=False, slots_unfilled=0,
                     output_num_executed: str = None,
                     input_num_executed: str = None,
                     compare_matching_from_num_executed: str = None,
-                    alt_weights: List[float] = [], input_copy_ids: Tuple[
-            Tuple[str, str, str, str], Tuple[str, str], Tuple[
-                str, str]] = None):
+                    alt_weights: List[float] = [],
+                    input_copy_ids: write_gs.InputCopyIDs = None):
     """
     if `input_num_executed` is `None`, then use most recent copy;
     if `compare_matching_from_num_executed` is `None`, then do not compute diff
     """
     if input_num_executed is None:
-        input_num_executed = str(write_gs.get_input_num_execution())
+        input_num_executed, planning_copy_input_worksheets = write_gs.get_input_num_execution(
+            planning_copy_input_worksheets)
+        input_num_executed = str(input_num_executed)
     if output_num_executed is None:
-        output_num_executed = write_gs.get_num_execution_from_matchings_sheet(
-            input_num_executed=input_num_executed)
+        output_num_executed, matching_output_sheet, _, _ = write_gs.get_num_execution_from_matchings_sheet(
+            input_num_executed=input_num_executed,
+            matchings_sheet_worksheets=matchings_worksheets,
+            planning_input_worksheets=planning_copy_input_worksheets)
 
-    matching_output_sheet = write_gs.get_sheet(
-        gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
+    if matching_output_sheet is None:
+        matching_output_sheet = write_gs.get_sheet(
+            gs_consts.MATCHING_OUTPUT_SHEET_TITLE)
 
     outputs_dir_path = dir_path + '/outputs'
     include_matching_diff = False
