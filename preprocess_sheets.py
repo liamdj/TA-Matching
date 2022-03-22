@@ -399,7 +399,7 @@ def parse_previous_list(prev: str) -> List[str]:
     else:
         parts = re.split(r"[,;]\s?", prev)
     regex = re.compile(
-        r"^(COS|EGR|PNI)[\s]?([1-9][0-9]{2}[A-F]?)\/?" + r"(COS|EGR|PNI)?[\s]?([1-9][0-9]{2}[A-F]?)?\/?" * 2)
+        r"^(COS|EGR|PNI|ELE|MAE|ISC)[\s]?([1-9][0-9]{2}[A-F]?)\/?" + r"(COS|EGR|PNI|ELE|MAE|ISC)?[\s]?([1-9][0-9]{2}[A-F]?)?\/?" * 2)
 
     course_nums = []
     for part in parts:
