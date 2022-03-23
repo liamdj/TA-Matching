@@ -99,6 +99,7 @@ class MatchingGraph:
 
     def get_matching(self, fixed_matches: pd.DataFrame, weights: np.ndarray) -> \
             List[Tuple[int, int]]:
+        """Returns list of (si, ci) matches"""
         matches = []
         fixed_matches = fixed_matches[['Student index', 'Course index']]
         for arc in range(self.flow.NumArcs()):

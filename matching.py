@@ -265,6 +265,10 @@ def test_additional_TA(path: str, student_data: pd.DataFrame,
                        initial_matching_weight: float):
     data = {}
     for ci, course in enumerate(course_data.index):
+        fixed_matches_in_course = (fixed_matches['Course index'] == ci).sum()
+        if fixed_matches_in_course == course_data.loc[course, 'Slots']:
+            data[course] = -100, "", ""
+            continue
         # fill one additional course slot
         fixed_edit = pd.concat(
             [fixed_matches.T, pd.Series(
@@ -287,7 +291,7 @@ def write_edited_graph_changes(path: str, change_data: Dict[str, Tuple],
         writer.writerow(columns)
         for change_index, (weight_change, *tup) in sorted_by_weight:
             weight_change = round(
-                weight_change, 4) if weight_change != -100 else 'Error'
+                weight_change, 4) if weight_change != -100 else 'N/A'
             writer.writerow([change_index, weight_change, *tup])
 
 
@@ -336,11 +340,19 @@ def test_removing_TA(path: str, student_data: pd.DataFrame,
                      fixed_matches: pd.DataFrame,
                      initial_matches: List[Tuple[int, int]],
                      initial_matching_weight: float):
+    student_indices_in_fixed_matches = fixed_matches['Student index'].values
+    matched_students_indices = set()
+    for si, ci in initial_matches:
+        if ci != -1:
+            matched_students_indices.add(si)
+
     data = {}
     for si, student in enumerate(student_data.index):
         bank = str(student_data.loc[student, 'Bank']).replace('nan', '')
         join = str(student_data.loc[student, 'Join']).replace('nan', '')
-        if si not in fixed_matches['Student index'].values:
+        if si not in matched_students_indices:
+            data[student] = -100, bank, join, "", ""
+        elif si not in student_indices_in_fixed_matches:
             # no edges from student node
             fixed_edit = pd.concat(
                 [fixed_matches.T, pd.Series(
@@ -372,7 +384,7 @@ def test_adding_or_subtracting_a_slot(path: str, add: bool,
         course_data.at[course, 'Slots'] = course_data.loc[course, 'Slots'] + s_d
         data[course] = calculate_changes_in_new_graph(
             student_data, course_data, initial_matches, weights, fixed_matches,
-            initial_match_weight, course)
+            initial_match_weight, None)
         course_data.at[course, 'Slots'] = course_data.loc[course, 'Slots'] - s_d
     write_edited_graph_changes(
         path, data, ['Course', 'Weight change', 'Student differences',
