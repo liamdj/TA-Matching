@@ -1,4 +1,5 @@
 import argparse
+import copy
 import csv
 import math
 import os
@@ -415,7 +416,8 @@ def write_alternate_match(path: str, student_data: pd.DataFrame,
         None, initial_matches, new_matches, student_data, course_data)
     new_weight = graph_weight + (
             len(new_matches) - len(student_changes)) * cumulative
-    print(f'Solved alternate flow (discount: {cumulative:.3f}) with total weight {new_weight:.2f}')
+    print(
+        f'Solved alternate flow (discount: {cumulative:.3f}) with total weight {new_weight:.2f}')
     with open(path, 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(
@@ -661,12 +663,14 @@ def make_adjustments_from_previous(path: str, student_data: pd.DataFrame,
 
 def run_alternate_matchings(path: str, alternates: int,
                             student_data: pd.DataFrame,
-                            course_data: pd.DataFrame, weights: np.ndarray,
+                            course_data: pd.DataFrame,
+                            initial_weights: np.ndarray,
                             fixed_matches: pd.DataFrame,
                             best_matches: List[Tuple[int, int]]) -> List[float]:
     last_matches = best_matches
     cumulative = 0.0
     alt_weights = []
+    weights = copy.deepcopy(initial_weights)
     for i in range(alternates):
         last_matches, cumulative, alt_weight = find_alternate_matching(
             f'{path}alternate{i + 1}.csv', student_data, course_data, weights,
