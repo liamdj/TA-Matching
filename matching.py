@@ -383,7 +383,7 @@ def find_alternate_matching(path: str, student_data: pd.DataFrame,
                             fixed_matches: pd.DataFrame,
                             initial_matches: List[Tuple[int, int]],
                             last_matches: List[Tuple[int, int]],
-                            cumulative: float, step=0.1) -> Tuple[
+                            cumulative: float, step=0.005) -> Tuple[
     List[Tuple[int, int]], float, float]:
     while True:
         for si, ci in initial_matches:
@@ -415,7 +415,7 @@ def write_alternate_match(path: str, student_data: pd.DataFrame,
         None, initial_matches, new_matches, student_data, course_data)
     new_weight = graph_weight + (
             len(new_matches) - len(student_changes)) * cumulative
-    print(f'Solved alternate flow with total weight {new_weight:.2f}')
+    print(f'Solved alternate flow (discount: {cumulative:.3f}) with total weight {new_weight:.2f}')
     with open(path, 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(
