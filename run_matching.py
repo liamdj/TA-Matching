@@ -111,7 +111,7 @@ def write_matchings(executor: str, dir_path: str, matching_weight: float,
     if compare_matching_from_num_executed:
         num_changes = compare_outputs.compare_and_write_matching_changes(
             outputs_dir_path, dir_path + '/inputs/previous.csv',
-            'matchings.csv')
+            outputs_dir_path + '/matchings.csv')
         print(
             f"{num_changes} different assignments between {compare_matching_from_num_executed} and {output_num_executed}")
         if num_changes > 0:

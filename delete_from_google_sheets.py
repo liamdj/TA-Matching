@@ -92,7 +92,7 @@ def remove_worksheets_substring_titles(sheet_title: str,
 
 def remove_entries_from_toc(toc_ws: Worksheet, max_ws: int,
                             tab_nums: List[str]):
-    # Remove from TA Diffs, Course Diffs, Boosted from Previous
+    # Remove from TA Diffs, Course Diffs, Augmenting Paths from Previous
     cells = get_columns_of_cells_formatted(toc_ws, 6, 3)
     for tab_num in tab_nums:
         for row in cells:

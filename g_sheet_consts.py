@@ -17,5 +17,5 @@ GENERATED_INSTRUCTORS_PREFS_SHEET_TITLE = "TA Matching 22: Instructor Preference
 PARAMS_INPUT_COPY_SHEET_TITLE = 'TA-Matching Input: Params'
 MATCHING_OUTPUT_DIFF_SHEET_TITLE = 'TA-Matching Output: Differences'
 GENERIC_DIFFS_SHEET_TITLE = 'TA-Matching: Compare Worksheets'
-WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE = 'TA-Matching Output: Boosted from Previous Matchings'
+WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE = 'TA-Matching Output: Augmenting Paths from Previous Matchings'
 COURSE_INTERVIEW_SHEET_TITLE = 'TA-Matching Output: Course Interviews'

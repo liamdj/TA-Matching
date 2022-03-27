@@ -551,7 +551,10 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
                       initial_matches: List[Tuple[int, int]]) -> Optional[
         Tuple[int, ChangeDetails, ChangeDetails]]:
         lo = 0.0
-        hi = 50.0
+        hi = 1.0 + params.DEFAULT_ASSIGN + max(
+            -(5.0 - params.DEFAULT_BANK) * params.BANK_MULTIPLIER, (
+                    5.0 - params.DEFAULT_JOIN) * params.JOIN_MULTIPLIER) + params.MSE_BOOST + params.FAVORITE_FAVORITE + params.PREVIOUS + 2.0 * params.ADVISORS + 10.0 * (
+                     params.BOOST_PER_COURSE_STUDENT_RANKED + params.BOOST_PER_FAVORITE_STUDENT + params.BOOST_PER_PLACE_IN_SORTED_COURSE_LIST + params.BOOST_PER_PLACE_IN_SORTED_STUDENT_LIST)
         prev_desired = None
         while hi > lo + 0.01:
             mid = lo + (hi - lo) / 2
@@ -568,7 +571,7 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
                     prev_desired = (mid, *changes)
         return None if not prev_desired else prev_desired[:3]
 
-    def get_previous_indices():
+    def get_previous_indices() -> List[Tuple[int, int]]:
         indices = []
         for _, match in previous_matches.iterrows():
             si, ci = get_student_and_course_indices(match)
@@ -576,23 +579,32 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
                 indices.append((si, ci))
         return indices
 
-    def get_initial_changes() -> Tuple[int, str, str]:
+    def get_initial_changes(
+            indices_for_previous_matches: List[Tuple[int, int]]) -> Tuple[
+        int, str, str]:
         changes = make_changes_and_calculate_differences(
-            student_data, course_data, previous_indices, weights, fixed_matches)
+            student_data, course_data, indices_for_previous_matches, weights,
+            fixed_matches)
         if not changes:
             print(f"Graph could not be solved with no added weight")
             return -1, "", ""
         return len(changes[0]), single_line(changes[0]), single_line(
             changes[1])
 
+    previous_indices = get_previous_indices()
+    changes_with_param_weight, student_diffs_param_weight, course_diffs_param_weight = get_initial_changes(
+        previous_indices)
+
     # remove the weight that was added earlier to boost previous matches
     repopulate_weights(-params.PREVIOUS_MATCHING_BOOST)
-    previous_indices = get_previous_indices()
-
-    max_changes, orig_student_diffs, orig_course_diffs = get_initial_changes()
+    max_changes, orig_student_diffs, orig_course_diffs = get_initial_changes(
+        previous_indices)
     if max_changes == -1:
         return
-    found_changes = [(max_changes, 0.0, orig_student_diffs, orig_course_diffs)]
+    found_changes = [(max_changes, 0.0, orig_student_diffs, orig_course_diffs),
+                     (changes_with_param_weight,
+                      f"{params.PREVIOUS_MATCHING_BOOST} (main matching)",
+                      student_diffs_param_weight, course_diffs_param_weight)]
 
     for i in range(1, max_changes):
         change = binary_search(i, previous_indices)
@@ -610,7 +622,7 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
     with open(output_path + 'weighted_changes.csv', 'w+') as f:
         writer = csv.writer(f)
         writer.writerow(
-            ['Desired Student Changes', 'Weight Added to Previous Match',
+            ['Desired Student Changes', 'Weight Added to Previous Matches',
              'Student Changes', 'Course Changes'])
         writer.writerows(sorted(found_changes, key=lambda x: x[0]))
 

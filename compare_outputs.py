@@ -150,11 +150,10 @@ def write_matchings_changes(student_changes: Dict[str, Tuple[str, str]],
 
 
 def compare_and_write_matching_changes(output_dir_title: str,
-                                       old_matching_csv_filename: str,
-                                       new_matching_csv_filename: str) -> int:
+                                       old_matching_csv_path: str,
+                                       new_matching_csv_path: str) -> int:
     student_changes, course_changes = compare_matching_csvs(
-        f'{output_dir_title}/{old_matching_csv_filename}',
-        new_matching_csv_filename)
+        old_matching_csv_path, new_matching_csv_path)
     num_changes = write_matchings_changes(
         student_changes, course_changes, output_dir_title)
     return num_changes
