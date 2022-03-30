@@ -599,31 +599,3 @@ def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
     if previous_matching_ws_title:
         get_and_write_previous(path, previous_matching_ws_title)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id, planning_sheet_title, planning_sheet_worksheets
-
-
-def check_if_preprocessing_equal(name1: str, name2: str):
-    with open(name1) as f1, open(name2) as f2:
-        reader1 = sorted(list(csv.reader(f1, delimiter=',', quotechar='"')))
-        reader2 = sorted(list(csv.reader(f2, delimiter=',', quotechar='"')))
-        if len(reader1) != len(reader2):
-            print(f"big lens of {name1},{name2} not equal")
-            return
-        for j in range(len(reader1)):
-            row1 = reader1[j]
-            row2 = reader2[j]
-            if len(row1) != len(row2):
-                print("lens not equal")
-                print(row1, row2)
-                continue
-
-            for i in range(len(row1)):
-                v1 = row1[i]
-                v2 = row2[i]
-                if ";" in v1:
-                    ar1 = v1.split(";").sort()
-                    ar2 = v2.split(";").sort()
-                    if ar1 != ar2:
-                        print("not equal")
-                else:
-                    if v1 != v2:
-                        print(f"vals {v1},{v2} not equal")

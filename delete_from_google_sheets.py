@@ -1,3 +1,4 @@
+import argparse
 import re
 from typing import List, Dict
 
@@ -118,3 +119,12 @@ def remove_entries_from_toc(toc_ws: Worksheet, max_ws: int,
             toc_ws.delete_rows(i + 2 - tabs_deleted)
             print(f'Deleted {title} from ToC')
             tabs_deleted += 1
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Delete Executions.')
+    parser.add_argument(
+        'tab_titles', metavar='N', type=str, nargs='+',
+        help='the titles of the tabs to delete')
+    remove_worksheets_for_executions(
+        [tab for tab in parser.parse_args().tab_titles])

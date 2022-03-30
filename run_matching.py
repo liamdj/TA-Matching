@@ -1,3 +1,4 @@
+import argparse
 from typing import List, Tuple
 
 import compare_outputs
@@ -10,7 +11,7 @@ import write_to_google_sheets as write_gs
 def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      input_dir_title='colab',
                                                      include_remove_and_add_features=True,
-                                                     include_interviews=True,
+                                                     include_interviews=False,
                                                      alternates=0,
                                                      planning_sheet_id: str = None,
                                                      student_preferences_sheet_id: str = None,
@@ -111,7 +112,7 @@ def write_matchings(executor: str, dir_path: str, matching_weight: float,
     if compare_matching_from_num_executed:
         num_changes = compare_outputs.compare_and_write_matching_changes(
             outputs_dir_path, dir_path + '/inputs/previous.csv',
-            outputs_dir_path + '/matchings.csv')
+                              outputs_dir_path + '/matchings.csv')
         print(
             f"{num_changes} different assignments between {compare_matching_from_num_executed} and {output_num_executed}")
         if num_changes > 0:
@@ -135,3 +136,49 @@ def write_matchings(executor: str, dir_path: str, matching_weight: float,
         include_remove_and_add_features, include_interviews, alt_weights,
         input_num_executed, matching_diff_ws_title, include_matching_diff,
         input_copy_ids, param_copy_ids, output_ids)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'input_path', type=str,
+        help='Name of the directory that contains the inputs directory')
+    parser.add_argument(
+        '--name', default='(nameless local machine)', type=str,
+        help='Name of the person running the execution')
+    parser.add_argument(
+        '--alternates', default=2, metavar='alts', type=int, nargs='?',
+        help='Number of alternate matchings to run with')
+    parser.add_argument(
+        '--compare_to', default=None, metavar='prev_comp', type=str, nargs='?',
+        help='Tab name to compare against current run')
+    parser.add_argument(
+        '--exclude_add_remove', default=False, action='store_true',
+        help='Write the removal and additional ta outputs')
+    parser.add_argument(
+        '--run_interviews', default=False,
+        action='store_true', help='Run the interviews simulation')
+    parser.add_argument(
+        '--planning', required=False, type=str,
+        help='The Google Sheets id for the planning sheet')
+    parser.add_argument(
+        '--ta_prefs', required=False, type=str,
+        help='The Google Sheets id for the student preferences sheet')
+    parser.add_argument(
+        '--fac_prefs', required=False, type=str,
+        help='The Google Sheets id for the instructor preferences sheet')
+
+    args = parser.parse_args()
+    if args.planning and args.ta_prefs and args.fac_prefs:
+        print("Preprocessing and running and writing")
+        preprocess_input_run_matching_and_write_matching(
+            args.name, args.input_path, not args.exclude_add_remove,
+            args.run_interviews, args.alternates, args.planning, args.ta_prefs,
+            args.fac_prefs, args.compare_to)
+    else:
+        print("Running and writing")
+        run_and_write_matchings(
+            args.name, args.input_path,
+            include_remove_and_add_features=not args.exclude_add_remove,
+            include_interviews=args.run_interviews, alternates=args.alternates,
+            compare_matching_from_num_executed=args.compare_to)
