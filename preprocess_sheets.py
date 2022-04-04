@@ -1,3 +1,4 @@
+import argparse
 import csv
 import datetime
 import os
@@ -258,7 +259,8 @@ def parse_adjusted(students: StudentsType) -> AdjustedType:
 def parse_notes(student_info: StudentInfoType) -> NotesType:
     notes = {}
     for student in student_info:
-        notes[student['NetID']] = student['Shorthand']
+        if 'Shorthand' in student:
+            notes[student['NetID']] = student['Shorthand']
     return notes
 
 
@@ -599,3 +601,23 @@ def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
     if previous_matching_ws_title:
         get_and_write_previous(path, previous_matching_ws_title)
     return planning_sheet_id, student_prefs_sheet_id, instructor_prefs_sheet_id, planning_sheet_title, planning_sheet_worksheets
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'planning', type=str,
+        help='The Google Sheets id for the planning sheet')
+    parser.add_argument(
+        'ta_prefs', type=str,
+        help='The Google Sheets id for the student preferences sheet')
+    parser.add_argument(
+        'fac_prefs', type=str,
+        help='The Google Sheets id for the instructor preferences sheet')
+    parser.add_argument(
+        '--output_dir', type=str, required=False, default='matching',
+        help='The name of the directory to which the preprocessed csvs will be saved')
+    args = parser.parse_args()
+    write_csvs(
+        args.planning, args.ta_prefs, args.fac_prefs,
+        output_directory_title=args.output_dir)

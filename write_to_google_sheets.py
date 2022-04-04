@@ -385,6 +385,8 @@ def create_row_data_from_matrix(matrix: List[List], bold=False,
             key = 'stringValue'
             if type(c) == float or type(c) == int:
                 key = 'numberValue'
+            elif type(c) == bool:
+                key = 'boolValue'
             cell_details = {'userEnteredValue': {key: c}}
             format_object = make_formatting_object(i, j)
             if format_object:
@@ -467,7 +469,7 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
             gs_consts.WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE)
         weighted_changes_ws = write_csv_to_new_tab_from_sheet(
             f'{outputs_dir_path}/weighted_changes.csv', weighted_changes_sheet,
-            matching_diffs_ws_title, wrap=True, center_align_details=(0, 1))
+            matching_diffs_ws_title, wrap=True, center_align_details=(0, 2))
         weighted_changes_ids = (
             weighted_changes_sheet.id, weighted_changes_ws.id)
 

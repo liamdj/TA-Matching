@@ -517,9 +517,10 @@ def run_additional_features(output_path: str, student_data: pd.DataFrame,
     alt_weights = run_alternate_matchings(
         output_path, alternates, student_data, course_data, weights,
         fixed_matches, initial_matches)
-    test_changes_from_previous(
-        output_path, student_data, course_data, weights, fixed_matches,
-        previous_matches)
+    if not previous_matches.empty:
+        test_changes_from_previous(
+            output_path, student_data, course_data, weights, fixed_matches,
+            previous_matches)
     if run_interviews:
         interviews.create_interview_list(
             course_data, student_data, fixed_matches, adjusted_path,
@@ -549,7 +550,7 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
 
     def binary_search(desired_matches: int,
                       initial_matches: List[Tuple[int, int]]) -> Optional[
-        Tuple[int, ChangeDetails, ChangeDetails]]:
+        Tuple[int, ChangeDetails, ChangeDetails, float]]:
         lo = 0.0
         hi = 1.0 + params.DEFAULT_ASSIGN + max(
             -(5.0 - params.DEFAULT_BANK) * params.BANK_MULTIPLIER, (
@@ -569,7 +570,7 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
                 hi = mid
                 if len(changes[0]) == desired_matches:
                     prev_desired = (mid, *changes)
-        return None if not prev_desired else prev_desired[:3]
+        return None if not prev_desired else prev_desired
 
     def get_previous_indices() -> List[Tuple[int, int]]:
         indices = []
@@ -581,48 +582,62 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
 
     def get_initial_changes(
             indices_for_previous_matches: List[Tuple[int, int]]) -> Tuple[
-        int, str, str]:
+        int, float, str, str]:
         changes = make_changes_and_calculate_differences(
             student_data, course_data, indices_for_previous_matches, weights,
             fixed_matches)
         if not changes:
             print(f"Graph could not be solved with no added weight")
-            return -1, "", ""
-        return len(changes[0]), single_line(changes[0]), single_line(
+            return -1, 0.0, "", ""
+        return len(changes[0]), changes[2], single_line(
+            changes[0]), single_line(
             changes[1])
 
+    def weight_diff(zero_added_weight: float, new_weight: float,
+                    num_changes: int, weight_added_per_change: float) -> float:
+        slots = course_data['Slots'].sum()
+        weight_added = (slots - num_changes) * weight_added_per_change
+        return round(new_weight - weight_added - zero_added_weight, 4)
+
     previous_indices = get_previous_indices()
-    changes_with_param_weight, student_diffs_param_weight, course_diffs_param_weight = get_initial_changes(
+    changes_with_param_weight, weight_with_param_weight, student_diffs_param_weight, course_diffs_param_weight = get_initial_changes(
         previous_indices)
 
     # remove the weight that was added earlier to boost previous matches
     repopulate_weights(-params.PREVIOUS_MATCHING_BOOST)
-    max_changes, orig_student_diffs, orig_course_diffs = get_initial_changes(
+    max_changes, weight_with_no_weight, orig_student_diffs, orig_course_diffs = get_initial_changes(
         previous_indices)
     if max_changes == -1:
         return
-    found_changes = [(max_changes, 0.0, orig_student_diffs, orig_course_diffs),
-                     (changes_with_param_weight,
-                      f"{params.PREVIOUS_MATCHING_BOOST} (main matching)",
-                      student_diffs_param_weight, course_diffs_param_weight)]
+    found_changes = [
+        (max_changes, 0.0, weight_diff(
+            weight_with_no_weight, weight_with_param_weight, max_changes, 0.0),
+         orig_student_diffs, orig_course_diffs),
+        (changes_with_param_weight,
+         f"{params.PREVIOUS_MATCHING_BOOST} (main matching)", 0.0,
+         student_diffs_param_weight, course_diffs_param_weight)]
 
     for i in range(1, max_changes):
         change = binary_search(i, previous_indices)
         if change:
-            weight_added_per_prev_match, student_diffs, course_diffs = change
+            weight_added_per_prev_match, student_diffs, course_diffs, new_weight = change
             if len(student_diffs) == i:
                 found_changes.append(
                     (i, round(weight_added_per_prev_match, 4),
+                     weight_diff(
+                         weight_with_no_weight, new_weight, i,
+                         weight_added_per_prev_match),
                      single_line(student_diffs), single_line(course_diffs)))
             else:
                 print(f"Problem in trying to get exactly {i} student changes")
         else:
-            found_changes.append((i, 'Impossible', '', ''))
+            found_changes.append((i, 'Impossible', '', '', ''))
 
     with open(output_path + 'weighted_changes.csv', 'w+') as f:
         writer = csv.writer(f)
         writer.writerow(
             ['Desired Student Changes', 'Weight Added to Previous Matches',
+             'Weight Change',
              'Student Changes', 'Course Changes'])
         writer.writerows(sorted(found_changes, key=lambda x: x[0]))
 

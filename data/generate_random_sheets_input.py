@@ -1,3 +1,4 @@
+import argparse
 import copy
 import datetime
 import random
@@ -143,7 +144,7 @@ def generate_universal_student_matrix(entries, advisors_matrix):
 def generate_student_info_sheet(entries=5):
     titles = [["Last", "First", "Nickname", "NetID", "Form", "Track", "Year",
                "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes",
-               "Special Notes"]]
+               "Shorthand"]]
     matrix = []
     for _ in range(entries):
         track, year = gen_track_year()
@@ -161,7 +162,7 @@ def generate_student_info_sheet_from_matrix(student_info):
     # student = ["First Name", "Last Name", "NetID", "Comma Separated Advisors"]
     titles = [["Last", "First", "Nickname", "NetID", "Form", "Track", "Year",
                "Advisor", "Advisor2", "Bank", "Join", "Half", "Course", "Notes",
-               "Special Notes"]]
+               "Shorthand"]]
     matrix = []
     for student in student_info[1:]:
         track, year = gen_track_year()
@@ -226,7 +227,7 @@ def generate_fac_preferences(student_preferences, advisors_matrix) -> List[
         return ', '.join(matches)
 
     matrix = [["Timestamp", "Email Address", "Which course?", "Best Match(es)",
-               "Matches to Avoid"]]
+               "Matches to Avoid", "Sorted Favorites?"]]
     courses = []
     courses_to_students = {}
     for course in COURSES:
@@ -248,9 +249,11 @@ def generate_fac_preferences(student_preferences, advisors_matrix) -> List[
     for course in courses:
         email = random.choice(teaching_advisors_netids) + '@princeton.edu'
         possible_students = courses_to_students[course]
+        is_sorted_favorites = bool(random.getrandbits(1))
         line = [gen_timestamp(), email, course,
                 __gen_matches_list(possible_students),
-                __gen_matches_list(possible_students, False)]
+                __gen_matches_list(possible_students, False),
+                is_sorted_favorites]
         matrix.append(line)
     return matrix
 
@@ -339,3 +342,44 @@ def generate_and_write_preferences_from_student_info_and_advisors(
     student_prefs, fac_prefs = gen_preferences_from_student_info_and_advisors(
         student_info, advisors)
     write_student_and_fac_preferences(student_prefs, fac_prefs)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'students', type=int,
+        help='How many student entries')
+    parser.add_argument(
+        'faculty', type=int,
+        help='How many faculty entries')
+    parser.add_argument(
+        '--writers', type=str, nargs='+', required=True,
+        help='Email addresses that should have write access on the created spreadsheets')
+    parser.add_argument(
+        '--readers', type=str, nargs='*', required=False,
+        help='Email addresses that should have read access on the created spreadsheets')
+
+    args = parser.parse_args()
+    planning_sheet_id, student_prefs_id, instructor_prefs_id = generate_and_write_all_input_sheets(
+        args.students, args.faculty)
+    planning_sheet_url = write_gs.build_url_to_sheet(planning_sheet_id)
+    student_prefs_url = write_gs.build_url_to_sheet(student_prefs_id)
+    instructor_prefs_url = write_gs.build_url_to_sheet(instructor_prefs_id)
+    planning_sheet = write_gs.get_sheet_by_id(planning_sheet_id)
+    student_prefs = write_gs.get_sheet_by_id(student_prefs_id)
+    instructor_prefs = write_gs.get_sheet_by_id(instructor_prefs_id)
+
+    for email in args.writers:
+        planning_sheet.share(email, perm_type='user', role='writer', notify=False)
+        student_prefs.share(email, perm_type='user', role='writer', notify=False)
+        instructor_prefs.share(email, perm_type='user', role='writer', notify=False)
+
+    if args.readers:
+        for email in args.readers:
+            planning_sheet.share(email, perm_type='user', role='reader', notify=False)
+            student_prefs.share(email, perm_type='user', role='reader', notify=False)
+            instructor_prefs.share(email, perm_type='user', role='reader', notify=False)
+
+    print(f'GENERATED_PLANNING = \'{planning_sheet_url}\'')
+    print(f'GENERATED_STUDENT_PREFS = \'{student_prefs_url}\'')
+    print(f'GENERATED_INSTRUCTOR_PREFS = \'{instructor_prefs_url}\'')

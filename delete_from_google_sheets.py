@@ -124,7 +124,7 @@ def remove_entries_from_toc(toc_ws: Worksheet, max_ws: int,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Delete Executions.')
     parser.add_argument(
-        'tab_titles', metavar='N', type=str, nargs='+',
-        help='the titles of the tabs to delete')
+        'tab_titles', type=str, nargs='+',
+        help='the exact titles of the tabs to delete')
     remove_worksheets_for_executions(
         [tab for tab in parser.parse_args().tab_titles])
