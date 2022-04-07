@@ -73,8 +73,10 @@ def gen_course_name():
     return COURSES[random.randint(0, len(COURSES) - 1)]
 
 
-def parse_course_num(course_name):
-    return course_name[4:]
+def parse_course_num(course_name:str) -> str:
+    if 'COS' in course_name:
+        return course_name[4:]
+    return course_name
 
 
 def gen_course_num():
