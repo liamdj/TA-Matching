@@ -356,7 +356,6 @@ def write_matrix_to_sheet(matrix: List[List[str]], sheet_name: str,
     initial_worksheet = sheet.get_worksheet(0)
     if not worksheet_name:
         worksheet_name = "Sheet1"
-    print(f"Created new spreadsheet at {build_url_to_sheet(sheet.id)}")
     write_matrix_to_new_tab(matrix, sheet, worksheet_name, wrap=wrap)
     sheet.del_worksheet(initial_worksheet)
     return sheet

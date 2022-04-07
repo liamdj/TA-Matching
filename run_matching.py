@@ -16,9 +16,12 @@ def preprocess_input_run_matching_and_write_matching(executor='UNCERTAIN',
                                                      planning_sheet_id: str = None,
                                                      student_preferences_sheet_id: str = None,
                                                      instructor_preferences_sheet_id: str = None,
-                                                     compare_matching_from_num_executed: str = None):
+                                                     compare_matching_from_num_executed: str = None,
+                                                     skip_previous=False):
     num_executed, matchings_sheet, matchings_worksheets, planning_input_copy_worksheets = write_gs.get_num_execution_from_matchings_sheet()
-    if compare_matching_from_num_executed is None:
+    if skip_previous:
+        compare_matching_from_num_executed = None
+    elif compare_matching_from_num_executed is None:
         compare_matching_from_num_executed = f"{(int(num_executed) - 1):03d}"
 
     _, _, _, planning_sheet_title, planning_sheet_worksheets = preprocess.write_csvs(
@@ -159,6 +162,9 @@ if __name__ == "__main__":
         '--run_interviews', default=False,
         action='store_true', help='Run the interviews simulation')
     parser.add_argument(
+        '--skip_previous', default=False,
+        action='store_true', help='Do not boost from previous matching')
+    parser.add_argument(
         '--planning', required=False, type=str,
         help='The Google Sheets id for the planning sheet')
     parser.add_argument(
@@ -174,7 +180,7 @@ if __name__ == "__main__":
         preprocess_input_run_matching_and_write_matching(
             args.name, args.input_path, not args.exclude_add_remove,
             args.run_interviews, args.alternates, args.planning, args.ta_prefs,
-            args.fac_prefs, args.compare_to)
+            args.fac_prefs, args.compare_to, args.skip_prvious)
     else:
         print("Running and writing")
         run_and_write_matchings(
