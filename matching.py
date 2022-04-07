@@ -187,7 +187,7 @@ def matching_differences(extra_course: Optional[str],
     ChangeDetails, ChangeDetails]:
     df_s = pd.concat(
         [pd.Series(dict(old), dtype=int), pd.Series(dict(new), dtype=int)],
-        axis=1)
+        axis=1).fillna(-1)
     student_diffs = df_s.iloc[:, 0].compare(df_s.iloc[:, 1]).astype(int)
     course_diffs, student_changes = get_matching_changes(
         student_data, course_data, student_diffs, extra_course)
@@ -265,6 +265,7 @@ def test_additional_TA(path: str, student_data: pd.DataFrame,
                        initial_matches: List[Tuple[int, int]],
                        initial_matching_weight: float):
     data = {}
+    course_slots = course_data['Slots'].sum()
     for ci, course in enumerate(course_data.index):
         fixed_matches_in_course = (fixed_matches['Course index'] == ci).sum()
         if fixed_matches_in_course == course_data.loc[course, 'Slots']:
@@ -278,7 +279,8 @@ def test_additional_TA(path: str, student_data: pd.DataFrame,
             axis=1).T
         data[course] = calculate_changes_in_new_graph(
             student_data, course_data, initial_matches, weights, fixed_edit,
-            initial_matching_weight, course)
+            initial_matching_weight, course_slots,
+            params.PREVIOUS_MATCHING_BOOST, course)
     write_edited_graph_changes(
         path, data, ['Course', 'Weight change', 'Student differences',
                      'Course differences'])
@@ -302,6 +304,8 @@ def calculate_changes_in_new_graph(student_data: pd.DataFrame,
                                    weights: np.ndarray,
                                    fixed_matches: pd.DataFrame,
                                    old_weight: float,
+                                   course_slots: int,
+                                   weight_added_per_change: float,
                                    extra_course: str = None) -> Tuple[
     float, str, str]:
     changes = make_changes_and_calculate_differences(
@@ -311,7 +315,9 @@ def calculate_changes_in_new_graph(student_data: pd.DataFrame,
         return -100, '', ''
 
     student_changes, course_changes, new_weight = changes
-    w_change = new_weight - old_weight
+    w_change = weight_diff(
+        course_slots, old_weight, new_weight, len(student_changes),
+        weight_added_per_change)
     return w_change, single_line(student_changes), single_line(course_changes)
 
 
@@ -348,6 +354,7 @@ def test_removing_TA(path: str, student_data: pd.DataFrame,
             matched_students_indices.add(si)
 
     data = {}
+    course_slots = course_data['Slots'].sum()
     for si, student in enumerate(student_data.index):
         bank = str(student_data.loc[student, 'Bank']).replace('nan', '')
         join = str(student_data.loc[student, 'Join']).replace('nan', '')
@@ -362,7 +369,8 @@ def test_removing_TA(path: str, student_data: pd.DataFrame,
                            'Course index'])], axis=1).T
             weight_change, s_changes, c_changes = calculate_changes_in_new_graph(
                 student_data, course_data, initial_matches, weights, fixed_edit,
-                initial_matching_weight, None)
+                initial_matching_weight, course_slots,
+                params.PREVIOUS_MATCHING_BOOST, None)
             data[student] = weight_change, bank, join, s_changes, c_changes
 
     write_edited_graph_changes(
@@ -381,11 +389,13 @@ def test_adding_or_subtracting_a_slot(path: str, add: bool,
     """ if `add == True`, add a slot, otherwise subtract a slot """
     data = {}
     s_d = (2 * add) - 1
+    total_course_slots = course_data['Slots'].sum()
     for ci, course in enumerate(course_data.index):
         course_data.at[course, 'Slots'] = course_data.loc[course, 'Slots'] + s_d
         data[course] = calculate_changes_in_new_graph(
             student_data, course_data, initial_matches, weights, fixed_matches,
-            initial_match_weight, None)
+            initial_match_weight, total_course_slots + s_d,
+            params.PREVIOUS_MATCHING_BOOST, None)
         course_data.at[course, 'Slots'] = course_data.loc[course, 'Slots'] - s_d
     write_edited_graph_changes(
         path, data, ['Course', 'Weight change', 'Student differences',
@@ -529,6 +539,12 @@ def run_additional_features(output_path: str, student_data: pd.DataFrame,
     return alt_weights
 
 
+def weight_diff(course_slots: int, zero_added_weight: float, new_weight: float,
+                num_changes: int, weight_added_per_change: float) -> float:
+    weight_added = (course_slots - num_changes) * weight_added_per_change
+    return round(new_weight - weight_added - zero_added_weight, 4)
+
+
 def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
                                course_data: pd.DataFrame, weights: np.ndarray,
                                fixed_matches: pd.DataFrame,
@@ -594,12 +610,7 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
             changes[0]), single_line(
             changes[1])
 
-    def weight_diff(zero_added_weight: float, new_weight: float,
-                    num_changes: int, weight_added_per_change: float) -> float:
-        slots = course_data['Slots'].sum()
-        weight_added = (slots - num_changes) * weight_added_per_change
-        return round(new_weight - weight_added - zero_added_weight, 4)
-
+    course_slots = course_data['Slots'].sum()
     previous_indices = get_previous_indices()
     changes_with_param_weight, weight_with_param_weight, student_diffs_param_weight, course_diffs_param_weight = get_initial_changes(
         previous_indices)
@@ -612,7 +623,8 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
         return
     found_changes = [
         (max_changes, 0.0, weight_diff(
-            weight_with_no_weight, weight_with_param_weight, max_changes, 0.0),
+            course_slots, weight_with_no_weight, weight_with_param_weight,
+            max_changes, 0.0),
          orig_student_diffs, orig_course_diffs),
         (changes_with_param_weight,
          f"{params.PREVIOUS_MATCHING_BOOST} (main matching)", 0.0,
@@ -626,7 +638,7 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
                 found_changes.append(
                     (i, round(weight_added_per_prev_match, 4),
                      weight_diff(
-                         weight_with_no_weight, new_weight, i,
+                         course_slots, weight_with_no_weight, new_weight, i,
                          weight_added_per_prev_match),
                      single_line(student_diffs), single_line(course_diffs)))
             else:
