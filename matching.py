@@ -68,6 +68,7 @@ def calculate_weight_per_pairing(course: str, s_rank: Tuple[str, int],
     c_sorted_boost = c_rank[1] * params.BOOST_PER_PLACE_IN_SORTED_COURSE_LIST
     s_sorted_boost = s_rank[1] * params.BOOST_PER_PLACE_IN_SORTED_STUDENT_LIST
     if s_rank[0] == 'Favorite':
+        weight += params.BOOST_PER_COURSE_STUDENT_RANKED * s_ranked
         if c_rank[0] == 'Favorite':
             weight += params.FAVORITE_FAVORITE + c_sorted_boost + s_sorted_boost
         else:
