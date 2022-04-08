@@ -485,7 +485,7 @@ def run_matching(path="", student_data="inputs/student_data.csv",
 
     output_path = path + output
     matching_weight, slots_unfilled, initial_matches = graph.write_matching(
-        output_path + 'matchings.csv', weights, student_data, course_data,
+        output_path + 'matching.csv', weights, student_data, course_data,
         fixed_matches)
     print(f'Solved optimal flow with total weight {matching_weight:.2f}')
 
@@ -646,7 +646,7 @@ def test_changes_from_previous(output_path: str, student_data: pd.DataFrame,
         else:
             found_changes.append((i, 'Impossible', '', '', ''))
 
-    with open(output_path + 'weighted_changes.csv', 'w+') as f:
+    with open(output_path + 'augmenting_paths.csv', 'w+') as f:
         writer = csv.writer(f)
         writer.writerow(
             ['Desired Student Changes', 'Weight Added to Previous Matches',

@@ -212,7 +212,7 @@ def initialize_output_ids(num_executed: str,
         matching_output_sheet, num_executed)
     matchings_ids = (matching_output_sheet.id, matchings_worksheet.id)
 
-    matching_diffs_ids, weighted_changes_ids = None, None
+    matching_diffs_ids, augmenting_paths_ids = None, None
     if matching_diffs_ws_title is not None:
         matching_diff_sheet = get_sheet(
             gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE)
@@ -223,12 +223,12 @@ def initialize_output_ids(num_executed: str,
         matching_diffs_ids = (
             matching_diff_sheet.id, students_diff_id, courses_diff_id)
 
-        weighted_changes_sheet = get_sheet(
-            gs_consts.WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE)
-        weighted_changes_ws = get_worksheet_from_sheet(
+        augmenting_paths_sheet = get_sheet(
+            gs_consts.AUGMENTING_PATHS_OUTPUT_SHEET_TITLE)
+        augmenting_paths_ws = get_worksheet_from_sheet(
             matching_diff_sheet, matching_diffs_ws_title).id
-        weighted_changes_ids = (
-            weighted_changes_sheet.id, weighted_changes_ws.id)
+        augmenting_paths_ids = (
+            augmenting_paths_sheet.id, augmenting_paths_ws.id)
 
     additional_ta_sheet = get_sheet(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE)
     additional_ta_ws = get_worksheet_from_sheet(
@@ -260,7 +260,7 @@ def initialize_output_ids(num_executed: str,
                 get_worksheet_from_sheet(
                     alternates_sheet, num_executed + chr(ord('A') + i)).id)
         alternates_ids = (alternates_sheet.id, alternates_worksheets_ids)
-    return matchings_ids, matching_diffs_ids, weighted_changes_ids, additional_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, interviews_ids, alternates_ids
+    return matchings_ids, matching_diffs_ids, augmenting_paths_ids, additional_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, interviews_ids, alternates_ids
 
 
 def build_links_to_input(input_executed_num: str, params_executed_num: str,
@@ -292,7 +292,7 @@ def build_links_to_output(executed_num: str, matching_weight: float,
                           alternate_matching_weights: List[float],
                           matchings_ids: Tuple[str, str],
                           matching_diffs_ids: Optional[Tuple[str, str, str]],
-                          weighted_changes_ids: Optional[Tuple[str, str, str]],
+                          augmenting_paths_ids: Optional[Tuple[str, str, str]],
                           add_ta_ids: Tuple[str, str],
                           remove_ta_ids: Tuple[str, str],
                           add_slot_ids: Tuple[str, str],
@@ -315,15 +315,15 @@ def build_links_to_output(executed_num: str, matching_weight: float,
         matching_suffix = f' ({slots_unfilled} slots unfilled)'
 
     matching_diffs_hyperlinks = [matching_diff_ws_title, ""]
-    weighted_changes_link = ""
+    augmenting_paths_link = ""
     if include_matching_diff:
         for i, suffix in enumerate(["(S)", "(C)"]):
             matching_diffs_hyperlinks[i], _ = build_hyperlink_to_sheet(
                 matching_diffs_ids[0], matching_diff_ws_title + suffix,
                 matching_diffs_ids[1 + i])
-        weighted_changes_link, _ = build_hyperlink_to_sheet(
-            weighted_changes_ids[0], matching_diff_ws_title,
-            weighted_changes_ids[1])
+        augmenting_paths_link, _ = build_hyperlink_to_sheet(
+            augmenting_paths_ids[0], matching_diff_ws_title,
+            augmenting_paths_ids[1])
 
     add_ta_links, remove_ta_links, add_slot_links, remove_slot_links = "", "", "", ""
     if include_remove_and_add_features:
@@ -337,7 +337,7 @@ def build_links_to_output(executed_num: str, matching_weight: float,
 
     links_to_output = [
         _build_hyperlink(*matchings_ids, text_suffix=matching_suffix),
-        *matching_diffs_hyperlinks, weighted_changes_link, add_ta_links,
+        *matching_diffs_hyperlinks, augmenting_paths_link, add_ta_links,
         remove_ta_links, add_slot_links, remove_slot_links, interview_links]
     links_to_alternate_output = []
     for i in range(len(alternate_matching_weights)):
@@ -448,10 +448,10 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
                       num_executed: str, outputs_dir_path: str,
                       matching_diffs_ws_title: str = None) -> OutputIDs:
     matchings_worksheet = write_csv_to_new_tab_from_sheet(
-        f'{outputs_dir_path}/matchings.csv', matching_output_sheet,
+        f'{outputs_dir_path}/matching.csv', matching_output_sheet,
         num_executed, 1, center_align_details=(3, 18))
     matchings_ids = (matching_output_sheet.id, matchings_worksheet.id)
-    matching_diffs_ids, alternates_ids, weighted_changes_ids = None, None, None
+    matching_diffs_ids, alternates_ids, augmenting_paths_ids = None, None, None
     if matching_diffs_ws_title is not None:
         matching_diff_sheet = get_sheet(
             gs_consts.MATCHING_OUTPUT_DIFF_SHEET_TITLE)
@@ -464,13 +464,13 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
         matching_diffs_ids = (
             matching_diff_sheet.id, students_diff_id, courses_diff_id)
 
-        weighted_changes_sheet = get_sheet(
-            gs_consts.WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE)
-        weighted_changes_ws = write_csv_to_new_tab_from_sheet(
-            f'{outputs_dir_path}/weighted_changes.csv', weighted_changes_sheet,
+        augmenting_paths_sheet = get_sheet(
+            gs_consts.AUGMENTING_PATHS_OUTPUT_SHEET_TITLE)
+        augmenting_paths_ws = write_csv_to_new_tab_from_sheet(
+            f'{outputs_dir_path}/augmenting_paths.csv', augmenting_paths_sheet,
             matching_diffs_ws_title, wrap=True, center_align_details=(0, 2))
-        weighted_changes_ids = (
-            weighted_changes_sheet.id, weighted_changes_ws.id)
+        augmenting_paths_ids = (
+            augmenting_paths_sheet.id, augmenting_paths_ws.id)
 
     add_ta_ids, remove_ta_ids = write_add_remove_csvs(
         include_remove_and_add_features, num_executed, outputs_dir_path,
@@ -501,7 +501,7 @@ def write_output_csvs(matching_output_sheet: Spreadsheet,
                     f'{outputs_dir_path}/alternate{i + 1}.csv',
                     alternates_sheet, num_executed + chr(ord('A') + i), i).id)
         alternates_ids = (alternates_sheet.id, alternates_worksheets_ids)
-    return matchings_ids, matching_diffs_ids, weighted_changes_ids, add_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, interview_ids, alternates_ids
+    return matchings_ids, matching_diffs_ids, augmenting_paths_ids, add_ta_ids, remove_ta_ids, add_slot_ids, remove_slot_ids, interview_ids, alternates_ids
 
 
 def write_add_remove_csvs(include_remove_and_add: bool, num_executed: str,

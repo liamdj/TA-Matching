@@ -37,7 +37,7 @@ def remove_worksheets_from_sheets(matching_sheet: Spreadsheet,
     remove_worksheets_substring_titles(
         gs_consts.GENERIC_DIFFS_SHEET_TITLE, tab_nums)
     remove_worksheets_substring_titles(
-        gs_consts.WEIGHTED_CHANGES_OUTPUT_SHEET_TITLE, tab_nums)
+        gs_consts.AUGMENTING_PATHS_OUTPUT_SHEET_TITLE, tab_nums)
     remove_worksheets(gs_consts.REMOVE_TA_OUTPUT_SHEET_TITLE, tab_nums)
     remove_worksheets(gs_consts.ADDITIONAL_TA_OUTPUT_SHEET_TITLE, tab_nums)
     remove_worksheets(gs_consts.REMOVE_SLOT_OUTPUT_SHEET_TITLE, tab_nums)
