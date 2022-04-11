@@ -166,10 +166,10 @@ def read_course_data(filename: str) -> pd.DataFrame:
     df = pd.concat(rank_rows, axis='columns').T
     df['Slots'] = pd.to_numeric(
         df['Slots'], errors='coerce', downcast='integer').fillna(1)
-    df['First weight'] = pd.to_numeric(
+    df['First weight'] = params.DEFAULT_FIRST_FILL
+    df['Base weight'] = pd.to_numeric(
         df['Weight'], errors='coerce', downcast='float').fillna(
-        params.DEFAULT_FIRST_FILL)
-    df['Base weight'] = params.DEFAULT_BASE_FILL
+        params.DEFAULT_BASE_FILL)
     return df
 
 
