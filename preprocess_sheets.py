@@ -460,8 +460,8 @@ def format_course_list(courses: str) -> List[str]:
     courses = courses.replace(',', ';')
     courses = courses.replace(' ', '')
     courses = courses.split(';')
-    for i in range(len(courses)):
-        courses[i] = re.search('([A-z]{3}?\s[0-9]{3})', courses[i])
+    # for i in range(len(courses)):
+    #     courses[i] = re.search('[A-z]{3}?\s[0-9]{3}', courses[i]).group()
     return courses
 
 
