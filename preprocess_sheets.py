@@ -457,11 +457,16 @@ def format_netid(email: str) -> str:
 
 
 def format_course_list(courses: str) -> List[str]:
+    courses = courses.replace('Technology, Business, and', '')
     courses = courses.replace(',', ';')
     courses = courses.replace(' ', '')
     courses = courses.split(';')
-    # for i in range(len(courses)):
-    #     courses[i] = re.search('[A-z]{3}?\s[0-9]{3}', courses[i]).group()
+    for i in range(len(courses)):
+        course_code = re.search('[A-z]{3}[\s]?[0-9]{3}', courses[i])
+        if course_code:
+            courses[i] = course_code.group()
+        else:
+            print('Got bad course in student course list:', courses[i])
     return courses
 
 
