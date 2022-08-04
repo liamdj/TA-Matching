@@ -380,10 +380,10 @@ def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
     title = course['Title']
     instructors = ';'.join(re.split(r'[;,]', course['Instructor']))
 
-    course_code = f'COS {num}'
     if re.search(r'[a-zA-Z]', num):
         if 'COS' in num:
             num = num.replace('COS ', '').replace('COS', '')
+            course_code = f'COS {num}'
         else:  # if course num is from another department
             course_code = num.replace(' ', '')
 
