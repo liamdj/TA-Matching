@@ -478,7 +478,7 @@ def format_student(student: StudentType, courses: CoursesType,
     good = student['Good']
     okay = student['OK']
     sorted_favs = student['Sorted']
-    notes = student['Notes'].replace('"', '\'')
+    notes = student['Notes'].replace('"', '\'') if 'Notes' in student else ''
     prev = format_prev(prev, courses)
     row = [netid, full_name, year, bank, join, "", prev, adv, fav, good, okay,
            sorted_favs, notes]
@@ -555,7 +555,7 @@ def write_students(path: str, courses: CoursesType, assigned: AssignedType,
         data.append(
             format_assigned(
                 netid, student['Name'], years[netid], student['Advisor'],
-                course, student['Notes']))
+                course, student['Notes'] if 'Notes' in student else ''))
     write_csv(f"{path}/student_data.csv", data)
     write_csv(f"{path}/phds.csv", phds)
 
