@@ -222,6 +222,8 @@ def fix_advisors(students: StudentsType,
         email_prefix_to_advisor[row['NetID']] = ';'.join(advisors)
 
     for netid, student in students.items():
+        if netid not in email_prefix_to_advisor:
+            continue
         email_prefix = netid
         student['Advisor'] = email_prefix_to_advisor[email_prefix]
 
