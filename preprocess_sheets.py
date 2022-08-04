@@ -282,6 +282,9 @@ def add_in_bank_join(students: StudentsType,
         join[netid] = student['Join']
 
     for netid, student in students.items():
+        if netid not in bank or netid not in join:
+            print('Student with netid', netid, 'found in student form responses but not in planning spreadsheet')
+            continue
         student['Bank'] = bank[netid]
         student['Join'] = join[netid]
     return students
