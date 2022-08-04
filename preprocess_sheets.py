@@ -459,7 +459,10 @@ def format_netid(email: str) -> str:
 def format_course_list(courses: str) -> List[str]:
     courses = courses.replace(',', ';')
     courses = courses.replace(' ', '')
-    return courses.split(';')
+    courses = courses.split(';')
+    for i in range(len(courses)):
+        courses[i] = re.search('([A-z]{3}?\s[0-9]{3})', courses[i])
+    return courses
 
 
 def format_student(student: StudentType, courses: CoursesType,
