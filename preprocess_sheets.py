@@ -267,6 +267,8 @@ def parse_notes(student_info: StudentInfoType) -> NotesType:
 def add_in_notes(students: StudentsType,
                  student_notes: NotesType) -> StudentsType:
     for netid, info in students.items():
+        if netid not in student_notes:
+            continue
         info['Notes'] = student_notes[netid]
         students[netid] = info
     return students
