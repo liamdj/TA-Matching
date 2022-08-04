@@ -122,7 +122,7 @@ def parse_student_preferences(
         student_prefs: List[Dict[str, str]]) -> StudentsType:
     students = {}
     cols = {'Email': 'NetID', 'Name': 'Name', 'Advisor': 'Advisor',
-            'What courses at Princeton': 'Previous', 'Favorite': 'Favorite',
+            'previously': 'Previous', 'Favorite': 'Favorite',
             'Good': 'Good', 'OK Match': 'OK', 'Sorted': 'Sorted'}
 
     student_prefs = switch_keys_from_rows(student_prefs, cols, True)
