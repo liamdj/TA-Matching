@@ -374,8 +374,6 @@ def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
     List[str]]:
     num = str(course['Course'])
     slots = course['TAs']
-    if int(slots) == 0:
-        return None
     weight = '' if 'Weight' not in course else course['Weight']
     title = course['Title']
     instructors = ';'.join(re.split(r'[;,]', course['Instructor']))
