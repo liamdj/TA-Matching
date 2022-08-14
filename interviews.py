@@ -175,6 +175,9 @@ def create_interview_list(course_data: pd.DataFrame, student_data: pd.DataFrame,
     cumulative_percentages = initialize_cumulative_percentages(
         len(student_data.index), len(course_data.index), initial_matches)
 
+    # TODO: the default value of 0.0 is the value to change in case you want to
+    #  limit the simulations to only allowing a student to match with courses
+    #  they listed
     weights = matching.match_weights(
         student_data, course_data, adjusted_path, 0.0, True)
     for simulation_num in range(len(buckets)):
