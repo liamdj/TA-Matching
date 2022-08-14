@@ -347,6 +347,9 @@ def get_fac_prefs(instructor_preferences_sheet_id: str) -> FacultyPrefsType:
     fac_prefs = {}
     switched_keys = switch_keys_from_rows(tab, cols, True)
     for row in switched_keys:
+        course_code = re.search('[A-z]{3}[\s]?[0-9]{3}', str(row['Course']))
+        if course_code:
+            row['Course'] = course_code.group()
         fac_prefs[row['Course']] = row
     return fac_prefs
 
@@ -384,6 +387,8 @@ def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
             course_code = f'COS {num}'
         else:  # if course num is from another department
             course_code = num.replace(' ', '')
+    else:
+        course_code = num
 
     sort_fav = ''
     if course_code in prefs:
