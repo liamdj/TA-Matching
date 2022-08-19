@@ -286,11 +286,18 @@ def add_in_bank_join(students: StudentsType,
         bank[netid] = student['Bank']
         join[netid] = student['Join']
 
+    to_delete = set()
     for netid, student in students.items():
         if netid not in bank or netid not in join:
             continue
         student['Bank'] = bank[netid]
         student['Join'] = join[netid]
+        if not join[netid]:
+            to_delete.add(netid)
+
+    for netid in to_delete:
+        del students[netid]
+
     return students
 
 
