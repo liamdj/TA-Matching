@@ -3,6 +3,7 @@ import csv
 import datetime
 import os
 import re
+import sys
 from typing import Union, Any, Optional, List, Dict, Tuple, Set
 
 import g_sheet_consts as gs_consts
@@ -287,7 +288,6 @@ def add_in_bank_join(students: StudentsType,
 
     for netid, student in students.items():
         if netid not in bank or netid not in join:
-            print('Student with netid', netid, 'found in student form responses but not in planning spreadsheet')
             continue
         student['Bank'] = bank[netid]
         student['Join'] = join[netid]
@@ -309,6 +309,21 @@ def get_students(planning_sheet_worksheets: List[write_gs.Worksheet],
     assigned = parse_pre_assign(student_info)
     years = parse_years(student_info)
     students = parse_student_preferences(student_preferences_tab)
+
+    diffs = []
+    for netid, name in names.items():
+        if netid not in students:
+            diffs.append(f"{netid} ({name})")
+    if diffs:
+        print(f"In the planning sheet but did not submit preferences:", diffs)
+
+    diffs = []
+    for student, student_prefs_info in students.items():
+        if student not in names:
+            diffs.append(f"{student} ({student_prefs_info['Name']})")
+    if diffs:
+        sys.exit(f"Terminating: the following students submitted preferences but are not in the planning sheet: {diffs}")
+
     students = add_in_bank_join(students, student_info)
     # in case assigned students did not send in preferences
     students = add_in_assigned(students, assigned, names)
@@ -468,7 +483,7 @@ def format_course_list(courses: str) -> List[str]:
         course_code = re.search('[A-z]{3}[\s]?[0-9]{3}', courses[i])
         if course_code:
             courses[i] = course_code.group()
-        else:
+        elif courses[i]:
             print('Got bad course in student course list:', courses[i])
     return courses
 
@@ -585,6 +600,8 @@ def write_adjusted(path: str, adjusted: AdjustedType):
 
 def validate_bank_join_values(students: StudentsType, years: YearsType):
     for netid, student in students.items():
+        if 'Bank' not in student or 'Join' not in student:
+            print(f"{netid} has no bank or student column")
         if student['Bank'] and student['Join']:
             print(f"{netid} has both a bank and a join entry")
         if 'MSE' in years[netid] and (student['Bank'] or student['Join']):
