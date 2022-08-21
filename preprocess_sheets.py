@@ -292,9 +292,10 @@ def add_in_bank_join(students: StudentsType,
             continue
         student['Bank'] = bank[netid]
         student['Join'] = join[netid]
-        if not join[netid]:
+        if join[netid] == 0:
             to_delete.add(netid)
 
+    print("Ignoring students due to 0 join value:", to_delete)
     for netid in to_delete:
         del students[netid]
 
@@ -329,7 +330,8 @@ def get_students(planning_sheet_worksheets: List[write_gs.Worksheet],
         if student not in names:
             diffs.append(f"{student} ({student_prefs_info['Name']})")
     if diffs:
-        sys.exit(f"Terminating: the following students submitted preferences but are not in the planning sheet: {diffs}")
+        sys.exit(
+            f"Terminating: the following students submitted preferences but are not in the planning sheet: {diffs}")
 
     students = add_in_bank_join(students, student_info)
     # in case assigned students did not send in preferences
@@ -386,9 +388,9 @@ def format_pref_list(pref: str) -> List[str]:
     netids = []
     # if they include parens. .*? means shortest match.
     pref = re.sub(r'\(.*?\)', '', pref)
-    parts = pref.split(',')
+    parts = pref.replace('\n', '').replace('\r', '').split(',')
     for part in parts:
-        part = re.sub(r'.*<', '', part)  # netid starts after open bracket
+        part = re.sub(r'.*([<‹])', '', part)  # netid starts after open bracket
         part = re.sub(r'@.*', '', part)  # netid ends at @ sign
         if part:
             netids.append(part)

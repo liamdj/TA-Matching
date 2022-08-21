@@ -127,4 +127,4 @@ if __name__ == "__main__":
         'tab_titles', type=str, nargs='+',
         help='the exact titles of the tabs to delete')
     remove_worksheets_for_executions(
-        [tab for tab in parser.parse_args().tab_titles])
+        [tab.zfill(3) for tab in parser.parse_args().tab_titles])
