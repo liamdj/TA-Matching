@@ -32,7 +32,8 @@ class MatchingGraph:
 
         self.num_students = len(student_weights)
         self.num_courses = len(course_info.index)
-        self.slots = course_info['Slots'].sum()
+        self.slots = int(course_info['Slots'].fillna(
+            0).replace(r'\s+', 0, regex=True).sum())
         source, sink = range(
             self.num_students + self.num_courses + self.slots,
             2 + self.num_students + self.num_courses + self.slots)
@@ -135,7 +136,7 @@ class MatchingGraph:
     def write_matching(self, filename: str, weights: np.ndarray,
                        student_data: pd.DataFrame, course_data: pd.DataFrame,
                        fixed_matches: pd.DataFrame) -> Tuple[
-        float, int, List[Tuple[int, int]]]:
+            float, int, List[Tuple[int, int]]]:
 
         matches = self.get_matching(fixed_matches, weights)
         slots_filled = self.get_slots_filled(matches)
@@ -171,14 +172,15 @@ class MatchingGraph:
                     is_previous = course in student_data.loc[
                         student, "Previous"].split(';')
                     for instructor in course_data.loc[
-                        course, "Instructor"].split(';'):
+                            course, "Instructor"].split(';'):
                         is_advisor_advisee = is_advisor_advisee or instructor in \
-                                             student_data.loc[
-                                                 student, "Advisors"].split(';')
+                            student_data.loc[
+                                student, "Advisors"].split(';')
                     output.append(
                         [student, name, notes, course,
                          "{} / {}".format(slots_filled[ci], slots),
-                         "{:.2f}".format(weights[si, ci]), is_fixed, year, bank,
+                         "{:.2f}".format(
+                             weights[si, ci]), is_fixed, year, bank,
                          join, is_previous, is_advisor_advisee,
                          s_weight, s_rank, c_rank])
 

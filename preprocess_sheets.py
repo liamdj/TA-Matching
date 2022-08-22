@@ -78,7 +78,7 @@ YearsType = Dict[str, str]
 
 
 def get_rows_with_tab_title(sheet_id: str, tab_title: str) -> Union[
-    list, List[dict]]:
+        list, List[dict]]:
     sheet = write_gs.get_sheet_by_id(sheet_id).worksheet(tab_title)
     all_rows = sheet.get_all_records()
     return all_rows
@@ -295,16 +295,17 @@ def add_in_bank_join(students: StudentsType,
         if join[netid] == 0:
             to_delete.add(netid)
 
-    print("Ignoring students due to 0 join value:", to_delete)
-    for netid in to_delete:
-        del students[netid]
+    if to_delete:
+        print("Ignoring students due to 0 join value:", to_delete)
+        for netid in to_delete:
+            del students[netid]
 
     return students
 
 
 def get_students(planning_sheet_worksheets: List[write_gs.Worksheet],
                  student_preferences_sheet_id: str) -> Tuple[
-    AssignedType, YearsType, StudentsType]:
+        AssignedType, YearsType, StudentsType]:
     student_info = get_student_info(planning_sheet_worksheets)
     student_preferences_tab = get_rows_with_tab_title(
         student_preferences_sheet_id, gs_consts.PREFERENCES_INPUT_TAB_TITLE)
@@ -353,7 +354,7 @@ def get_student_info(
 
 
 def get_courses(planning_sheet_id: str) -> Tuple[
-    CoursesType, str, List[write_gs.Worksheet]]:
+        CoursesType, str, List[write_gs.Worksheet]]:
     planning_sheet = write_gs.get_sheet_by_id(planning_sheet_id)
     planning_worksheets = planning_sheet.worksheets()
     ws = write_gs.get_worksheet_from_worksheets(
@@ -398,7 +399,7 @@ def format_pref_list(pref: str) -> List[str]:
 
 
 def format_course(course: CourseValue, prefs: FacultyPrefsType) -> Optional[
-    List[str]]:
+        List[str]]:
     num = str(course['Course'])
     slots = course['TAs']
     weight = '' if 'Weight' not in course else course['Weight']
@@ -631,7 +632,7 @@ def write_csvs(planning_sheet_id: str, student_prefs_sheet_id: str,
                instructor_prefs_sheet_id: str,
                previous_matching_ws_title: str = None,
                output_directory_title: str = None) -> Tuple[
-    str, str, str, str, List[write_gs.Worksheet]]:
+        str, str, str, str, List[write_gs.Worksheet]]:
     fac_prefs = get_fac_prefs(instructor_prefs_sheet_id)
     courses, planning_sheet_title, planning_sheet_worksheets = get_courses(
         planning_sheet_id)
